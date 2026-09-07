@@ -10,31 +10,31 @@ class SalleTempAttrServiceImpl : SalleTempAttrService {
     private val salleTempAttrService: SalleTempAttrService = PersistenceFactory().getSalleTempAttrDataService()
 
     override fun getBySalle(salleId: Int): SalleTempAttr? {
-        TODO("Not yet implemented")
+        return salleTempAttrService.getBySalle(salleId)
     }
 
     override fun getBySalle(salle: Salle): SalleTempAttr? {
-        TODO("Not yet implemented")
+        return salleTempAttrService.getBySalle(salle)
     }
 
     override fun add(t: SalleTempAttr) {
-        TODO("Not yet implemented")
+        salleTempAttrService.add(t)
     }
 
     override fun update(t: SalleTempAttr) {
-        TODO("Not yet implemented")
+        salleTempAttrService.update(t)
     }
 
     override fun remove(t: SalleTempAttr) {
-        TODO("Not yet implemented")
+        salleTempAttrService.remove(t)
     }
 
     override fun getAll(): List<SalleTempAttr> {
-        TODO("Not yet implemented")
+        return salleTempAttrService.getAll()
     }
 
     override fun getById(id: Long): SalleTempAttr? {
-        TODO("Not yet implemented")
+        return salleTempAttrService.getById(id)
     }
 
 }

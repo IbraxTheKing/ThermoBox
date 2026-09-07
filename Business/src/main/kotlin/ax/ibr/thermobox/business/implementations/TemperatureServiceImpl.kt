@@ -9,22 +9,22 @@ class TemperatureServiceImpl : TemperatureService {
     private val temperatureService = PersistenceFactory().getTemperatureDataService()
 
     override fun add(t: Temperature) {
-        TODO("Not yet implemented")
+        temperatureService.add(t)
     }
 
     override fun update(t: Temperature) {
-        TODO("Not yet implemented")
+        temperatureService.update(t)
     }
 
     override fun remove(t: Temperature) {
-        TODO("Not yet implemented")
+        temperatureService.remove(t)
     }
 
     override fun getAll(): List<Temperature> {
-        TODO("Not yet implemented")
+        return temperatureService.getAll()
     }
 
     override fun getById(id: Long): Temperature? {
-        TODO("Not yet implemented")
+        return temperatureService.getById(id)
     }
 }
