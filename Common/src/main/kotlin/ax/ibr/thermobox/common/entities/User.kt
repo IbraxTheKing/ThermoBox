@@ -1,11 +1,10 @@
 package ax.ibr.thermobox.common.entities
 
+import ax.ibr.utils.Cryptographic
 import jakarta.persistence.*
 
 @Entity
 class User {
-
-    private var name: String
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,12 +18,16 @@ class User {
         private set
 
     fun isPasswordValid(password: String): Boolean {
-        return TODO("Provide the return value")
+        return (Cryptographic(key = TODO()).encrypt(password)
+                ==
+                Cryptographic(key = TODO()).encrypt(this.password))
     }
 
     constructor(name: String, password: String) {
-        this.name = name
-        this.password = password
+        this.username = name
+        this.password = Cryptographic(
+            key = TODO()
+        ).encrypt(password)
         this.type = UserType.VIEWER
     }
 
