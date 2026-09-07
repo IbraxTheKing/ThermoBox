@@ -32,7 +32,7 @@ class PersistenceFactory {
         return userService
     }
 
-    fun getSalleService() : SalleDataService {
+    fun getSalleDataService() : SalleDataService {
         if (!::salleService.isInitialized) {
             if (!JDBC) {
                 salleService = SalleDataServiceJPAImpl(PU, entityManager, Salle::class.java)
@@ -42,7 +42,7 @@ class PersistenceFactory {
         return salleService
     }
 
-    fun getSalleTempAttrService() : SalleTempAttrDataService {
+    fun getSalleTempAttrDataService() : SalleTempAttrDataService {
         if (!::salleTempAttrService.isInitialized) {
             if (!JDBC) {
                 salleTempAttrService = SalleTempAttrDataServiceJPAImpl(PU, entityManager, SalleTempAttr::class.java)
@@ -52,7 +52,7 @@ class PersistenceFactory {
         return salleTempAttrService
     }
 
-    fun getTemperatureService() : TemperatureDataService {
+    fun getTemperatureDataService() : TemperatureDataService {
         if (!::temperatureService.isInitialized) {
             if (!JDBC) {
                 temperatureService = TemperatureDataServiceJPAImlp(PU, entityManager, TemperatureDataService::class.java)
