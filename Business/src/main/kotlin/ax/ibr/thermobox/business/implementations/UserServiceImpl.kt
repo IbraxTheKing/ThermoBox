@@ -1,4 +1,4 @@
-package org.example.ax.ibr.thermobox.business.implementations
+package ax.ibr.thermobox.business.implementations
 
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType

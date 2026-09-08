@@ -4,7 +4,7 @@ import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.common.services.UserService
-import org.example.ax.ibr.thermobox.business.implementations.UserServiceImpl
+import ax.ibr.thermobox.business.implementations.UserServiceImpl
 
 class BusinessFactory {
 
