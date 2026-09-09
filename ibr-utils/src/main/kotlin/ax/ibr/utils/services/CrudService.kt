@@ -35,6 +35,15 @@ interface CrudService<T> {
      */
     fun update(t: T)
 
+    /**
+     * Returns 'update(t: T)'
+     *
+     * @param t entity containing updated values
+     */
+    fun save(t: T) {
+        return update(t)
+    }
+
 
     /**
      * Removes an existing entity.
@@ -43,6 +52,14 @@ interface CrudService<T> {
      */
     fun remove(t: T)
 
+    /**
+     * Returns 'remove(t: T)'
+     *
+     * @param t entity to delete
+     */
+    fun delete(t: T) {
+        return delete(t)
+    }
 
     /**
      * Retrieves all entities.
@@ -51,6 +68,14 @@ interface CrudService<T> {
      */
     fun getAll(): List<T>
 
+    /**
+     * Returns 'getAll()'
+     *
+     * @return list of all entities
+     */
+    fun findAll(): List<T> {
+        return findAll()
+    }
 
     /**
      * Retrieves an entity by its identifier.
@@ -59,4 +84,14 @@ interface CrudService<T> {
      * @return the entity if found, otherwise null
      */
     fun getById(id: Long): T?
+
+    /**
+     * Returns 'getById(id: Long)'
+     *
+     * @param id unique identifier of the entity
+     * @return the entity if found, otherwise null
+     */
+    fun findById(id: Long): T? {
+        return getById(id)
+    }
 }
