@@ -1,11 +1,16 @@
 package ax.ibr.thermobox.common.entities
 
-import ax.ibr.thermobox.common.services.SalleService
-import jakarta.persistence.Entity
-import jakarta.persistence.Id
+import jakarta.persistence.*
 
 @Entity
 class SalleTempAttr(
+    @ManyToOne
+    var salle: Salle,
+
+    @OneToOne(cascade = [CascadeType.ALL])
+    var temperature: Temperature
+) {
     @Id
-    var id: Long? = null,
-    salle: Salle, temperature: Temperature) {}
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    var id: Long? = null
+}

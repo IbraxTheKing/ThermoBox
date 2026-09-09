@@ -4,11 +4,11 @@ import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
 
 interface ProtocolDriver {
-    fun listen(): Void
+    fun listen()
 
-    fun listenToRooms(): Void
+    fun listenToRooms()
 
-    fun listenToTemperatures(): Void
+    fun listenToTemperatures()
 
-    fun sendConsigne(s: Salle, c: Consigne): Void
+    fun sendConsigne(s: Salle, c: Consigne)
 }
