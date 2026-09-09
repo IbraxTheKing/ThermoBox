@@ -6,7 +6,7 @@ import ax.ibr.utils.services.CrudService
 
 interface SalleTempAttrService: CrudService<SalleTempAttr> {
 
-    fun getBySalle(salleId: Int): SalleTempAttr?
+    fun getBySalle(salleId: Long): SalleTempAttr?
     fun getBySalle(salle: Salle): SalleTempAttr?
 
 

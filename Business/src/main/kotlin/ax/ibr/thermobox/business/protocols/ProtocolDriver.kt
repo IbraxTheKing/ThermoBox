@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.business.protocols
 
 import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleTempAttr
 
 interface ProtocolDriver {
     fun listen()
@@ -10,5 +10,5 @@ interface ProtocolDriver {
 
     fun listenToTemperatures()
 
-    fun sendConsigne(s: Salle, c: Consigne)
+    fun sendConsigne(s: SalleTempAttr?, c: Consigne)
 }

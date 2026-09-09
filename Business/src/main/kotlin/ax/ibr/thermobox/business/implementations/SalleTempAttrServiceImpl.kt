@@ -9,7 +9,7 @@ class SalleTempAttrServiceImpl : SalleTempAttrService {
 
     private val salleTempAttrService: SalleTempAttrService = PersistenceFactory().getSalleTempAttrDataService()
 
-    override fun getBySalle(salleId: Int): SalleTempAttr? {
+    override fun getBySalle(salleId: Long): SalleTempAttr? {
         return salleTempAttrService.getBySalle(salleId)
     }
 

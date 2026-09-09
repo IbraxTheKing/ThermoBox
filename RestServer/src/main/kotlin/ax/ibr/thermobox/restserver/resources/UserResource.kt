@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.utils.exceptions.AlreadyExistsException
@@ -15,6 +16,7 @@ import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
+
 
 @Path("/users")
 @Produces(MediaType.APPLICATION_JSON)

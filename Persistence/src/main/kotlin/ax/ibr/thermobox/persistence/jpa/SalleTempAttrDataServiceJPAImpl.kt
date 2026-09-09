@@ -10,7 +10,7 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
                                       entityClass: Class<SalleTempAttr>
 ) : SalleTempAttrDataService, CrudJpaService<SalleTempAttr>(em, entityClass) {
 
-    override fun getBySalle(salleId: Int): SalleTempAttr? {
+    override fun getBySalle(salleId: Long): SalleTempAttr? {
         TODO("Not yet implemented")
     }
 
