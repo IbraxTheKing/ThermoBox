@@ -13,14 +13,16 @@ class User {
     var username: String? = null
 
     private var password: String? = null
-
+        set(password) {
+            field = Cryptographic(TODO()).encrypt(password!!)
+        }
     final var type: UserType? = null
         private set
 
     fun isPasswordValid(password: String): Boolean {
         return (Cryptographic(key = TODO()).encrypt(password)
                 ==
-                Cryptographic(key = TODO()).encrypt(this.password))
+                Cryptographic(key = TODO()).decrypt(this.password))
     }
 
     constructor(name: String, password: String) {
@@ -30,8 +32,5 @@ class User {
         ).encrypt(password)
         this.type = UserType.VIEWER
     }
-
-
-
 
 }

@@ -6,5 +6,9 @@ class Cryptographic(key: String) {
         return ""
     }
 
+    fun decrypt(password: String?): String {
+        return ""
+    }
+
 
 }

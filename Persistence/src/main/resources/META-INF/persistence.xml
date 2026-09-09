@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="
+             https://jakarta.ee/xml/ns/persistence
+             https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd"
+             version="3.0">
+
+    <persistence-unit name="thermoboxPU">
+
+        <provider>
+            org.eclipse.persistence.jpa.PersistenceProvider
+        </provider>
+
+        <class>ax.ibr.thermobox.common.entities.User</class>
+        <class>ax.ibr.thermobox.common.entities.Temperature</class>
+        <class>ax.ibr.thermobox.common.entities.Salle</class>
+        <class>ax.ibr.thermobox.common.entities.SalleTempAttr</class>
+
+        <properties>
+
+            <property name="jakarta.persistence.jdbc.driver"
+                      value="com.mysql.cj.jdbc.Driver"/>
+
+            <property name="jakarta.persistence.jdbc.url"
+                      value="jdbc:mysql://localhost:3306/thermobox"/>
+
+            <property name="jakarta.persistence.jdbc.user"
+                      value="thermobox"/>
+
+            <property name="jakarta.persistence.jdbc.password"
+                      value="1010"/>
+
+            <property name="jakarta.persistence.schema-generation.database.action"
+                      value="create"/>
+
+        </properties>
+
+    </persistence-unit>
+
+</persistence>

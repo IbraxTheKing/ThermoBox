@@ -20,7 +20,7 @@ class PersistenceFactory {
     private lateinit var salleTempAttrService: SalleTempAttrDataService
 
     private val JDBC: Boolean = false
-    private val PU: String = ""
+    private val PU: String = "thermoboxPU"
 
     private val entityManager: EntityManager by lazy {
         Persistence.createEntityManagerFactory(PU).createEntityManager()

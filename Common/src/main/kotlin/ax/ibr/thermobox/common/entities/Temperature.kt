@@ -6,6 +6,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import java.sql.Date
 
+
 @Entity
 class Temperature {
     @Id
@@ -14,9 +15,7 @@ class Temperature {
 
     final var value: Float? = null
 
-
     final var date: Date? = null
-
 
     constructor(value: Float, date: Date) {
         this.value = value
