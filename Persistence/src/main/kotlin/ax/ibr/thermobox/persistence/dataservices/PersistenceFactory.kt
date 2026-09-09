@@ -2,7 +2,11 @@ package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
+import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.Persistence
@@ -55,7 +59,7 @@ class PersistenceFactory {
     fun getTemperatureDataService() : TemperatureDataService {
         if (!::temperatureService.isInitialized) {
             if (!JDBC) {
-                temperatureService = TemperatureDataServiceJPAImlp(PU, entityManager, TemperatureDataService::class.java)
+                temperatureService = TemperatureDataServiceJPAImpl(PU, entityManager, Temperature::class.java)
             }
             // TODO: Faire la version JDBC
         }
