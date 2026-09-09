@@ -1,8 +1,20 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.common.entities.User
 import ax.ibr.utils.exceptions.AlreadyExistsException
 import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole
+import jakarta.ws.rs.Consumes
+import jakarta.ws.rs.DELETE
+import jakarta.ws.rs.GET
+import jakarta.ws.rs.POST
+import jakarta.ws.rs.PUT
+import jakarta.ws.rs.Path
+import jakarta.ws.rs.PathParam
+import jakarta.ws.rs.Produces
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.Response
 
 @Path("/users")
 @Produces(MediaType.APPLICATION_JSON)
@@ -77,7 +89,7 @@ class UserResource {
     @Path("/username/{username}")
     fun getByUsername(
         @PathParam("username") username: String
-    ): List<User> {
+    ): User? {
         return service.getByUsername(username)
     }
 }

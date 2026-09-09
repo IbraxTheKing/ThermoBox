@@ -91,6 +91,39 @@
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
+            <!-- Pulls in JettyHttpContainerFactory -->
+            <dependency>
+                <groupId>org.glassfish.jersey.containers</groupId>
+                <artifactId>jersey-container-jetty-http</artifactId>
+                <version>4.0.2</version>
+            </dependency>
+
+            <!-- Pulls in ResourceConfig -->
+            <dependency>
+                <groupId>org.glassfish.jersey.core</groupId>
+                <artifactId>jersey-server</artifactId>
+                <version>4.0.2</version>
+            </dependency>
+
+            <!-- Required for Jersey Runtime DI initialization -->
+            <dependency>
+                <groupId>org.glassfish.jersey.inject</groupId>
+                <artifactId>jersey-hk2</artifactId>
+                <version>4.0.2</version>
+            </dependency>
+        <dependency>
+            <groupId>ax.ibr</groupId>
+            <artifactId>Common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>ax.ibr</groupId>
+            <artifactId>Business</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
 </project>
