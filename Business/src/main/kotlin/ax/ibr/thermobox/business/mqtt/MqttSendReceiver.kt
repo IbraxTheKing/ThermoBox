@@ -65,8 +65,8 @@ class MqttSendReceiver(
         }
     }
 
-    override fun sendConsigne(s: SalleTempAttr?, c: Consigne) {
-        val salleId = requireNotNull(s.id) {
+    override fun sendConsigne(s: Salle?, c: Consigne) {
+        val salleId = requireNotNull(s?.id) {
             throw NullException("La salle doit avoir un id pour envoyer une consigne") }
         val payload = c.value?.toString() ?: return
         val message = MqttMessage(payload.toByteArray()).apply {

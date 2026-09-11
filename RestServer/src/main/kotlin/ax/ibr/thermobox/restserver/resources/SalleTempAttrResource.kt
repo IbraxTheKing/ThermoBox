@@ -33,11 +33,10 @@ class SalleTempAttrResource {
     @Path("room/{id}/temperature/consigne/{consigne}")
     fun sendConsigne(@PathParam("consigne") consigne: Consigne, @PathParam("id") id: Long): Response {
         try {
-            requestBoxes.sendConsigne(service.getBySalle(id), consigne)
+            requestBoxes.sendConsigne(service.getBySalle(id)?.salle, consigne)
         } catch (ex: Exception) {
             throw ex
         }
-
         return Response.ok().build()
     }
 
