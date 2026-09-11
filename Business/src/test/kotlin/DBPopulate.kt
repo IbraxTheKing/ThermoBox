@@ -4,6 +4,7 @@ import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import java.sql.Date
+import java.time.LocalDateTime
 import kotlin.random.Random
 
 /**
@@ -53,7 +54,7 @@ object DatabaseSeeder {
         salles.forEach { salle ->
             repeat(3) {
                 val value = Random.nextFloat() * (28f - 15f) + 15f
-                val temperature = Temperature(value, Date(System.currentTimeMillis()))
+                val temperature = Temperature(value, LocalDateTime.now())
                 temperatureService.add(temperature)
                 salleTempAttrService.add(SalleTempAttr(salle, temperature))
                 println("Température ajoutée pour ${salle.name} : %.2f°C".format(value))
