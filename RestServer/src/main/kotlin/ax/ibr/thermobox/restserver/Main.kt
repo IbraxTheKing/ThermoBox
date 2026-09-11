@@ -4,9 +4,12 @@ import ax.ibr.thermobox.business.implementations.SalleServiceImpl
 import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl
 import ax.ibr.thermobox.business.implementations.TemperatureServiceImpl
 import ax.ibr.thermobox.business.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.common.entities.Consigne
+import ax.ibr.thermobox.common.entities.Salle
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import java.net.URI
+import java.sql.Date
 
 fun main() {
 
@@ -24,7 +27,12 @@ fun main() {
         salleService = SalleServiceImpl(),
         temperatureService = TemperatureServiceImpl(),
         salleTempAttrService = SalleTempAttrServiceImpl(),
-    ).listen()
+    )
+
+    simulatedProtocolDriver.listen()
+
+    simulatedProtocolDriver.sendConsigne(SalleServiceImpl().getById(1)!!,Consigne(15.0f, Date(System.currentTimeMillis())))
+
 
     println("REST server started on http://localhost:8080/")
 

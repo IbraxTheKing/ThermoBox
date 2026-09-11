@@ -17,6 +17,8 @@
         <class>ax.ibr.thermobox.common.entities.Temperature</class>
         <class>ax.ibr.thermobox.common.entities.Salle</class>
         <class>ax.ibr.thermobox.common.entities.SalleTempAttr</class>
+        <class>ax.ibr.thermobox.common.entities.Consigne</class>
+        <class>ax.ibr.thermobox.common.entities.Mesurer</class>
 
         <properties>
 

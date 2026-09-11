@@ -11,5 +11,5 @@ interface ProtocolDriver {
 
     fun listenToTemperatures()
 
-    fun sendConsigne(s: Salle?, c: Consigne)
+    fun sendConsigne(s: Salle, c: Consigne)
 }
