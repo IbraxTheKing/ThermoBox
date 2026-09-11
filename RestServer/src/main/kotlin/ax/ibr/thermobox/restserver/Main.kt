@@ -10,6 +10,7 @@ import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import java.net.URI
 import java.sql.Date
+import java.time.LocalDateTime
 
 fun main() {
 
@@ -31,7 +32,7 @@ fun main() {
 
     simulatedProtocolDriver.listen()
 
-    simulatedProtocolDriver.sendConsigne(SalleServiceImpl().getById(1)!!,Consigne(15.0f, Date(System.currentTimeMillis())))
+    simulatedProtocolDriver.sendConsigne(SalleServiceImpl().getById(1)!!,Consigne(15.0f, LocalDateTime.now()))
 
 
     println("REST server started on http://localhost:8080/")

@@ -14,6 +14,7 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import java.sql.Date
+import java.time.LocalDateTime
 import kotlin.getValue
 
 class MqttSendReceiver(
@@ -59,7 +60,7 @@ class MqttSendReceiver(
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
 
             val salle = salleService.getById(salleId) ?: return@subscribe
-            val temperature = Temperature(value, Date(System.currentTimeMillis()))
+            val temperature = Temperature(value, LocalDateTime.now())
             temperatureService.update(temperature)
             salleTempAttrService.update(SalleTempAttr(salle, temperature))
         }

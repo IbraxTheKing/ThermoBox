@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import java.sql.Date
+import java.time.LocalDateTime
 
 
 @Entity
@@ -15,9 +16,9 @@ class Temperature {
 
     final var value: Float? = null
 
-    final var date: Date? = null
+    final var date: LocalDateTime? = null
 
-    constructor(value: Float, date: Date) {
+    constructor(value: Float, date: LocalDateTime) {
         this.value = value
         this.date = date
     }

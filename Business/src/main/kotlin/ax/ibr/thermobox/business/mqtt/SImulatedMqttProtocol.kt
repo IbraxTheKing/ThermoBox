@@ -9,6 +9,7 @@ import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import java.sql.Date
+import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -71,7 +72,7 @@ class SimulatedProtocolDriver(
 
                 val salle = salles.random()
                 val value = Random.nextFloat() * (maxTemp - minTemp) + minTemp
-                val temperature = Temperature(value, Date(System.currentTimeMillis()))
+                val temperature = Temperature(value, LocalDateTime.now())
 
                 temperatureService.update(temperature)
                 salleTempAttrService.update(SalleTempAttr(salle, temperature))
