@@ -13,7 +13,6 @@
     <module>ibr-utils</module>
     <module>Common</module>
     <module>Business</module>
-    <module>ibr-utils</module>
     <module>Persistence</module>
     <module>Io</module>
     <module>RestServer</module>
@@ -38,7 +37,7 @@
     </dependency>
     <dependency>
       <groupId>org.jetbrains.kotlin</groupId>
-      <artifactId>kotlin-test</artifactId>
+      <artifactId>kotlin-test-junit</artifactId>
       <version>${kotlin.version}</version>
       <scope>test</scope>
     </dependency>
@@ -68,7 +67,7 @@
           </execution>
         </executions>
         <configuration>
-          <jvmTarget>1.8</jvmTarget>
+          <jvmTarget>23</jvmTarget>
         </configuration>
       </plugin>
       <plugin>
@@ -99,6 +98,7 @@
           </execution>
         </executions>
       </plugin>
+
     </plugins>
   </build>
 

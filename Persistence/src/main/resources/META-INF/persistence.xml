@@ -27,7 +27,7 @@
                       value="jdbc:mysql://localhost:3306/thermobox"/>
 
             <property name="jakarta.persistence.jdbc.user"
-                      value="thermobox"/>
+                      value="ibrr"/>
 
             <property name="jakarta.persistence.jdbc.password"
                       value="1010"/>

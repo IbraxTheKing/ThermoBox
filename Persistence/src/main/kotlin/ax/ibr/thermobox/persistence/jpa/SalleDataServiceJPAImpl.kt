@@ -10,7 +10,12 @@ class SalleDataServiceJPAImpl(pu: String, em: EntityManager,
 ) : SalleDataService, CrudJpaService<Salle>(em, entityClass) {
 
     override fun getByName(name: String): Salle? {
-        TODO("Not yet implemented")
+        return em.createQuery(
+            "SELECT s FROM Salle s WHERE s.name = :name",
+            Salle::class.java
+        ).setParameter("name", name)
+            .resultList
+            .firstOrNull()
     }
 
 }
