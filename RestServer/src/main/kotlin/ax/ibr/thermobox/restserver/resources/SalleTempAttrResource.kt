@@ -14,7 +14,7 @@ import java.sql.Date
 import java.time.Instant
 import java.time.LocalDateTime
 
-@Path("/salletemps")
+@Path("api/salletemps")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class SalleTempAttrResource {

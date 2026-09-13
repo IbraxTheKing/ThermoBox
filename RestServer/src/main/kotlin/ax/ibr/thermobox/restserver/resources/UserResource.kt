@@ -18,7 +18,7 @@ import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 
 
-@Path("/users")
+@Path("api/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class UserResource {
