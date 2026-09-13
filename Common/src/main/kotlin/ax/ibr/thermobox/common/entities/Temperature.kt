@@ -26,4 +26,7 @@ class Temperature {
     constructor()
 
 
+    override fun toString(): String {
+        return "Temperature(id=$id, value=$value)"
+    }
 }

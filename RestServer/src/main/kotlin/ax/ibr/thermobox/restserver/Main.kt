@@ -5,11 +5,10 @@ import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl
 import ax.ibr.thermobox.business.implementations.TemperatureServiceImpl
 import ax.ibr.thermobox.business.mqtt.SimulatedProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Temperature
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import java.net.URI
-import java.sql.Date
 import java.time.LocalDateTime
 
 fun main() {
@@ -36,5 +35,8 @@ fun main() {
 
 
     println("REST server started on http://localhost:8080/")
+
+    println(SalleServiceImpl().getAll())
+    println(SalleTempAttrServiceImpl().getCurrentTemperatureFromSalle(salle = SalleServiceImpl().getById(1)!!, Temperature()))
 
 }

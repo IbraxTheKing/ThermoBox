@@ -92,6 +92,14 @@ class SimulatedProtocolDriver(
 
     }
 
+    override fun askForTemperature(s: Salle) {
+        TODO("Not yet implemented")
+    }
+
+    override fun askForConsigne(s: Salle) {
+        TODO("Not yet implemented")
+    }
+
     /** Arrête proprement les tâches planifiées. */
     fun stop() {
         running = false

@@ -9,4 +9,7 @@ class Salle(var name: String?) {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
 
+    override fun toString(): String {
+        return "Salle(id=$id, name=$name)"
+    }
 }

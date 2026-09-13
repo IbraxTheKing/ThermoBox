@@ -13,4 +13,8 @@ class SalleTempAttr(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
+
+    override fun toString(): String {
+        return "Attr(id=$id, temperature=$temperature / salle=$salle)"
+    }
 }

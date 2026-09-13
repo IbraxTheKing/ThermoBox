@@ -74,7 +74,7 @@ interface CrudService<T> {
      * @return list of all entities
      */
     fun findAll(): List<T> {
-        return findAll()
+        return getAll()
     }
 
     /**

@@ -76,4 +76,12 @@ class MqttSendReceiver(
         }
         client.publish(consigneTopic(salleId), message)
     }
+
+    override fun askForTemperature(s: Salle) {
+        TODO("Not yet implemented")
+    }
+
+    override fun askForConsigne(s: Salle) {
+        TODO("Not yet implemented")
+    }
 }

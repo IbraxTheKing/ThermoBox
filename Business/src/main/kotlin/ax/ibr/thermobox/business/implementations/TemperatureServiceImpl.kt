@@ -8,6 +8,14 @@ class TemperatureServiceImpl : TemperatureService {
 
     private val temperatureService = PersistenceFactory().getTemperatureDataService()
 
+    override fun getByType(temperatureClass: Temperature): List<Temperature>? {
+        return temperatureService.getByType(temperatureClass)
+    }
+
+    override fun getAverage(temperatureClass: Temperature): Temperature? {
+        return temperatureService.getAverage(temperatureClass)
+    }
+
     override fun add(t: Temperature) {
         temperatureService.add(t)
     }
@@ -27,4 +35,5 @@ class TemperatureServiceImpl : TemperatureService {
     override fun getById(id: Long): Temperature? {
         return temperatureService.getById(id)
     }
+
 }
