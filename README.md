@@ -291,8 +291,6 @@ MIT
 ## Notes perso
 
 - Le projet est jeune (6 jours) et en cours d'itération
-- Le client web a un design soigné et réactif (inspiration IA, mais fonctionnel)
 - La structure multi-modules est un bon exercice, même si pour une petite app on pourrait tout fusionner
 - Le système de rôles est basique mais extensible
-- À terme, il serait bien de faire une vraie intégration MQTT end-to-end avec des vrais capteurs (ou simulés mais de façon plus robuste)
 
