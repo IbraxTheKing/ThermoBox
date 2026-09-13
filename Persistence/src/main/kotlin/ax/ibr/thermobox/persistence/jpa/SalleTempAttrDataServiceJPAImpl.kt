@@ -1,20 +1,23 @@
 package ax.ibr.thermobox.persistence.jpa
 
 import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.dataservices.SalleTempAttrDataService
 import ax.ibr.utils.services.jpa.CrudJpaService
 import jakarta.persistence.EntityManager
-import java.sql.Date
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
                                       entityClass: Class<SalleTempAttr>
 ) : SalleTempAttrDataService, CrudJpaService<SalleTempAttr>(em, entityClass) {
+
+    // Instant (UTC, venant de l'API) -> LocalDateTime (sans fuseau, tel que stocké en base)
+    private fun Instant.toLocal(): LocalDateTime =
+        LocalDateTime.ofInstant(this, ZoneId.systemDefault())
 
     override fun getBySalle(salleId: Long): List<SalleTempAttr>? {
         val result = em.createQuery(
@@ -64,14 +67,12 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
     override fun getCurrentTemperaturesFromSalle(salle: Salle): List<Temperature>? {
         val salleId = salle.id ?: return null
 
-        // Récupère tous les types de Temperature déjà enregistrés pour cette salle
         val types = em.createQuery(
             "SELECT DISTINCT TYPE(sta.temperature) FROM SalleTempAttr sta WHERE sta.salle.id = :salleId",
             Class::class.java
         ).setParameter("salleId", salleId)
             .resultList
 
-        // Pour chaque type, garde la mesure la plus récente
         val result = types.mapNotNull { type ->
             em.createQuery(
                 "SELECT sta.temperature FROM SalleTempAttr sta " +
@@ -108,13 +109,13 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
         val salleId = salle.id ?: return emptyList()
         return em.createQuery(
             "SELECT sta.temperature FROM SalleTempAttr sta " +
-                    "WHERE sta.salle.id = :salleId " +
+                    "WHERE sta.salle.id = :salleId AND TYPE(sta.temperature) = Mesurer " +
                     "AND sta.temperature.date BETWEEN :start AND :end " +
                     "ORDER BY sta.temperature.date ASC",
             Temperature::class.java
         ).setParameter("salleId", salleId)
-            .setParameter("start", Date(start.toEpochMilli()))
-            .setParameter("end", Date(end.toEpochMilli()))
+            .setParameter("start", start.toLocal())
+            .setParameter("end", end.toLocal())
             .resultList
     }
 
@@ -131,8 +132,8 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
                     "ORDER BY sta.temperature.date ASC",
             Consigne::class.java
         ).setParameter("salleId", salleId)
-            .setParameter("start", Date(start.toEpochMilli()))
-            .setParameter("end", Date(end.toEpochMilli()))
+            .setParameter("start", start.toLocal())
+            .setParameter("end", end.toLocal())
             .resultList
     }
 
@@ -157,7 +158,6 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
         start: Instant,
         end: Instant
     ): List<Temperature> {
-        // Moyenne groupée par jour sur la période
         val salleId = salle.id ?: return emptyList()
         val rows = em.createQuery(
             "SELECT FUNCTION('DATE', sta.temperature.date), AVG(sta.temperature.value) " +
@@ -168,14 +168,14 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
                     "ORDER BY FUNCTION('DATE', sta.temperature.date) ASC",
             Array<Any>::class.java
         ).setParameter("salleId", salleId)
-            .setParameter("start", Date(start.toEpochMilli()))
-            .setParameter("end", Date(end.toEpochMilli()))
+            .setParameter("start", start.toLocal())
+            .setParameter("end", end.toLocal())
             .resultList
 
         return rows.map { row ->
-            val day = row[0] as Date
+            val day = row[0] as java.sql.Date
             val avg = (row[1] as Number).toFloat()
-            Mesurer(avg, LocalDateTime.now())
+            Temperature(avg, day.toLocalDate().atStartOfDay())
         }
     }
 }

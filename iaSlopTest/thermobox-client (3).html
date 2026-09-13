@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thermobox — Supervision</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0e1a17;
+    --panel: #132522;
+    --panel-2: #1a332c;
+    --border: #24443b;
+    --border-soft: #1d3831;
+    --text: #e8f2ec;
+    --muted: #6f9385;
+    --muted-2: #4f7266;
+    --measured: #7fe7c4;
+    --measured-dim: #3f7d68;
+    --consigne: #d9a95e;
+    --consigne-dim: #8a6d3c;
+    --danger: #e2665c;
+    --radius: 3px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    height: 100%;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(127,231,196,0.05), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(217,169,94,0.04), transparent 40%);
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-soft);
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .brand .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--measured);
+    box-shadow: 0 0 8px var(--measured);
+  }
+
+  .brand .dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+  .brand h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .conn {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .conn input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    width: 260px;
+  }
+
+  .conn input:focus { outline: none; border-color: var(--measured-dim); }
+
+  button {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 7px 14px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  button:hover { border-color: var(--muted-2); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  button.primary {
+    background: var(--measured);
+    color: #0a1815;
+    border-color: var(--measured);
+    font-weight: 600;
+  }
+  button.primary:hover { background: #93edcf; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 60px);
+  }
+
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border-soft);
+    padding: 16px 0;
+  }
+
+  .sidebar .label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted-2);
+    padding: 0 20px 10px;
+  }
+
+  .room-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+
+  .room-row:hover { background: var(--panel); }
+
+  .room-row.active {
+    background: var(--panel);
+    border-left-color: var(--measured);
+  }
+
+  .room-row .name { font-size: 14.5px; font-weight: 500; }
+  .room-row .sub { display: flex; gap: 10px; margin-top: 4px; }
+  .room-row .sub span { font-size: 12px; }
+  .room-row .sub .m { color: var(--measured); }
+  .room-row .sub .c { color: var(--consigne); }
+
+  .empty-note {
+    padding: 20px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  main {
+    padding: 24px 32px 40px;
+  }
+
+  .room-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .room-title h2 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  .range-toggle {
+    display: flex;
+    gap: 6px;
+  }
+
+  .range-toggle button {
+    padding: 6px 12px;
+    font-size: 12.5px;
+  }
+
+  .range-toggle button.active {
+    border-color: var(--measured-dim);
+    color: var(--measured);
+  }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 520px) {
+    .readouts { grid-template-columns: 1fr; }
+  }
+
+  .tile {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .tile .tag {
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    color: var(--muted-2);
+    margin-bottom: 8px;
+  }
+
+  .tile .value {
+    font-size: 34px;
+    font-weight: 500;
+    transition: color 0.4s ease;
+  }
+
+  .tile.measured .value { color: var(--measured); }
+  .tile.consigne .value { color: var(--consigne); }
+  .tile .value .unit { font-size: 18px; color: var(--muted); margin-left: 4px; }
+  .tile .stamp { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+  .chart-panel {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 22px;
+  }
+
+  .chart-panel .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .chart-panel .head .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend .sw {
+    display: inline-block;
+    width: 10px; height: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .legend .sw.m { background: var(--measured); }
+  .legend .sw.c { background: var(--consigne); border-top: 2px dashed var(--consigne); background: none; height: 0; }
+
+  canvas { max-height: 320px; }
+
+  .control-panel {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .control-panel .tag {
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    color: var(--muted-2);
+    margin-bottom: 14px;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--consigne);
+    height: 4px;
+  }
+
+  .slider-row .num-box {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+  }
+
+  .slider-row .num-box input {
+    background: none;
+    border: none;
+    color: var(--consigne);
+    font-size: 20px;
+    width: 64px;
+    text-align: right;
+  }
+  .slider-row .num-box input:focus { outline: none; }
+  .slider-row .num-box .unit { color: var(--muted); font-size: 14px; }
+
+  .control-panel .send-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .status-msg {
+    font-size: 12.5px;
+  }
+  .status-msg.ok { color: var(--measured); }
+  .status-msg.err { color: var(--danger); }
+
+  .banner {
+    margin: 0 24px 0;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    background: rgba(226,102,92,0.08);
+    display: none;
+  }
+  .banner.show { display: block; }
+
+  @keyframes tick {
+    0% { opacity: 0.35; }
+    100% { opacity: 1; }
+  }
+  .flash { animation: tick 0.5s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot offline" id="statusDot"></span>
+    <h1>Thermobox</h1>
+  </div>
+  <div class="conn">
+    <input id="apiBase" type="text" value="http://localhost:8080/api" spellcheck="false">
+    <button id="connectBtn" class="primary">Connecter</button>
+  </div>
+</header>
+
+<div class="banner" id="errorBanner"></div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="label">SALLES</div>
+    <div id="roomList"></div>
+    <div class="empty-note" id="emptyNote">Renseigne l'URL de ton API puis clique sur « Connecter » pour charger les salles.</div>
+  </aside>
+
+  <main id="mainPanel" style="display:none;">
+    <div class="room-title">
+      <h2 id="roomName">—</h2>
+      <div class="range-toggle" id="rangeToggle">
+        <button data-range="1" class="active">1H</button>
+        <button data-range="24">24H</button>
+        <button data-range="168">7J</button>
+      </div>
+    </div>
+
+    <div class="readouts">
+      <div class="tile measured">
+        <div class="tag">MESURÉE</div>
+        <div class="value mono" id="measuredValue">—</div>
+        <div class="stamp" id="measuredStamp">en attente de données</div>
+      </div>
+      <div class="tile consigne">
+        <div class="tag">CONSIGNE</div>
+        <div class="value mono" id="consigneValue">—</div>
+        <div class="stamp" id="consigneStamp">en attente de données</div>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <div class="head">
+        <div class="tag" style="font-size:10.5px;letter-spacing:0.14em;color:var(--muted-2);">HISTORIQUE</div>
+        <div class="legend">
+          <span><span class="sw m"></span>Mesurée</span>
+          <span><span class="sw c"></span>Consigne</span>
+        </div>
+      </div>
+      <canvas id="tempChart"></canvas>
+    </div>
+
+    <div class="control-panel">
+      <div class="tag">DÉFINIR UNE CONSIGNE</div>
+      <div class="slider-row">
+        <input type="range" id="consigneSlider" min="10" max="32" step="0.5" value="21">
+        <div class="num-box">
+          <input type="number" id="consigneInput" min="10" max="32" step="0.5" value="21">
+          <span class="unit">°C</span>
+        </div>
+      </div>
+      <div class="send-row">
+        <span class="status-msg" id="sendStatus"></span>
+        <button class="primary" id="sendConsigneBtn">Envoyer la consigne</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let apiBase = document.getElementById('apiBase').value.replace(/\/$/, '');
+
+let rooms = [];
+let activeRoomId = null;
+let activeRangeHours = 1;
+let chart = null;
+let pollTimer = null;
+
+const el = (id) => document.getElementById(id);
+
+
+function showError(msg) {
+  const b = el('errorBanner');
+  b.textContent = msg;
+  b.classList.add('show');
+}
+function clearError() {
+  el('errorBanner').classList.remove('show');
+}
+function setOnline(isOnline) {
+  el('statusDot').classList.toggle('offline', !isOnline);
+}
+
+async function api(path, opts) {
+  const res = await fetch(apiBase + path, opts);
+  if (!res.ok) {
+    throw new Error(`${opts?.method || 'GET'} ${path} → HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function connect() {
+  apiBase = el('apiBase').value.replace(/\/$/, '');
+  clearError();
+  try {
+    rooms = await api('/salles') || [];
+    setOnline(true);
+    renderRoomList();
+    el('emptyNote').style.display = rooms.length ? 'none' : 'block';
+    if (rooms.length) {
+      el('emptyNote').textContent = "Aucune salle trouvée. Vérifie que ta base contient des salles.";
+    }
+    if (rooms.length && activeRoomId === null) {
+      selectRoom(rooms[0].id);
+    }
+  } catch (e) {
+    setOnline(false);
+    showError("Impossible de joindre l'API (" + e.message + "). Vérifie l'URL, que le serveur tourne, et la configuration CORS.");
+  }
+}
+
+function renderRoomList() {
+  const list = el('roomList');
+  list.innerHTML = '';
+  rooms.forEach(room => {
+    const row = document.createElement('div');
+    row.className = 'room-row' + (room.id === activeRoomId ? ' active' : '');
+    row.innerHTML = `
+      <div>
+        <div class="name">${escapeHtml(room.name || ('Salle #' + room.id))}</div>
+        <div class="sub">
+          <span class="m mono" id="rowM-${room.id}">—</span>
+          <span class="c mono" id="rowC-${room.id}">—</span>
+        </div>
+      </div>`;
+    row.addEventListener('click', () => selectRoom(room.id));
+    list.appendChild(row);
+    refreshRoomRow(room.id);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function refreshRoomRow(roomId) {
+  try {
+    const [measured, consigne] = await Promise.all([
+      api(`/salletemps/room/${roomId}/measured/latest`).catch(() => null),
+      api(`/salletemps/room/${roomId}/consigne`).catch(() => null)
+    ]);
+    const mEl = el(`rowM-${roomId}`);
+    const cEl = el(`rowC-${roomId}`);
+    if (mEl) mEl.textContent = measured?.value != null ? measured.value.toFixed(1) + '°' : '—';
+    if (cEl) cEl.textContent = consigne?.value != null ? consigne.value.toFixed(1) + '°' : '—';
+  } catch (e) { /* silencieux pour la liste */ }
+}
+
+function selectRoom(roomId) {
+  activeRoomId = roomId;
+  const room = rooms.find(r => r.id === roomId);
+  el('mainPanel').style.display = 'block';
+  el('roomName').textContent = room ? room.name : ('Salle #' + roomId);
+  renderRoomList();
+  loadRoomDetail();
+  restartPolling();
+}
+
+function restartPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadRoomDetail, 8000);
+}
+
+async function loadRoomDetail() {
+  if (activeRoomId === null) return;
+  await Promise.all([
+    loadCurrentReadouts(),
+    loadHistory()
+  ]);
+  refreshRoomRow(activeRoomId);
+}
+
+async function loadCurrentReadouts() {
+  try {
+    const measured = await api(`/salletemps/room/${activeRoomId}/measured/latest`).catch(() => null);
+    const consigne = await api(`/salletemps/room/${activeRoomId}/consigne`).catch(() => null);
+    clearError();
+    setOnline(true);
+
+    updateTile('measuredValue', 'measuredStamp', measured);
+    updateTile('consigneValue', 'consigneStamp', consigne);
+
+    if (consigne?.value != null) {
+      el('consigneSlider').value = consigne.value;
+      el('consigneInput').value = consigne.value;
+    }
+  } catch (e) {
+    setOnline(false);
+    showError("Erreur de lecture des valeurs courantes : " + e.message);
+  }
+}
+
+// Le backend sérialise désormais `date` en java.time.LocalDateTime, donc sans
+// suffixe de fuseau (ex: "2026-09-13T16:25:24.123456"). new Date(...) natif
+// gère mal les fractions de seconde à plus de 3 chiffres selon les navigateurs,
+// donc on parse à la main plutôt que de laisser le constructeur Date deviner.
+function parseLocalDateTime(s) {
+  if (!s) return null;
+
+  // Jackson (module jsr310) sérialise LocalDateTime en tableau de composants
+  // [année, mois, jour, heure, minute, seconde, nano] tant que
+  // SerializationFeature.WRITE_DATES_AS_TIMESTAMPS n'est pas désactivé côté serveur.
+  if (Array.isArray(s)) {
+    const [y, mo, d, h = 0, mi = 0, se = 0, nano = 0] = s;
+    return new Date(y, mo - 1, d, h, mi, se, Math.round(nano / 1e6));
+  }
+
+  if (typeof s !== 'string') return null;
+
+  const [datePart, timePart] = s.split('T');
+  if (!timePart) return new Date(s);
+  const [y, mo, d] = datePart.split('-').map(Number);
+  const timeMain = timePart.split('.')[0];
+  const [h, mi, se] = timeMain.split(':').map(Number);
+  const fracMatch = timePart.match(/\.(\d+)/);
+  const ms = fracMatch ? Math.round(parseFloat('0.' + fracMatch[1]) * 1000) : 0;
+  return new Date(y, mo - 1, d, h, mi, se || 0, ms);
+}
+
+function updateTile(valueId, stampId, data) {
+  const valueEl = el(valueId);
+  const stampEl = el(stampId);
+  if (data?.value != null) {
+    valueEl.innerHTML = data.value.toFixed(1) + '<span class="unit">°C</span>';
+    valueEl.classList.remove('flash'); void valueEl.offsetWidth; valueEl.classList.add('flash');
+    stampEl.textContent = data.date ? parseLocalDateTime(data.date).toLocaleString('fr-FR') : '';
+  } else {
+    valueEl.textContent = '—';
+    stampEl.textContent = 'aucune donnée';
+  }
+}
+
+async function loadHistory() {
+  try {
+    const end = new Date();
+    const start = new Date(end.getTime() - activeRangeHours * 3600 * 1000);
+    const q = `?start=${start.toISOString()}&end=${end.toISOString()}`;
+
+    const [measures, consignes] = await Promise.all([
+      api(`/salletemps/room/${activeRoomId}/temperatures${q}`).catch(() => []),
+      api(`/salletemps/room/${activeRoomId}/consignes${q}`).catch(() => [])
+    ]);
+
+    drawChart(measures || [], consignes || []);
+  } catch (e) {
+    showError("Erreur de chargement de l'historique : " + e.message);
+  }
+}
+
+function drawChart(measures, consignes) {
+  const fmt = (d) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const points = [...measures.map(m => ({ x: parseLocalDateTime(m.date).getTime(), y: m.value, kind: 'm' })),
+                   ...consignes.map(c => ({ x: parseLocalDateTime(c.date).getTime(), y: c.value, kind: 'c' }))]
+                  .sort((a, b) => a.x - b.x);
+
+  const labels = [...new Set(points.map(p => p.x))].sort((a, b) => a - b).map(fmt);
+  const timeline = [...new Set(points.map(p => p.x))].sort((a, b) => a - b);
+
+  const measuredSeries = timeline.map(t => {
+    const found = measures.filter(m => parseLocalDateTime(m.date).getTime() === t);
+    return found.length ? found[found.length - 1].value : null;
+  });
+  const consigneSeries = timeline.map(t => {
+    const found = consignes.filter(c => parseLocalDateTime(c.date).getTime() === t);
+    return found.length ? found[found.length - 1].value : null;
+  });
+
+  const ctx = el('tempChart').getContext('2d');
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Mesurée',
+          data: measuredSeries,
+          borderColor: '#7fe7c4',
+          backgroundColor: 'rgba(127,231,196,0.08)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 2,
+          spanGaps: true
+        },
+        {
+          label: 'Consigne',
+          data: consigneSeries,
+          borderColor: '#d9a95e',
+          borderDash: [5, 4],
+          stepped: 'before',
+          fill: false,
+          pointRadius: 0,
+          spanGaps: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6f9385', maxTicksLimit: 8 }, grid: { color: '#1d3831' } },
+        y: { ticks: { color: '#6f9385' }, grid: { color: '#1d3831' } }
+      }
+    }
+  });
+}
+
+// --- Consigne slider / input sync ---
+el('consigneSlider').addEventListener('input', () => {
+  el('consigneInput').value = el('consigneSlider').value;
+});
+el('consigneInput').addEventListener('input', () => {
+  el('consigneSlider').value = el('consigneInput').value;
+});
+
+// --- Range toggle ---
+document.querySelectorAll('#rangeToggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#rangeToggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeRangeHours = parseFloat(btn.dataset.range);
+    loadHistory();
+  });
+});
+
+// --- Send consigne ---
+el('sendConsigneBtn').addEventListener('click', async () => {
+  if (activeRoomId === null) return;
+  const value = parseFloat(el('consigneInput').value);
+  const statusEl = el('sendStatus');
+  statusEl.textContent = 'Envoi…';
+  statusEl.className = 'status-msg';
+  try {
+    await api(`/salletemps/room/${activeRoomId}/consigne?value=${value}`, { method: 'PUT' });
+    statusEl.textContent = 'Consigne envoyée.';
+    statusEl.className = 'status-msg ok';
+    loadCurrentReadouts();
+  } catch (e) {
+    statusEl.textContent = 'Échec : ' + e.message;
+    statusEl.className = 'status-msg err';
+  }
+});
+
+el('connectBtn').addEventListener('click', connect);
+el('apiBase').addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+</script>
+</body>
+</html>

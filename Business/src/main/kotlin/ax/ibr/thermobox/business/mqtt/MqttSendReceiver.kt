@@ -2,6 +2,7 @@ package ax.ibr.thermobox.business.mqtt
 
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
+import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
@@ -60,7 +61,7 @@ class MqttSendReceiver(
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
 
             val salle = salleService.getById(salleId) ?: return@subscribe
-            val temperature = Temperature(value, LocalDateTime.now())
+            val temperature = Mesurer(value, LocalDateTime.now())
             temperatureService.update(temperature)
             salleTempAttrService.update(SalleTempAttr(salle, temperature))
         }

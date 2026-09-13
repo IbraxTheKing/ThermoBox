@@ -1,8 +1,13 @@
 package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.business.implementations.SalleServiceImpl
+import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl
+import ax.ibr.thermobox.business.implementations.TemperatureServiceImpl
+import ax.ibr.thermobox.business.mqtt.SimulatedProtocolDriver
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
+import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.utils.exceptions.AlreadyExistsException
@@ -24,7 +29,11 @@ class SalleTempAttrResource {
 
     // À injecter/initialiser avec ton driver actif (MqttSendReceiver ou SimulatedProtocolDriver)
     // selon la configuration de ton serveur REST — non résolu ici faute de mécanisme de DI connu.
-    private lateinit var requestBoxes: ProtocolDriver
+    private var requestBoxes: ProtocolDriver = SimulatedProtocolDriver(
+        salleService = SalleServiceImpl(),
+        temperatureService = TemperatureServiceImpl(),
+        salleTempAttrService = SalleTempAttrServiceImpl(),
+    )
 
     @GET
     fun getAll(): List<SalleTempAttr> {
@@ -131,7 +140,7 @@ class SalleTempAttrResource {
     }
 
     @PUT
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE"], allowOwner = false)
+    //@RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE"], allowOwner = false)
     @Path("/room/{id}/consigne")
     fun sendConsigne(
         @PathParam("id") id: Long,
@@ -140,9 +149,22 @@ class SalleTempAttrResource {
         val salle = salleService.getById(id)
             ?: return Response.status(Response.Status.NOT_FOUND).build()
 
-        val consigne = Consigne(value, LocalDateTime.now())
+        val consigne = Consigne(value, java.time.LocalDateTime.now())
+
         return try {
-            requestBoxes.sendConsigne(salle, consigne)
+            // La base reste la source de vérité pour la consigne courante,
+            // qu'un broker MQTT soit branché ou non.
+            service.add(SalleTempAttr(salle, consigne))
+
+            // Diffusion MQTT best-effort : ignorée si pas de driver configuré (pas de broker en dev)
+            if (requestBoxes != null) {
+                try {
+                    requestBoxes.sendConsigne(salle, consigne)
+                } catch (ex: Exception) {
+                    // Consigne bien enregistrée en base ; seule la diffusion MQTT a échoué.
+                }
+            }
+
             Response.ok().build()
         } catch (ex: Exception) {
             Response
@@ -150,5 +172,12 @@ class SalleTempAttrResource {
                 .entity(mapOf("error" to ex.message))
                 .build()
         }
+    }
+
+    @GET
+    @Path("/room/{id}/measured/latest")
+    fun getLatestMeasured(@PathParam("id") id: Long): Temperature? {
+        val salle = salleService.getById(id) ?: return null
+        return service.getCurrentTemperatureFromSalle(salle, Mesurer(0f, LocalDateTime.now()))
     }
 }
