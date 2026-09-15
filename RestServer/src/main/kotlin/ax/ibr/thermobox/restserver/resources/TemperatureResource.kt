@@ -27,9 +27,6 @@ class TemperatureResource {
         return service.getById(id)
     }
 
-    // Le paramètre "type" sert de discriminant Consigne/Mesurer :
-    // on instancie un objet vide du type demandé côté client via une valeur simple (ex: "consigne"/"mesurer"),
-    // à adapter selon comment tu veux exposer TYPE(...) publiquement.
     @GET
     @Path("/type/{type}")
     fun getByType(@PathParam("type") type: String): List<Temperature>? {

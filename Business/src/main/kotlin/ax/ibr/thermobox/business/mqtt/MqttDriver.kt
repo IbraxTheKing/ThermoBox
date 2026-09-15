@@ -5,26 +5,18 @@ import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
-import ax.ibr.thermobox.common.entities.Temperature
-import ax.ibr.thermobox.common.services.SalleService
-import ax.ibr.thermobox.common.services.SalleTempAttrService
-import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.utils.exceptions.NullException
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
-import java.sql.Date
 import java.time.LocalDateTime
 import kotlin.getValue
 
-class MqttSendReceiver(
-    private val salleService: SalleService,
-    private val temperatureService: TemperatureService,
-    private val salleTempAttrService: SalleTempAttrService,
+class MqttDriver(
     private val brokerUrl: String = "tcp://localhost:1883",
     private val clientId: String = "thermobox-${System.currentTimeMillis()}"
-) : ProtocolDriver {
+) : ProtocolDriver() {
 
     private val client: MqttClient by lazy {
         MqttClient(brokerUrl, clientId, MemoryPersistence()).apply {
@@ -78,11 +70,4 @@ class MqttSendReceiver(
         client.publish(consigneTopic(salleId), message)
     }
 
-    override fun askForTemperature(s: Salle) {
-        TODO("Not yet implemented")
-    }
-
-    override fun askForConsigne(s: Salle) {
-        TODO("Not yet implemented")
-    }
 }

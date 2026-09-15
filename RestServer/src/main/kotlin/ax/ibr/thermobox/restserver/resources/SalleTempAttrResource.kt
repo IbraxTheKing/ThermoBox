@@ -27,13 +27,7 @@ class SalleTempAttrResource {
     private val service = BusinessFactory().getSalleTempAttrService()
     private val salleService = BusinessFactory().getSalleService()
 
-    // À injecter/initialiser avec ton driver actif (MqttSendReceiver ou SimulatedProtocolDriver)
-    // selon la configuration de ton serveur REST — non résolu ici faute de mécanisme de DI connu.
-    private var requestBoxes: ProtocolDriver = SimulatedProtocolDriver(
-        salleService = SalleServiceImpl(),
-        temperatureService = TemperatureServiceImpl(),
-        salleTempAttrService = SalleTempAttrServiceImpl(),
-    )
+    private var requestBoxes: ProtocolDriver = SimulatedProtocolDriver()
 
     @GET
     fun getAll(): List<SalleTempAttr> {
@@ -152,16 +146,13 @@ class SalleTempAttrResource {
         val consigne = Consigne(value, java.time.LocalDateTime.now())
 
         return try {
-            // La base reste la source de vérité pour la consigne courante,
-            // qu'un broker MQTT soit branché ou non.
             service.add(SalleTempAttr(salle, consigne))
 
-            // Diffusion MQTT best-effort : ignorée si pas de driver configuré (pas de broker en dev)
             if (requestBoxes != null) {
                 try {
                     requestBoxes.sendConsigne(salle, consigne)
                 } catch (ex: Exception) {
-                    // Consigne bien enregistrée en base ; seule la diffusion MQTT a échoué.
+                    println(ex)
                 }
             }
 

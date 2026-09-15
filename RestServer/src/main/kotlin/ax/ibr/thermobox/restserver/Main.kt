@@ -4,6 +4,7 @@ import ax.ibr.thermobox.business.implementations.SalleServiceImpl
 import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl
 import ax.ibr.thermobox.business.implementations.TemperatureServiceImpl
 import ax.ibr.thermobox.business.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Temperature
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
@@ -23,11 +24,7 @@ fun main() {
         config
     )
 
-    var simulatedProtocolDriver = SimulatedProtocolDriver(
-        salleService = SalleServiceImpl(),
-        temperatureService = TemperatureServiceImpl(),
-        salleTempAttrService = SalleTempAttrServiceImpl(),
-    )
+    var simulatedProtocolDriver: ProtocolDriver = SimulatedProtocolDriver()
 
     simulatedProtocolDriver.listen()
 

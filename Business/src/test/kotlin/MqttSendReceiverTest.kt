@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * NOTE: les propriétés exactes de Salle/Temperature/Consigne (autres que
- * `id` / `value`, déjà visibles dans MqttSendReceiver.kt) ne sont pas
+ * `id` / `value`, déjà visibles dans MqttDriver.kt) ne sont pas
  * connues ici -> les entités sont mockées plutôt que construites, et les
  * assertions portent sur les interactions plutôt que sur le contenu des
  * objets.

@@ -28,15 +28,12 @@ import kotlin.random.Random
  * (ou dans BusinessFactory) le temps de tester la BDD.
  */
 class SimulatedProtocolDriver(
-    private val salleService: SalleService,
-    private val temperatureService: TemperatureService,
-    private val salleTempAttrService: SalleTempAttrService,
     private val simulatedSalleNames: List<String> = listOf("Salle A", "Salle B", "Salle C"),
     private val temperatureIntervalMs: Long = 3000L,
     private val salleDiscoveryIntervalMs: Long = 10000L,
     private val minTemp: Float = 15f,
     private val maxTemp: Float = 28f
-) : ProtocolDriver {
+) : ProtocolDriver() {
 
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
     private var running = false
@@ -91,14 +88,6 @@ class SimulatedProtocolDriver(
         temperatureService.add(c)
         salleTempAttrService.add(SalleTempAttr(s,c))
 
-    }
-
-    override fun askForTemperature(s: Salle) {
-        TODO("Not yet implemented")
-    }
-
-    override fun askForConsigne(s: Salle) {
-        TODO("Not yet implemented")
     }
 
     /** Arrête proprement les tâches planifiées. */

@@ -1,19 +1,26 @@
 package ax.ibr.thermobox.business.protocols
 
+import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
+import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.common.services.SalleService
+import ax.ibr.thermobox.common.services.SalleTempAttrService
+import ax.ibr.thermobox.common.services.TemperatureService
 
-interface ProtocolDriver {
-    fun listen()
+abstract class ProtocolDriver {
 
-    fun listenToRooms()
+    protected val salleService: SalleService = BusinessFactory().getSalleService()
+    protected val temperatureService: TemperatureService = BusinessFactory().getTemperatureService()
+    protected val salleTempAttrService: SalleTempAttrService = BusinessFactory().getSalleTempAttrService()
 
-    fun listenToTemperatures()
+    abstract fun listen()
 
-    fun sendConsigne(s: Salle, c: Consigne)
+    abstract fun listenToRooms()
 
-    fun askForTemperature(s:Salle)
+    abstract fun listenToTemperatures()
 
-    fun askForConsigne(s:Salle)
+    abstract fun sendConsigne(s: Salle, c: Consigne)
+
 }
