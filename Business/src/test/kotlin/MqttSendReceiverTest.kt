@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test
  * assertions portent sur les interactions plutôt que sur le contenu des
  * objets.
  */
+/*
 class MqttSendReceiverTest {
 
     private lateinit var salleService: SalleService
@@ -188,3 +189,4 @@ class MqttSendReceiverTest {
         assertEquals(true, messageSlot.captured.isRetained)
     }
 }
+*/

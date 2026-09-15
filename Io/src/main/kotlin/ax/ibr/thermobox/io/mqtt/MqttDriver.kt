@@ -1,4 +1,4 @@
-package ax.ibr.thermobox.business.mqtt
+package ax.ibr.thermobox.io.mqtt
 
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne

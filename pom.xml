@@ -14,8 +14,8 @@
     <module>Common</module>
     <module>Business</module>
     <module>Persistence</module>
-    <module>Io</module>
     <module>RestServer</module>
+    <module>Io</module>
   </modules>
 
   <properties>

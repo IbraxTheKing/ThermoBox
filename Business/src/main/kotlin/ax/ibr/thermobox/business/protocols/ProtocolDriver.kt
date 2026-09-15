@@ -3,8 +3,6 @@ package ax.ibr.thermobox.business.protocols
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleTempAttr
-import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
