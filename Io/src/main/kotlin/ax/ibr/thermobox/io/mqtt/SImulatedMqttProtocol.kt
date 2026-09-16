@@ -24,10 +24,10 @@ import kotlin.random.Random
  */
 class SimulatedProtocolDriver(
     private val simulatedSalleNames: List<String> = listOf("Salle A", "Salle B", "Salle C"),
-    private val temperatureIntervalMs: Long = 3000L,
+    private val temperatureIntervalMs: Long = 300000L,
     private val salleDiscoveryIntervalMs: Long = 10000L,
-    private val minTemp: Float = 15f,
-    private val maxTemp: Float = 28f
+    private val minTemp: Float = 10f,
+    private val maxTemp: Float = 26f
 ) : ProtocolDriver() {
 
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
@@ -57,20 +57,21 @@ class SimulatedProtocolDriver(
     }
 
     override fun listenToTemperatures() {
-        // Simule l'arrivée régulière de mesures de température pour des salles existantes
+        // Simule l'arrivée régulière de mesures de température pour toutes les salles existantes
         scheduler.scheduleAtFixedRate({
             try {
                 val salles = salleService.getAll()
                 if (salles.isEmpty()) return@scheduleAtFixedRate
 
-                val salle = salles.random()
-                val value = Random.nextFloat() * (maxTemp - minTemp) + minTemp
-                val temperature = Mesurer(value, LocalDateTime.now())
+                salles.forEach { salle ->
+                    val value = Random.nextFloat() * (maxTemp - minTemp) + minTemp
+                    val temperature = Mesurer(value, LocalDateTime.now())
 
-                temperatureService.update(temperature)
-                salleTempAttrService.update(SalleTempAttr(salle, temperature))
+                    temperatureService.update(temperature)
+                    salleTempAttrService.update(SalleTempAttr(salle, temperature))
 
-                println("[SimulatedProtocolDriver] Température simulée pour ${salle.name} : %.2f°C".format(value))
+                    println("[SimulatedProtocolDriver] Température simulée pour ${salle.name} : %.2f°C".format(value))
+                }
             } catch (e: Exception) {
                 println("[SimulatedProtocolDriver] Erreur listenToTemperatures : ${e.message}")
             }

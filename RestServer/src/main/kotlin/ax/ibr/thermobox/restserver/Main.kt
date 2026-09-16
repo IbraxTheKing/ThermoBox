@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver
 
+import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.implementations.SalleServiceImpl
 import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
@@ -27,12 +28,7 @@ fun main() {
 
     simulatedProtocolDriver.listen()
 
-    simulatedProtocolDriver.sendConsigne(SalleServiceImpl().getById(1)!!,Consigne(15.0f, LocalDateTime.now()))
-
 
     println("REST server started on http://localhost:8080/")
-
-    println(SalleServiceImpl().getAll())
-    println(SalleTempAttrServiceImpl().getCurrentTemperatureFromSalle(salle = SalleServiceImpl().getById(1)!!, Temperature()))
 
 }
