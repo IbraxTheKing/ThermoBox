@@ -23,6 +23,11 @@ class Temperature {
         this.date = date
     }
 
+    constructor(value: Float) {
+        this.value = value
+        this.date = LocalDateTime.now()
+    }
+
     constructor()
 
 
