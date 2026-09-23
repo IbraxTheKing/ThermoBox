@@ -1,0 +1,16 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:f="jakarta.faces.core"
+                xmlns:h="jakarta.faces.html"
+                xmlns:ui="jakarta.faces.facelets">
+    <h:panelGroup rendered="#{authBean.loggedIn}">
+        <nav class="navbar">
+            <h:link value="Salles" outcome="/index.xhtml" styleClass="navbar__link" />
+            <h:link value="Utilisateurs" outcome="/users.xhtml" styleClass="navbar__link"
+                     rendered="#{authBean.hasRole('ADMIN')}" />
+
+            <h:form styleClass="navbar__logout-form">
+                <h:commandButton value="Déconnexion" action="#{authBean.logout}" styleClass="navbar__logout" />
+            </h:form>
+        </nav>
+    </h:panelGroup>
+</ui:composition>

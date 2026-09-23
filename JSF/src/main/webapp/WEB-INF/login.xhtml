@@ -1,0 +1,35 @@
+<ui:composition template="/WEB-INF/templates/template.xhtml"
+                 xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:ui="jakarta.faces.facelets">
+
+    <ui:define name="title">Connexion — Thermobox</ui:define>
+
+    <ui:define name="content">
+        <div class="login-box">
+            <h1>Thermobox</h1>
+
+            <h:form>
+                <h:messages globalOnly="true" styleClass="error" layout="table" />
+
+                <p>
+                    <h:outputLabel for="username" value="Identifiant" />
+                    <h:inputText id="username" value="#{authBean.username}" required="true"
+                                 requiredMessage="Identifiant requis" autocomplete="username" />
+                </p>
+
+                <p>
+                    <h:outputLabel for="password" value="Mot de passe" />
+                    <h:inputSecret id="password" value="#{authBean.password}" required="true"
+                                   requiredMessage="Mot de passe requis" autocomplete="current-password" />
+                </p>
+
+                <h:commandButton value="Se connecter" action="#{authBean.login}" />
+            </h:form>
+
+            <p class="hint">Compte de démonstration : admin / admin123</p>
+        </div>
+    </ui:define>
+
+</ui:composition>

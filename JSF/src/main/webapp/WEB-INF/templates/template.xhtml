@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:f="jakarta.faces.core"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets">
+<f:view>
+    <h:head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title><ui:insert name="title">Thermobox</ui:insert></title>
+        <h:outputStylesheet library="css" name="style.css" />
+    </h:head>
+    <h:body>
+        <ui:include src="/WEB-INF/templates/header.xhtml" />
+        <ui:include src="/WEB-INF/templates/navbar.xhtml" />
+
+        <main class="content">
+            <ui:insert name="content">Contenu par défaut</ui:insert>
+        </main>
+
+        <ui:include src="/WEB-INF/templates/footer.xhtml" />
+    </h:body>
+</f:view>
+</html>

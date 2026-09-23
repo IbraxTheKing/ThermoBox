@@ -3,8 +3,9 @@ package ax.ibr.thermobox.business.implementations
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
+import java.io.Serializable
 
-class SalleServiceImpl : SalleService {
+class SalleServiceImpl : SalleService, Serializable {
 
     private val salleService: SalleService = PersistenceFactory().getSalleDataService()
 

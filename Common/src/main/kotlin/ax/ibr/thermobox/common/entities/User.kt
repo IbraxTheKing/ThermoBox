@@ -1,6 +1,5 @@
 package ax.ibr.thermobox.common.entities
 
-import ax.ibr.utils.Cryptographic
 import jakarta.persistence.*
 
 @Entity

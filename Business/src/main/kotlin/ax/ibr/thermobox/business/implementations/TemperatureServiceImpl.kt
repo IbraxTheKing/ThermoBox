@@ -5,8 +5,9 @@ import ax.ibr.thermobox.business.exceptions.TooHotException
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
+import java.io.Serializable
 
-class TemperatureServiceImpl : TemperatureService {
+class TemperatureServiceImpl : TemperatureService, Serializable {
 
     private val temperatureService = PersistenceFactory().getTemperatureDataService()
 

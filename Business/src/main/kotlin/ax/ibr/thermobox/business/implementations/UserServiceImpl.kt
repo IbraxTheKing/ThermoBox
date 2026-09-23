@@ -4,9 +4,10 @@ import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
+import java.io.Serializable
 
 
-class UserServiceImpl : UserService {
+class UserServiceImpl : UserService, Serializable {
 
     private val userService: UserService = PersistenceFactory().getUserDataService()
 

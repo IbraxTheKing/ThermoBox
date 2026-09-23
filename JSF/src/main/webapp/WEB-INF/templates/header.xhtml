@@ -1,0 +1,18 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:f="jakarta.faces.core"
+                xmlns:h="jakarta.faces.html"
+                xmlns:ui="jakarta.faces.facelets">
+    <header class="app-header">
+        <h:link outcome="/index.xhtml" styleClass="app-header__brand">
+            <span class="app-header__logo">&#127777;</span>
+            <span class="app-header__title">Thermobox</span>
+        </h:link>
+
+        <h:panelGroup styleClass="app-header__user" rendered="#{authBean.loggedIn}">
+            <span class="app-header__username">#{authBean.currentUser.username}</span>
+            <span class="app-header__badge app-header__badge--#{authBean.currentUser.type}">
+                #{authBean.currentUser.type}
+            </span>
+        </h:panelGroup>
+    </header>
+</ui:composition>

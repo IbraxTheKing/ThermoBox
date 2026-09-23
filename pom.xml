@@ -16,6 +16,7 @@
     <module>Persistence</module>
     <module>RestServer</module>
     <module>Io</module>
+    <module>JSF</module>
   </modules>
 
   <properties>

@@ -6,10 +6,11 @@ import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
+import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDateTime
 
-class SalleTempAttrServiceImpl : SalleTempAttrService {
+class SalleTempAttrServiceImpl : SalleTempAttrService, Serializable {
 
     private val salleTempAttrService: SalleTempAttrService = PersistenceFactory().getSalleTempAttrDataService()
 
