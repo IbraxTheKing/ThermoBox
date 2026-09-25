@@ -178,4 +178,24 @@ class SalleTempAttrDataServiceJPAImpl(pu: String, em: EntityManager,
             Temperature(avg, day.toLocalDate().atStartOfDay())
         }
     }
+
+    override fun getAllByTime(
+        start: Instant,
+        end: Instant
+    ): List<SalleTempAttr> {
+        val zone = ZoneId.systemDefault()
+        return em.createQuery(
+            """
+        SELECT sta FROM SalleTempAttr sta
+        JOIN FETCH sta.temperature t
+        JOIN FETCH sta.salle
+        WHERE t.date BETWEEN :start AND :end
+        ORDER BY t.date
+        """.trimIndent(),
+            SalleTempAttr::class.java
+        )
+            .setParameter("start", LocalDateTime.ofInstant(start, zone))
+            .setParameter("end", LocalDateTime.ofInstant(end, zone))
+            .resultList
+    }
 }

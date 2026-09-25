@@ -88,6 +88,13 @@ class SalleTempAttrServiceImpl : SalleTempAttrService, Serializable {
         )
     }
 
+    override fun getAllByTime(
+        start: Instant,
+        end: Instant
+    ): List<SalleTempAttr> {
+        return salleTempAttrService.getAllByTime(start, end)
+    }
+
     override fun add(t: SalleTempAttr) {
         salleTempAttrService.add(t)
     }

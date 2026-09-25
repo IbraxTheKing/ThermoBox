@@ -26,4 +26,5 @@ interface SalleTempAttrService: CrudService<SalleTempAttr> {
     fun getAverageTemperatureFromSalle(salle: Salle, temperatureClass: Temperature): Temperature?
     fun getAverageTemperatureFromSalleTimed(salle: Salle, start: Instant, end: Instant): List<Temperature> // First is Temp, second is Consigne
 
+    fun getAllByTime(start: Instant, end: Instant) : List<SalleTempAttr>
 }
