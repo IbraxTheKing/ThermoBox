@@ -1,0 +1,119 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Températures</ui:define>
+
+    <ui:define name="content">
+        <h:form id="tempForm">
+            <div class="tb-header">
+                <h1>Températures</h1>
+                <p:commandButton value="Ajouter" icon="pi pi-plus" rendered="#{loginBean.admin}"
+                                 action="#{temperatureBean.create}" process="@this"
+                                 update=":tempDlgForm" oncomplete="PF('tempDlg').show()"/>
+            </div>
+
+            <!-- Moyennes -->
+            <div class="tb-grid">
+                <p:card>
+                    <div class="tb-muted">Moyenne des mesures</div>
+                    <div class="tb-temp">
+                        <h:outputText value="#{temperatureBean.moyenneMesure.value}"
+                                      rendered="#{temperatureBean.moyenneMesure ne null}">
+                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                        </h:outputText>
+                        <h:outputText value="—" rendered="#{temperatureBean.moyenneMesure eq null}"/>
+                        <span class="tb-unit">°C</span>
+                    </div>
+                </p:card>
+                <p:card>
+                    <div class="tb-muted">Moyenne des consignes</div>
+                    <div class="tb-temp tb-consigne">
+                        <h:outputText value="#{temperatureBean.moyenneConsigne.value}"
+                                      rendered="#{temperatureBean.moyenneConsigne ne null}">
+                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                        </h:outputText>
+                        <h:outputText value="—" rendered="#{temperatureBean.moyenneConsigne eq null}"/>
+                        <span class="tb-unit">°C</span>
+                    </div>
+                </p:card>
+            </div>
+
+            <!-- Filtre par type -->
+            <div class="tb-row">
+                <p:selectOneButton value="#{temperatureBean.filtre}">
+                    <f:selectItem itemLabel="Toutes" itemValue="tous"/>
+                    <f:selectItem itemLabel="Mesures" itemValue="mesurer"/>
+                    <f:selectItem itemLabel="Consignes" itemValue="consigne"/>
+                    <p:ajax listener="#{temperatureBean.load}" update="table"/>
+                </p:selectOneButton>
+            </div>
+
+            <p:dataTable id="table" value="#{temperatureBean.temperatures}" var="t" rows="20" paginator="true"
+                         paginatorAlwaysVisible="false" emptyMessage="Aucune température" stripedRows="true">
+                <p:column headerText="Type" styleClass="tb-col-type">
+                    <p:tag value="#{temperatureBean.typeOf(t)}"
+                           severity="#{temperatureBean.typeOf(t) eq 'Consigne' ? 'info' : 'warning'}"/>
+                </p:column>
+                <p:column headerText="Valeur" sortBy="#{t.value}">
+                    <h:outputText value="#{t.value}">
+                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                    </h:outputText> °C
+                </p:column>
+                <p:column headerText="Date" sortBy="#{t.date}">
+                    <h:outputText value="#{t.date}">
+                        <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                    </h:outputText>
+                </p:column>
+                <p:column headerText="Actions" styleClass="tb-col-actions" rendered="#{loginBean.admin}">
+                    <p:commandButton icon="pi pi-pencil" title="Modifier" action="#{temperatureBean.edit(t)}"
+                                     process="@this" update=":tempDlgForm" oncomplete="PF('tempDlg').show()"
+                                     styleClass="ui-button-flat"/>
+                    <p:commandButton icon="pi pi-trash" title="Supprimer" action="#{temperatureBean.delete(t)}"
+                                     process="@this" update="table" styleClass="ui-button-flat ui-button-danger">
+                        <p:confirm header="Supprimer" message="Supprimer cette température ?"
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </p:column>
+            </p:dataTable>
+        </h:form>
+
+        <p:dialog header="Température" widgetVar="tempDlg" modal="true" resizable="false" responsive="true"
+                  width="420">
+            <h:form id="tempDlgForm">
+                <div class="tb-field">
+                    <p:outputLabel for="type" value="Type"/>
+                    <p:selectOneButton id="type" value="#{temperatureBean.formType}"
+                                       disabled="#{temperatureBean.editMode}">
+                        <f:selectItem itemLabel="Mesure" itemValue="mesurer"/>
+                        <f:selectItem itemLabel="Consigne" itemValue="consigne"/>
+                    </p:selectOneButton>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="valeur" value="Valeur"/>
+                    <p:inputNumber id="valeur" value="#{temperatureBean.formValue}" decimalPlaces="1"
+                                   minValue="-50" maxValue="80" symbol=" °C" symbolPosition="s"
+                                   required="true" requiredMessage="Valeur obligatoire"/>
+                    <p:message for="valeur"/>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="date" value="Date"/>
+                    <p:datePicker id="date" value="#{temperatureBean.formDate}" showTime="true"
+                                  pattern="dd/MM/yyyy HH:mm" required="true" requiredMessage="Date obligatoire"
+                                  locale="fr" appendTo="@(body)"/>
+                    <p:message for="date"/>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('tempDlg').hide()"
+                                     styleClass="ui-button-flat"/>
+                    <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{temperatureBean.save}"
+                                     update="@form :tempForm"
+                                     oncomplete="if (args &amp;&amp; args.saved) PF('tempDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+    </ui:define>
+</ui:composition>

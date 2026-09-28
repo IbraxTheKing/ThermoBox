@@ -12,4 +12,6 @@ class Salle(var name: String?) {
     override fun toString(): String {
         return "Salle(id=$id, name=$name)"
     }
+
+
 }

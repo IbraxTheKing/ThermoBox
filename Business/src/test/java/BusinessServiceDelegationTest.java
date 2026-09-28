@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -188,7 +189,7 @@ class SalleTempAttrServiceImplTest {
     void delegueGetBySalleIdAuDataService() {
         SalleTempAttr attr = mock(SalleTempAttr.class);
 
-        when(dataService.getBySalle(3)).thenReturn(attr);
+        when(dataService.getBySalle(3)).thenReturn(Collections.singletonList(attr));
 
         assertEquals(
                 attr,
@@ -201,7 +202,7 @@ class SalleTempAttrServiceImplTest {
         Salle salle = mock(Salle.class);
         SalleTempAttr attr = mock(SalleTempAttr.class);
 
-        when(dataService.getBySalle(salle)).thenReturn(attr);
+        when(dataService.getBySalle(salle)).thenReturn(Collections.singletonList(attr));
 
         assertEquals(
                 attr,

@@ -1,0 +1,53 @@
+package ax.ibr.thermobox.jsf.beans
+
+import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.jsf.SalleData
+import ax.ibr.thermobox.jsf.Services
+import jakarta.annotation.PostConstruct
+import jakarta.faces.view.ViewScoped
+import jakarta.inject.Named
+import java.io.Serializable
+import java.util.Locale
+
+/** Une carte du tableau de bord. */
+data class SalleResume(val salle: Salle, val mesure: Temperature?, val consigne: Temperature?) : Serializable {
+    private val ecart: Float? get() = if (mesure != null && consigne != null) mesure.value?.minus(consigne.value!!) else null
+
+    val etat: String
+        get() {
+            val e = ecart ?: return "Pas de données"
+            return when {
+                e <= -0.5f -> "En chauffe"
+                e >= 0.5f -> "Trop chaud"
+                else -> "Stable"
+            }
+        }
+
+    /** Sévérité du p:tag */
+    val etatSeverity: String
+        get() = when (etat) {
+            "En chauffe" -> "warning"
+            "Trop chaud" -> "danger"
+            "Stable" -> "success"
+            else -> "info"
+        }
+
+    /** Écart à la consigne, ex. « +0,8° » (vide si pas de données). */
+    val ecartLabel: String
+        get() = ecart?.let { String.format(Locale.FRANCE, "%+.1f°", it) } ?: ""
+}
+
+@Named
+@ViewScoped
+class DashboardBean : Serializable {
+
+    var resumes: List<SalleResume> = emptyList()
+
+    @PostConstruct
+    fun refresh() {
+        resumes = Services.salles.getAll().map { salle ->
+            SalleResume(salle, SalleData.latestMesure(salle), SalleData.consigne(salle))
+        }
+    }
+}
