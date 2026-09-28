@@ -14,7 +14,7 @@ object ChartBuilder {
 
     fun build(series: List<Serie>): LineChartModel {
         // Axe X commun à toutes les séries
-        val dates = series.flatMap { s -> s.points.map { it.date } }.distinct().sorted()
+        val dates = series.flatMap { s -> s.points.mapNotNull { it.date } }.distinct().sorted()
 
         val chartData = ChartData()
         chartData.labels = dates.map { fmt.format(it) }

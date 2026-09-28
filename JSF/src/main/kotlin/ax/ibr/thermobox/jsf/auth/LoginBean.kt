@@ -66,7 +66,7 @@ class LoginBean : Serializable {
     }
 
     private fun hasRole(role: String): Boolean =
-        currentUser?.role?.toString().equals(role, ignoreCase = true)
+        currentUser?.type?.toString().equals(role, ignoreCase = true)
 
     /**
      * ⚠️ À adapter à la façon dont ton UserService stocke les mots de passe
