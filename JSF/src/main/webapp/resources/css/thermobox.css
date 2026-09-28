@@ -5,34 +5,42 @@
    ========================================================================== */
 
 :root {
-    --tb-text: #ffffff;
-    --tb-text-soft: rgba(255, 255, 255, .82);
-    --tb-text-muted: rgba(255, 255, 255, .62);
+    --tb-text: rgba(255, 255, 255, .96);
+    --tb-text-soft: rgba(255, 255, 255, .76);
+    --tb-text-muted: rgba(255, 255, 255, .52);
 
-    --tb-cyan: #6ff0f7;
-    --tb-cyan-deep: #2fc9dd;
-    --tb-orange: #ffc857;
-    --tb-green: #58e39a;
-    --tb-red: #ff7a7a;
+    --tb-cyan: #8cecf2;
+    --tb-cyan-deep: #54d8e5;
+    --tb-orange: #ffd36a;
+    --tb-green: #71e6aa;
+    --tb-red: #ff8d91;
 
-    --tb-glass: linear-gradient(145deg, rgba(255, 255, 255, .24) 0%, rgba(255, 255, 255, .08) 55%, rgba(255, 255, 255, .13) 100%);
-    --tb-glass-flat: rgba(255, 255, 255, .10);
-    --tb-glass-hover: rgba(255, 255, 255, .20);
-    --tb-glass-border: rgba(255, 255, 255, .28);
-    --tb-overlay: rgba(12, 52, 92, .88);
+    /* Liquid Glass : plusieurs couches translucides plutôt qu'un simple gradient */
+    --tb-glass: rgba(255, 255, 255, .075);
+    --tb-glass-flat: rgba(255, 255, 255, .055);
+    --tb-glass-hover: rgba(255, 255, 255, .105);
+    --tb-glass-active: rgba(255, 255, 255, .135);
+    --tb-glass-border: rgba(255, 255, 255, .17);
+    --tb-glass-border-bright: rgba(255, 255, 255, .25);
+    --tb-glass-shadow: rgba(0, 8, 24, .28);
+    --tb-overlay: rgba(11, 31, 55, .68);
 
-    --tb-blur: blur(26px) saturate(180%);
-    --tb-radius: 28px;
+    --tb-blur: blur(16px) saturate(125%);
+    --tb-radius: 26px;
     --tb-radius-md: 18px;
-    --tb-radius-sm: 14px;
+    --tb-radius-sm: 13px;
 
-    /* Reflet spéculaire haut + liseré bas + bord interne : l'effet "verre épais" */
+    /* Bord interne + reflet supérieur + très légère profondeur */
     --tb-edge:
-            inset 0 1.5px 0 rgba(255, 255, 255, .55),
-            inset 0 -1px 0 rgba(255, 255, 255, .10),
-            inset 0 0 0 1px rgba(255, 255, 255, .14);
-    --tb-shadow: 0 24px 60px -12px rgba(2, 14, 34, .55), 0 6px 16px rgba(2, 14, 34, .25);
-    --tb-spring: cubic-bezier(.2, .9, .3, 1.2);
+        inset 0 1px 0 rgba(255, 255, 255, .38),
+        inset 0 -1px 0 rgba(255, 255, 255, .07),
+        inset 0 0 0 1px rgba(255, 255, 255, .055);
+
+    --tb-shadow:
+        0 18px 45px -22px rgba(0, 8, 24, .52),
+        0 5px 16px -10px rgba(0, 8, 24, .25);
+
+    --tb-spring: cubic-bezier(.22, 1, .36, 1);
 }
 
 /* ---------- Fond : dégradé + halos lumineux ---------- */
@@ -46,22 +54,77 @@ body {
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     background:
-            radial-gradient(60vmax 60vmax at 12% -8%, rgba(111, 240, 247, .55), transparent 60%),
-            radial-gradient(50vmax 50vmax at 96% 8%, rgba(126, 116, 255, .42), transparent 60%),
-            radial-gradient(70vmax 70vmax at 85% 108%, rgba(0, 150, 230, .55), transparent 62%),
-            linear-gradient(180deg, #1c86c8 0%, #0e4f88 42%, #06172f 100%);
+        radial-gradient(55vmax 45vmax at 4% 2%, rgba(81, 220, 235, .34), transparent 64%),
+        radial-gradient(48vmax 42vmax at 94% 12%, rgba(126, 111, 255, .27), transparent 62%),
+        radial-gradient(65vmax 50vmax at 78% 108%, rgba(23, 132, 218, .34), transparent 64%),
+        linear-gradient(145deg, #147ab2 0%, #0b4a78 43%, #071a32 100%);
     background-attachment: fixed;
 }
 
 /* Halos qui dérivent lentement derrière le verre */
 body::before, body::after {
     content: ""; position: fixed; z-index: -1; pointer-events: none;
-    width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: .55;
+    width: 42vmax; height: 42vmax; border-radius: 50%; filter: blur(85px); opacity: .38;
 }
-body::before { top: -14vmax; left: -10vmax; background: radial-gradient(circle, rgba(111, 240, 247, .75), transparent 65%); animation: tb-drift-a 26s ease-in-out infinite alternate; }
-body::after  { bottom: -18vmax; right: -12vmax; background: radial-gradient(circle, rgba(120, 130, 255, .65), transparent 65%); animation: tb-drift-b 32s ease-in-out infinite alternate; }
+body::before { top: -14vmax; left: -10vmax; background: radial-gradient(circle, rgba(111, 240, 247, .62), transparent 65%); animation: tb-drift-a 26s ease-in-out infinite alternate; }
+body::after  { bottom: -18vmax; right: -12vmax; background: radial-gradient(circle, rgba(120, 130, 255, .52), transparent 65%); animation: tb-drift-b 32s ease-in-out infinite alternate; }
 @keyframes tb-drift-a { to { transform: translate(12vmax, 10vmax) scale(1.15); } }
 @keyframes tb-drift-b { to { transform: translate(-14vmax, -8vmax) scale(1.2); } }
+
+/* ---------- Liquid Glass polish ---------- */
+
+/* Les surfaces réagissent légèrement à la lumière, sans effet "neon UI". */
+.ui-card, .ui-panel, .ui-fieldset {
+    transition:
+        transform .32s var(--tb-spring),
+        border-color .28s ease,
+        box-shadow .32s ease,
+        background .28s ease;
+}
+
+.ui-card:hover, .ui-panel:hover {
+    border-color: rgba(255,255,255,.28) !important;
+}
+
+/* Reflet très discret : les composants restent lisibles et sobres. */
+.ui-button::before,
+.ui-menubar::before,
+.ui-selectonebutton::before,
+.tb-pill::after {
+    display: none;
+}
+
+/* Évite que le reflet passe au-dessus du contenu des boutons. */
+.ui-button > *,
+.ui-menubar > *,
+.ui-selectonebutton > * {
+    position: relative;
+}
+
+/* Sélection et focus plus "Apple", moins lumineux. */
+::selection {
+    background: rgba(137, 235, 241, .30);
+    color: #fff;
+}
+
+.ui-inputtext:focus,
+.ui-inputnumber input:focus,
+.ui-password input:focus,
+.ui-selectonemenu.ui-state-focus {
+    border-color: rgba(140,236,242,.72) !important;
+    box-shadow:
+        inset 0 1px 4px rgba(0,8,24,.20),
+        0 0 0 3px rgba(111,240,247,.13),
+        0 0 22px -8px rgba(111,240,247,.42) !important;
+}
+
+/* Sur petit écran, conserver de vraies surfaces plutôt qu'une énorme capsule. */
+@media (max-width: 640px) {
+    .ui-menubar {
+        border-radius: 18px !important;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) { body::before, body::after { animation: none; } * { transition: none !important; } }
 
 ::selection { background: rgba(111, 240, 247, .4); }
@@ -141,7 +204,7 @@ a:hover { text-decoration: underline; }
 
 /* Carte salle du tableau de bord */
 .tb-room { text-align: center; transition: transform .35s var(--tb-spring), box-shadow .35s ease; }
-.tb-room:hover { transform: translateY(-4px) scale(1.012); }
+.tb-room:hover { transform: translateY(-3px) scale(1.008); }
 .tb-room .tb-room-name { font-size: 1.2rem; font-weight: 600; letter-spacing: -.02em; }
 .tb-room .tb-hero-temp { font-size: clamp(4.5rem, 8vw, 5.75rem); }
 .tb-room .tb-state { margin: .35rem 0 .9rem; }
@@ -150,7 +213,10 @@ a:hover { text-decoration: underline; }
 /* ---------- Verre : cartes, panneaux, tableaux ---------- */
 .ui-card, .ui-panel, .ui-fieldset, .ui-datatable .ui-datatable-tablewrapper {
     position: relative;
-    background: var(--tb-glass) !important;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.045)) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius) !important;
     box-shadow: var(--tb-edge), var(--tb-shadow) !important;
@@ -159,8 +225,15 @@ a:hover { text-decoration: underline; }
 }
 /* Reflet diagonal en haut à gauche */
 .ui-card::before, .ui-panel::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    background: radial-gradient(120% 70% at 0% 0%, rgba(255, 255, 255, .22), transparent 55%);
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    background:
+        radial-gradient(80% 45% at 8% -8%, rgba(255,255,255,.16), transparent 58%);
+    opacity: .75;
 }
 .ui-card > *, .ui-panel > * { position: relative; }
 /* Pas de verre dans le verre */
@@ -180,15 +253,29 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Boutons ---------- */
 .ui-button {
-    border-radius: 999px !important; font-weight: 600; letter-spacing: -.005em; padding: .65rem 1.25rem;
-    background: linear-gradient(180deg, #a4f7fb 0%, var(--tb-cyan) 40%, var(--tb-cyan-deep) 100%) !important;
-    border: 1px solid rgba(255, 255, 255, .55) !important;
-    color: #04304c !important;
-    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .8), 0 8px 22px -6px rgba(47, 201, 221, .65);
-    transition: transform .25s var(--tb-spring), box-shadow .25s ease, filter .2s ease;
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px !important;
+    font-weight: 600;
+    letter-spacing: -.005em;
+    padding: .68rem 1.2rem;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08)) !important;
+    border: 1px solid rgba(255,255,255,.27) !important;
+    color: var(--tb-text) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.34),
+        0 7px 22px -12px rgba(0,8,24,.65);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+    transition:
+        transform .28s var(--tb-spring),
+        box-shadow .28s ease,
+        background .28s ease,
+        border-color .28s ease;
 }
-.ui-button:enabled:hover { transform: translateY(-1.5px) scale(1.02); filter: brightness(1.06); }
-.ui-button:enabled:active { transform: scale(.97); }
+.ui-button:enabled:hover { transform: translateY(-1px); background: rgba(255,255,255,.17) !important; border-color: rgba(255,255,255,.36) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 28px -14px rgba(0,8,24,.72); }
+.ui-button:enabled:active { transform: scale(.965); background: rgba(255,255,255,.12) !important; }
 .ui-button:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(111, 240, 247, .35); }
 .ui-button .ui-icon, .ui-button .ui-button-icon-left, .ui-button .ui-button-text { color: inherit !important; }
 .ui-button:disabled, .ui-button.ui-state-disabled { opacity: .4; filter: saturate(.6); }
@@ -219,17 +306,17 @@ a:hover { text-decoration: underline; }
 /* ---------- Champs ---------- */
 .ui-inputfield, .ui-inputtext, .ui-inputnumber input, .ui-password input,
 .ui-selectonemenu, .ui-datepicker-input, .ui-calendar input {
-    background: rgba(4, 25, 55, .28) !important;
+    background: rgba(5, 24, 45, .34) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius-sm) !important;
     color: var(--tb-text) !important; padding: .75rem 1rem; font-size: 1rem;
-    box-shadow: inset 0 2px 6px rgba(2, 14, 34, .3), 0 1px 0 rgba(255, 255, 255, .12);
+    box-shadow: inset 0 1px 4px rgba(0, 8, 24, .22), inset 0 1px 0 rgba(255,255,255,.09);
     transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
 .ui-selectonemenu .ui-selectonemenu-label, .ui-selectonemenu .ui-selectonemenu-trigger { color: var(--tb-text) !important; background: transparent !important; }
 .ui-inputtext::placeholder, .ui-inputnumber input::placeholder { color: rgba(255, 255, 255, .42); }
 .ui-inputtext:focus, .ui-inputnumber input:focus, .ui-password input:focus, .ui-selectonemenu.ui-state-focus {
-    outline: none !important; border-color: var(--tb-cyan) !important; background: rgba(4, 25, 55, .4) !important;
+    outline: none !important; border-color: var(--tb-cyan) !important; background: rgba(5, 24, 45, .46) !important;
     box-shadow: inset 0 2px 6px rgba(2, 14, 34, .3), 0 0 0 4px rgba(111, 240, 247, .22) !important;
 }
 .ui-outputlabel, label { color: var(--tb-text-soft); font-size: .82rem; font-weight: 600; letter-spacing: .02em; }
@@ -269,8 +356,8 @@ a:hover { text-decoration: underline; }
     border-bottom: 1px solid rgba(255, 255, 255, .07) !important; padding: .95rem 1.1rem; transition: background .2s ease;
 }
 .ui-datatable tbody tr:last-child td { border-bottom: none !important; }
-.ui-datatable.ui-datatable-striped tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .04) !important; }
-.ui-datatable tbody tr:hover td { background: rgba(255, 255, 255, .13) !important; }
+.ui-datatable.ui-datatable-striped tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .025) !important; }
+.ui-datatable tbody tr:hover td { background: rgba(255, 255, 255, .085) !important; }
 .ui-datatable .ui-datatable-empty-message td { color: var(--tb-text-muted) !important; text-align: center; padding: 2rem; }
 .ui-datatable .ui-paginator { background: transparent !important; border: none !important; color: var(--tb-text-muted) !important; padding: .75rem; }
 .ui-paginator .ui-paginator-page, .ui-paginator .ui-paginator-next, .ui-paginator .ui-paginator-prev,
@@ -280,7 +367,7 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Dialogues & overlays ---------- */
 .ui-dialog {
-    background: linear-gradient(145deg, rgba(40, 110, 170, .55), rgba(8, 36, 72, .78)) !important;
+    background: linear-gradient(145deg, rgba(74, 137, 174, .34), rgba(8, 31, 57, .64)) !important;
     border: 1px solid var(--tb-glass-border) !important; border-radius: var(--tb-radius) !important;
     box-shadow: var(--tb-edge), 0 40px 90px -10px rgba(2, 10, 26, .7) !important;
     -webkit-backdrop-filter: blur(34px) saturate(180%); backdrop-filter: blur(34px) saturate(180%);
@@ -317,9 +404,9 @@ a:hover { text-decoration: underline; }
 /* ---------- Navigation : barre de verre flottante ---------- */
 .ui-menubar, .ui-menu, .ui-tabmenu .ui-tabmenu-nav, .ui-megamenu, .ui-toolbar {
     background: linear-gradient(145deg, rgba(255, 255, 255, .20), rgba(255, 255, 255, .06)) !important;
-    border: 1px solid var(--tb-glass-border) !important; border-radius: 999px !important;
+    border: 1px solid var(--tb-glass-border) !important; border-radius: 16px !important;
     box-shadow: var(--tb-edge), var(--tb-shadow) !important;
-    -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur); padding: .4rem .7rem;
+    -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur); padding: .35rem .45rem;
 }
 .ui-menubar { position: sticky; top: .75rem; z-index: 500; margin: .75rem auto 0; max-width: 1200px; }
 .ui-menubar .ui-menuitem-link, .ui-menu .ui-menuitem-link, .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link {
@@ -341,12 +428,319 @@ a:hover { text-decoration: underline; }
     .ui-card, .ui-panel, .ui-dialog, .ui-menubar, .ui-datatable .ui-datatable-tablewrapper { background: rgba(16, 70, 120, .9) !important; }
 }
 
-/* ---------- Mobile ---------- */
+/* ---------- Mobile / responsive ---------- */
+
+@media (max-width: 900px) {
+    .tb-main {
+        width: auto;
+        max-width: none;
+        padding: 1rem .85rem 3rem;
+    }
+
+    .tb-header {
+        gap: .75rem;
+        margin: 1.2rem 0 1rem;
+    }
+
+    .tb-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .8rem;
+    }
+
+    .tb-span-2 {
+        grid-column: span 2;
+    }
+
+    .ui-card .ui-card-body {
+        padding: 1.15rem;
+    }
+
+    .ui-panel .ui-panel-titlebar {
+        padding: 1.1rem 1.15rem .25rem;
+    }
+
+    .ui-panel .ui-panel-content {
+        padding: .65rem 1.15rem 1.2rem;
+    }
+
+    .tb-hero-temp {
+        font-size: clamp(4rem, 12vw, 6rem);
+    }
+
+    .tb-room .tb-hero-temp {
+        font-size: clamp(3.5rem, 10vw, 5rem);
+    }
+
+    /* Don't force action buttons to the edge on touch screens. */
+    .tb-actions {
+        justify-content: stretch;
+        flex-wrap: wrap;
+    }
+
+    .tb-actions .ui-button {
+        flex: 1 1 auto;
+        min-width: 9rem;
+    }
+
+    /* DataTables can scroll horizontally instead of destroying the layout. */
+    .ui-datatable .ui-datatable-tablewrapper {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ui-datatable table {
+        min-width: 620px;
+    }
+
+    .ui-datatable thead th,
+    .ui-datatable tbody td {
+        white-space: nowrap;
+    }
+
+    .ui-dialog {
+        width: calc(100vw - 1.5rem) !important;
+        max-width: calc(100vw - 1.5rem) !important;
+        margin: .75rem;
+    }
+
+    .ui-dialog .ui-dialog-content {
+        max-height: calc(100vh - 9rem);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ui-selectonebutton {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ui-selectonebutton .ui-button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+}
+
 @media (max-width: 640px) {
-    .tb-header { flex-direction: column; align-items: flex-start; margin-top: 1.25rem; }
-    .tb-grid { grid-template-columns: 1fr; }
-    .tb-col-actions { width: auto; }
-    .tb-auth { margin-top: 4vh; }
-    .ui-card .ui-card-body { padding: 1.2rem; }
-    .ui-menubar { border-radius: 28px !important; }
+    html, body {
+        width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
+    body {
+        background-attachment: scroll;
+    }
+
+    .tb-main {
+        padding: .75rem .7rem 2rem;
+    }
+
+    .tb-header {
+        flex-direction: column;
+        align-items: stretch;
+        margin-top: .85rem;
+    }
+
+    .tb-brand {
+        margin-right: 0;
+    }
+
+    .tb-grid {
+        grid-template-columns: 1fr;
+        gap: .7rem;
+    }
+
+    .tb-span-2 {
+        grid-column: span 1;
+    }
+
+    .tb-card-head {
+        align-items: flex-start;
+    }
+
+    .tb-row {
+        gap: .55rem;
+    }
+
+    .tb-actions {
+        flex-direction: column;
+        gap: .5rem;
+        margin-top: 1rem;
+    }
+
+    .tb-actions .ui-button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .tb-auth {
+        width: auto;
+        max-width: none;
+        margin: 5vh .25rem 0;
+    }
+
+    .tb-auth-title {
+        font-size: clamp(1.8rem, 9vw, 2.35rem);
+        margin-bottom: 1.25rem;
+    }
+
+    .tb-narrow {
+        max-width: none;
+    }
+
+    .tb-narrow .ui-card {
+        margin-bottom: .7rem;
+    }
+
+    .ui-card {
+        border-radius: 20px !important;
+    }
+
+    .ui-card .ui-card-body {
+        padding: 1rem;
+    }
+
+    .ui-card .ui-card-title {
+        font-size: 1.08rem;
+    }
+
+    .ui-panel .ui-panel-titlebar {
+        padding: 1rem 1rem .2rem;
+    }
+
+    .ui-panel .ui-panel-content {
+        padding: .55rem 1rem 1rem;
+    }
+
+    .tb-temp {
+        font-size: clamp(3.1rem, 16vw, 4.5rem);
+    }
+
+    .tb-hero-temp {
+        font-size: clamp(3.6rem, 20vw, 5.5rem);
+    }
+
+    .tb-room .tb-hero-temp {
+        font-size: clamp(3.4rem, 18vw, 5rem);
+    }
+
+    .tb-room .tb-row {
+        margin-top: .8rem;
+    }
+
+    .tb-pill {
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: .45rem .8rem;
+        font-size: .88rem;
+    }
+
+    /* Menu can wrap instead of overflowing the viewport. */
+    .ui-menubar,
+    .ui-menu,
+    .ui-tabmenu .ui-tabmenu-nav,
+    .ui-megamenu,
+    .ui-toolbar {
+        max-width: calc(100vw - 1rem);
+        box-sizing: border-box;
+    }
+
+    .ui-menubar {
+        position: relative;
+        top: 0;
+        margin: .5rem auto 0;
+        border-radius: 15px !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ui-menubar .ui-menuitem-link,
+    .ui-menu .ui-menuitem-link,
+    .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link {
+        white-space: nowrap;
+    }
+
+    .ui-toolbar {
+        flex-wrap: wrap;
+        gap: .35rem;
+    }
+
+    .ui-inputfield,
+    .ui-inputtext,
+    .ui-inputnumber input,
+    .ui-password input,
+    .ui-selectonemenu,
+    .ui-datepicker-input,
+    .ui-calendar input {
+        min-height: 2.7rem;
+        font-size: 16px; /* prevents iOS Safari from zooming inputs */
+        box-sizing: border-box;
+    }
+
+    .ui-button {
+        min-height: 2.65rem;
+        padding: .62rem 1rem;
+    }
+
+    .ui-datepicker,
+    .ui-selectonemenu-panel,
+    .ui-autocomplete-panel,
+    .ui-overlaypanel {
+        max-width: calc(100vw - 1rem);
+        box-sizing: border-box;
+    }
+
+    .ui-growl {
+        max-width: calc(100vw - 1rem);
+        right: .5rem !important;
+        left: .5rem !important;
+    }
+
+    .ui-growl-item-container {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+/* Very narrow phones */
+@media (max-width: 380px) {
+    .tb-main {
+        padding-left: .55rem;
+        padding-right: .55rem;
+    }
+
+    .ui-card .ui-card-body {
+        padding: .85rem;
+    }
+
+    .tb-temp {
+        font-size: 2.9rem;
+    }
+
+    .tb-hero-temp {
+        font-size: 3.4rem;
+    }
+
+    .ui-button {
+        padding-left: .85rem;
+        padding-right: .85rem;
+    }
+}
+
+/* Touch devices: no fake hover enlargement. */
+@media (hover: none) and (pointer: coarse) {
+    .ui-button:enabled:hover {
+        transform: none;
+    }
+
+    .tb-room:hover {
+        transform: none;
+    }
+
+    .ui-card:hover,
+    .ui-panel:hover {
+        border-color: var(--tb-glass-border) !important;
+    }
 }
