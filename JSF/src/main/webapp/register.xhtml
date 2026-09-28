@@ -1,0 +1,56 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="metadata">
+        <f:metadata>
+            <f:viewAction action="#{loginBean.redirectIfLoggedIn}"/>
+        </f:metadata>
+    </ui:define>
+
+    <ui:define name="title">Inscription</ui:define>
+
+    <ui:define name="content">
+        <div class="tb-auth">
+            <h1 class="tb-auth-title"><i class="pi pi-sun"/> Thermobox</h1>
+            <p:card>
+                <f:facet name="title">Créer un compte</f:facet>
+                <h:form id="registerForm">
+                    <div class="tb-field">
+                        <p:outputLabel for="username" value="Nom d'utilisateur"/>
+                        <p:inputText id="username" value="#{registerBean.username}" required="true"
+                                     requiredMessage="Nom d'utilisateur obligatoire" autocomplete="username">
+                            <f:validateLength minimum="3" maximum="50"/>
+                        </p:inputText>
+                        <p:message for="username"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="password" value="Mot de passe"/>
+                        <p:password id="password" value="#{registerBean.password}" required="true"
+                                    requiredMessage="Mot de passe obligatoire" feedback="true" toggleMask="true"
+                                    promptLabel="Choisis un mot de passe" weakLabel="Faible"
+                                    goodLabel="Moyen" strongLabel="Fort" autocomplete="new-password">
+                            <f:validateLength minimum="8"/>
+                        </p:password>
+                        <p:message for="password"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="confirm" value="Confirmation"/>
+                        <p:password id="confirm" value="#{registerBean.confirm}" required="true"
+                                    requiredMessage="Confirmation obligatoire" toggleMask="true"
+                                    autocomplete="new-password"/>
+                        <p:message for="confirm"/>
+                    </div>
+                    <p:commandButton value="Créer mon compte" icon="pi pi-user-plus"
+                                     action="#{registerBean.register}" update="@form" styleClass="tb-full"/>
+                </h:form>
+                <f:facet name="footer">
+                    Déjà inscrit ? <h:link outcome="/login" value="Se connecter"/>
+                </f:facet>
+            </p:card>
+        </div>
+    </ui:define>
+</ui:composition>

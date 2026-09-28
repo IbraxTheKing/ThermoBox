@@ -1,0 +1,132 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="metadata">
+        <f:metadata>
+            <f:viewParam name="id" value="#{salleDetailBean.id}"/>
+            <f:viewAction action="#{salleDetailBean.load}"/>
+        </f:metadata>
+    </ui:define>
+
+    <ui:define name="title">#{salleDetailBean.salle.name}</ui:define>
+
+    <ui:define name="content">
+        <!-- Salle introuvable -->
+        <h:panelGroup layout="block" rendered="#{salleDetailBean.salle eq null}">
+            <p:staticMessage severity="warn" summary="Salle introuvable"
+                             detail="Cette salle n'existe pas ou a été supprimée." style="width:100%"/>
+            <p:linkButton value="Retour aux salles" icon="pi pi-arrow-left" outcome="/app/salles"
+                          styleClass="ui-button-flat"/>
+        </h:panelGroup>
+
+        <h:form id="detail" rendered="#{salleDetailBean.salle ne null}">
+            <div class="tb-header">
+                <h1>#{salleDetailBean.salle.name}</h1>
+                <p:linkButton value="Toutes les salles" icon="pi pi-arrow-left" outcome="/app/salles"
+                              styleClass="ui-button-flat"/>
+            </div>
+
+            <p:poll interval="30" listener="#{salleDetailBean.refresh}" update="etat"/>
+
+            <div class="tb-grid">
+                <!-- État courant (rafraîchi par le poll) -->
+                <h:panelGroup id="etat" layout="block" styleClass="tb-grid tb-span-2">
+                    <p:card>
+                        <div class="tb-muted">Température mesurée</div>
+                        <div class="tb-temp">
+                            <h:outputText value="#{salleDetailBean.mesure.value}"
+                                          rendered="#{salleDetailBean.mesure ne null}">
+                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                            </h:outputText>
+                            <h:outputText value="—" rendered="#{salleDetailBean.mesure eq null}"/>
+                            <span class="tb-unit">°C</span>
+                        </div>
+                        <h:outputText styleClass="tb-muted" value="#{salleDetailBean.mesure.date}"
+                                      rendered="#{salleDetailBean.mesure ne null}">
+                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                        </h:outputText>
+                    </p:card>
+
+                    <p:card>
+                        <div class="tb-muted">Consigne actuelle</div>
+                        <div class="tb-temp tb-consigne">
+                            <h:outputText value="#{salleDetailBean.consigne.value}"
+                                          rendered="#{salleDetailBean.consigne ne null}">
+                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                            </h:outputText>
+                            <h:outputText value="—" rendered="#{salleDetailBean.consigne eq null}"/>
+                            <span class="tb-unit">°C</span>
+                        </div>
+                        <h:outputText styleClass="tb-muted" value="#{salleDetailBean.consigne.date}"
+                                      rendered="#{salleDetailBean.consigne ne null}">
+                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                        </h:outputText>
+                    </p:card>
+                </h:panelGroup>
+
+                <!-- Envoi d'une consigne (ADMIN / GESTIONNAIRE) -->
+                <p:card rendered="#{loginBean.canSetConsigne}">
+                    <div class="tb-muted">Nouvelle consigne</div>
+                    <div class="tb-row">
+                        <p:inputNumber id="consigneInput" value="#{salleDetailBean.nouvelleConsigne}"
+                                       minValue="5" maxValue="35" decimalPlaces="1" symbol=" °C"
+                                       symbolPosition="s" required="true"
+                                       requiredMessage="Indique une température" placeholder="ex. 20,5"/>
+                        <p:commandButton value="Envoyer" icon="pi pi-send"
+                                         action="#{salleDetailBean.envoyerConsigne}"
+                                         process="@this consigneInput"
+                                         update="etat consigneInput :detail:historique"/>
+                    </div>
+                    <p:message for="consigneInput"/>
+                </p:card>
+            </div>
+
+            <!-- Historique -->
+            <p:panel id="historique" header="Historique" styleClass="tb-panel">
+                <div class="tb-row">
+                    <div class="tb-field tb-inline">
+                        <p:outputLabel for="start" value="Du"/>
+                        <p:datePicker id="start" value="#{salleDetailBean.start}" showTime="true"
+                                      pattern="dd/MM/yyyy HH:mm" required="true" locale="fr"/>
+                    </div>
+                    <div class="tb-field tb-inline">
+                        <p:outputLabel for="end" value="Au"/>
+                        <p:datePicker id="end" value="#{salleDetailBean.end}" showTime="true"
+                                      pattern="dd/MM/yyyy HH:mm" required="true" locale="fr"/>
+                    </div>
+                    <p:commandButton value="Afficher" icon="pi pi-search" action="#{salleDetailBean.loadHistory}"
+                                     process="@this start end" update="historique"/>
+                    <span class="tb-spacer"/>
+                    <p:commandButton value="24 h" action="#{salleDetailBean.periode(24)}" process="@this"
+                                     update="historique" styleClass="ui-button-outlined"/>
+                    <p:commandButton value="7 j" action="#{salleDetailBean.periode(168)}" process="@this"
+                                     update="historique" styleClass="ui-button-outlined"/>
+                    <p:commandButton value="30 j" action="#{salleDetailBean.periode(720)}" process="@this"
+                                     update="historique" styleClass="ui-button-outlined"/>
+                </div>
+
+                <p:lineChart model="#{salleDetailBean.chartModel}" style="height:360px"/>
+
+                <h3>Consignes de la période</h3>
+                <p:dataTable value="#{salleDetailBean.historiqueConsignes}" var="c" rows="10" paginator="true"
+                             paginatorAlwaysVisible="false" emptyMessage="Aucune consigne sur la période"
+                             stripedRows="true" size="small">
+                    <p:column headerText="Date">
+                        <h:outputText value="#{c.date}">
+                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                        </h:outputText>
+                    </p:column>
+                    <p:column headerText="Consigne">
+                        <h:outputText value="#{c.value}">
+                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                        </h:outputText> °C
+                    </p:column>
+                </p:dataTable>
+            </p:panel>
+        </h:form>
+    </ui:define>
+</ui:composition>

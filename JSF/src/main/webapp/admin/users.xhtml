@@ -1,0 +1,85 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Utilisateurs</ui:define>
+
+    <ui:define name="content">
+        <h:form id="usersForm">
+            <div class="tb-header">
+                <h1>Utilisateurs</h1>
+                <p:commandButton value="Nouvel utilisateur" icon="pi pi-user-plus" action="#{userBean.create}"
+                                 process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"/>
+            </div>
+
+            <p:dataTable id="table" value="#{userBean.users}" var="u" rows="20" paginator="true"
+                         paginatorAlwaysVisible="false" emptyMessage="Aucun utilisateur" stripedRows="true">
+                <p:column headerText="Nom d'utilisateur" sortBy="#{u.username}" filterBy="#{u.username}"
+                          filterMatchMode="contains">
+                    <h:outputText value="#{u.username}"/>
+                    <p:tag value="vous" severity="info" rendered="#{userBean.isSelf(u)}" styleClass="tb-ml"/>
+                </p:column>
+                <p:column headerText="Rôle" sortBy="#{u.role}">
+                    <p:tag value="#{u.role}"
+                           severity="#{u.role eq 'ADMIN' ? 'danger' : (u.role eq 'GESTIONNAIRE' ? 'warning' : 'success')}"/>
+                </p:column>
+                <p:column headerText="Actions" styleClass="tb-col-actions">
+                    <p:commandButton icon="pi pi-pencil" title="Modifier" action="#{userBean.edit(u)}"
+                                     process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"
+                                     styleClass="ui-button-flat"/>
+                    <p:commandButton icon="pi pi-trash" title="Supprimer" action="#{userBean.delete(u)}"
+                                     process="@this" update="table" disabled="#{userBean.isSelf(u)}"
+                                     styleClass="ui-button-flat ui-button-danger">
+                        <p:confirm header="Supprimer" message="Supprimer l'utilisateur « #{u.username} » ?"
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </p:column>
+            </p:dataTable>
+        </h:form>
+
+        <p:dialog header="Utilisateur" widgetVar="userDlg" modal="true" resizable="false" responsive="true"
+                  width="420">
+            <h:form id="userDlgForm">
+                <h:panelGroup rendered="#{userBean.selected ne null}">
+                    <div class="tb-field">
+                        <p:outputLabel for="username" value="Nom d'utilisateur"/>
+                        <p:inputText id="username" value="#{userBean.selected.username}" required="true"
+                                     requiredMessage="Nom d'utilisateur obligatoire">
+                            <f:validateLength minimum="3" maximum="50"/>
+                        </p:inputText>
+                        <p:message for="username"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="role" value="Rôle"/>
+                        <p:selectOneMenu id="role" value="#{userBean.selected.role}" required="true"
+                                         requiredMessage="Rôle obligatoire">
+                            <f:selectItem itemLabel="Choisir…" noSelectionOption="true"/>
+                            <f:selectItems value="#{userBean.roles}"/>
+                        </p:selectOneMenu>
+                        <p:message for="role"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="pwd"
+                                       value="#{userBean.creating ? 'Mot de passe' : 'Nouveau mot de passe (optionnel)'}"/>
+                        <p:password id="pwd" value="#{userBean.newPassword}" required="#{userBean.creating}"
+                                    requiredMessage="Mot de passe obligatoire" toggleMask="true"
+                                    autocomplete="new-password">
+                            <f:validateLength minimum="8"/>
+                        </p:password>
+                        <p:message for="pwd"/>
+                    </div>
+                    <div class="tb-actions">
+                        <p:commandButton value="Annuler" type="button" onclick="PF('userDlg').hide()"
+                                         styleClass="ui-button-flat"/>
+                        <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{userBean.save}"
+                                         update="@form :usersForm:table"
+                                         oncomplete="if (args &amp;&amp; args.saved) PF('userDlg').hide()"/>
+                    </div>
+                </h:panelGroup>
+            </h:form>
+        </p:dialog>
+    </ui:define>
+</ui:composition>

@@ -1,0 +1,65 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Salles</ui:define>
+
+    <ui:define name="content">
+        <h:form id="sallesForm">
+            <div class="tb-header">
+                <h1>Salles</h1>
+                <p:commandButton value="Nouvelle salle" icon="pi pi-plus" rendered="#{loginBean.admin}"
+                                 action="#{salleBean.create}" process="@this"
+                                 update=":salleDlgForm" oncomplete="PF('salleDlg').show()"/>
+            </div>
+
+            <p:dataTable id="table" value="#{salleBean.salles}" var="s" emptyMessage="Aucune salle"
+                         rows="15" paginator="true" paginatorAlwaysVisible="false" stripedRows="true">
+                <p:column headerText="Nom" sortBy="#{s.name}" filterBy="#{s.name}" filterMatchMode="contains">
+                    <h:outputText value="#{s.name}"/>
+                </p:column>
+
+                <p:column headerText="Actions" styleClass="tb-col-actions">
+                    <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle" styleClass="ui-button-flat">
+                        <f:param name="id" value="#{s.id}"/>
+                    </p:linkButton>
+                    <p:commandButton icon="pi pi-pencil" title="Modifier" rendered="#{loginBean.admin}"
+                                     action="#{salleBean.edit(s)}" process="@this"
+                                     update=":salleDlgForm" oncomplete="PF('salleDlg').show()"
+                                     styleClass="ui-button-flat"/>
+                    <p:commandButton icon="pi pi-trash" title="Supprimer" rendered="#{loginBean.admin}"
+                                     action="#{salleBean.delete(s)}" process="@this" update="table"
+                                     styleClass="ui-button-flat ui-button-danger">
+                        <p:confirm header="Supprimer la salle"
+                                   message="Supprimer « #{s.name} » et son historique ?"
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </p:column>
+            </p:dataTable>
+        </h:form>
+
+        <p:dialog header="Salle" widgetVar="salleDlg" modal="true" resizable="false" responsive="true"
+                  width="420">
+            <h:form id="salleDlgForm">
+                <h:panelGroup rendered="#{salleBean.selected ne null}">
+                    <div class="tb-field">
+                        <p:outputLabel for="nom" value="Nom"/>
+                        <p:inputText id="nom" value="#{salleBean.selected.name}" required="true"
+                                     requiredMessage="Le nom est obligatoire"/>
+                        <p:message for="nom"/>
+                    </div>
+                    <div class="tb-actions">
+                        <p:commandButton value="Annuler" type="button" onclick="PF('salleDlg').hide()"
+                                         styleClass="ui-button-flat"/>
+                        <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{salleBean.save}"
+                                         update="@form :sallesForm:table"
+                                         oncomplete="if (args &amp;&amp; args.saved) PF('salleDlg').hide()"/>
+                    </div>
+                </h:panelGroup>
+            </h:form>
+        </p:dialog>
+    </ui:define>
+</ui:composition>

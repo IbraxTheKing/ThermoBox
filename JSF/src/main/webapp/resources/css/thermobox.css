@@ -1,0 +1,86 @@
+body {
+    margin: 0;
+    background: #f4f5f7;
+    color: #1f2937;
+}
+
+.tb-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.tb-brand {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-right: 1.5rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.tb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.tb-header h1 { margin: 0; font-size: 1.6rem; }
+
+.tb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.tb-span-2 { grid-column: span 2; margin-bottom: 0; }
+@media (max-width: 600px) { .tb-span-2 { grid-column: span 1; } }
+
+.tb-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .5rem;
+}
+.tb-card-title { font-weight: 600; font-size: 1.1rem; }
+
+.tb-temp {
+    font-size: 2.6rem;
+    font-weight: 600;
+    line-height: 1.15;
+    margin: .25rem 0 .4rem;
+    color: #e4572e;
+}
+.tb-temp.tb-consigne { color: #2e86ab; }
+.tb-unit { font-size: 1.1rem; font-weight: 400; color: #6b7280; margin-left: .2rem; }
+
+.tb-muted { color: #6b7280; font-size: .9rem; }
+.tb-empty { padding: 2rem; text-align: center; color: #6b7280; }
+
+.tb-field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+.tb-field .ui-inputfield,
+.tb-field .ui-password,
+.tb-field .ui-password input,
+.tb-field .ui-selectonemenu,
+.tb-field .ui-datepicker input { width: 100%; }
+.tb-field.tb-inline { margin-bottom: 0; }
+
+.tb-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; margin-bottom: 1rem; }
+.tb-spacer { flex: 1; }
+.tb-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .5rem; }
+.tb-full { width: 100%; }
+.tb-ml { margin-left: .5rem; }
+
+.tb-col-actions { width: 11rem; white-space: nowrap; }
+.tb-col-type { width: 8rem; }
+.tb-panel { margin-top: .5rem; }
+
+.tb-auth { max-width: 400px; margin: 8vh auto 0; }
+.tb-auth-title { text-align: center; font-size: 1.8rem; margin-bottom: 1.5rem; }
+.tb-auth .ui-card { width: 100%; }
+
+.tb-narrow { max-width: 560px; margin: 0 auto; }
+.tb-narrow .ui-card { margin-bottom: 1rem; }
+.tb-danger { border-left: 4px solid #d9342b; }

@@ -1,0 +1,62 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Mon profil</ui:define>
+
+    <ui:define name="content">
+        <div class="tb-narrow">
+            <div class="tb-header"><h1>Mon profil</h1></div>
+
+            <h:form id="profilForm" rendered="#{profilBean.user ne null}">
+                <p:card>
+                    <div class="tb-field">
+                        <p:outputLabel for="username" value="Nom d'utilisateur"/>
+                        <p:inputText id="username" value="#{profilBean.user.username}" required="true"
+                                     requiredMessage="Nom d'utilisateur obligatoire">
+                            <f:validateLength minimum="3" maximum="50"/>
+                        </p:inputText>
+                        <p:message for="username"/>
+                    </div>
+                    <div class="tb-field">
+                        <span class="tb-muted">Rôle : <strong>#{profilBean.user.role}</strong></span>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="pwd" value="Nouveau mot de passe (laisser vide pour ne pas changer)"/>
+                        <p:password id="pwd" value="#{profilBean.newPassword}" toggleMask="true"
+                                    autocomplete="new-password">
+                            <f:validateLength minimum="8"/>
+                        </p:password>
+                        <p:message for="pwd"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="confirm" value="Confirmation"/>
+                        <p:password id="confirm" value="#{profilBean.confirmPassword}" toggleMask="true"
+                                    autocomplete="new-password"/>
+                    </div>
+                    <div class="tb-actions">
+                        <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{profilBean.save}"
+                                         update="@form :menuForm"/>
+                    </div>
+                </p:card>
+            </h:form>
+
+            <h:form id="dangerForm" rendered="#{profilBean.user ne null}">
+                <p:card styleClass="tb-danger">
+                    <f:facet name="title">Zone de danger</f:facet>
+                    <p class="tb-muted">La suppression de ton compte est définitive.</p>
+                    <p:commandButton value="Supprimer mon compte" icon="pi pi-trash"
+                                     action="#{profilBean.deleteAccount}" process="@this" ajax="false"
+                                     styleClass="ui-button-danger">
+                        <p:confirm header="Supprimer mon compte"
+                                   message="Es-tu sûr ? Cette action est irréversible."
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </p:card>
+            </h:form>
+        </div>
+    </ui:define>
+</ui:composition>

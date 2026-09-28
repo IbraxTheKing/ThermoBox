@@ -1,0 +1,51 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="metadata">
+        <f:metadata>
+            <f:viewAction action="#{loginBean.redirectIfLoggedIn}"/>
+        </f:metadata>
+    </ui:define>
+
+    <ui:define name="title">Connexion</ui:define>
+
+    <ui:define name="content">
+        <div class="tb-auth">
+            <h1 class="tb-auth-title"><i class="pi pi-sun"/> Thermobox</h1>
+
+            <p:staticMessage severity="info" summary="Compte supprimé"
+                             detail="Ton compte a bien été supprimé."
+                             rendered="#{param.compteSupprime eq 'true'}" style="width:100%"/>
+
+            <p:card>
+                <f:facet name="title">Connexion</f:facet>
+                <h:form id="loginForm">
+                    <div class="tb-field">
+                        <p:outputLabel for="username" value="Nom d'utilisateur"/>
+                        <p:inputText id="username" value="#{loginBean.username}" required="true"
+                                     requiredMessage="Nom d'utilisateur obligatoire" autocomplete="username"/>
+                        <p:message for="username"/>
+                    </div>
+                    <div class="tb-field">
+                        <p:outputLabel for="password" value="Mot de passe"/>
+                        <p:password id="password" value="#{loginBean.password}" required="true"
+                                    requiredMessage="Mot de passe obligatoire" toggleMask="true"
+                                    redisplay="false" autocomplete="current-password"/>
+                        <p:message for="password"/>
+                    </div>
+                    <p:commandButton id="loginBtn" value="Se connecter" icon="pi pi-sign-in"
+                                     action="#{loginBean.login}" update="@form" styleClass="tb-full"/>
+                    <p:defaultCommand target="loginBtn"/>
+                </h:form>
+                <f:facet name="footer">
+                    Pas encore de compte ?
+                    <h:link outcome="/register" value="Créer un compte"/>
+                </f:facet>
+            </p:card>
+        </div>
+    </ui:define>
+</ui:composition>
