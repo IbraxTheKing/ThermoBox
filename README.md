@@ -30,7 +30,6 @@ Le projet est organisé en modules Maven :
 - `Persistence` : accès aux données via JPA
 - `RestServer` : API REST
 - `JSF` : interface web JavaServer Faces / PrimeFaces
-- `iaSlopTest` : client web HTML/CSS/JS de démonstration
 - `ibr-utils` : utilitaires et composants transverses
 
 ## Stack technique
