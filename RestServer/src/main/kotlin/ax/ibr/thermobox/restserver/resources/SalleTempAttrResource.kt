@@ -4,6 +4,7 @@ import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
+import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.io.mqtt.SimulatedProtocolDriver
@@ -166,5 +167,15 @@ class SalleTempAttrResource {
     fun getLatestMeasured(@PathParam("id") id: Long): Temperature? {
         val salle = salleService.getById(id) ?: return null
         return service.getCurrentTemperatureFromSalle(salle, Mesurer(0f, LocalDateTime.now()))
+    }
+
+    @GET
+    @Path("/room/{id}/average/")
+    fun getAverageTemperaturesFromDayAndSalle(
+        @PathParam("id") sId: Long,
+        @QueryParam("start") start: String,
+        @QueryParam("end") end: String
+    ): List<Temperature> {
+        TODO()
     }
 }
