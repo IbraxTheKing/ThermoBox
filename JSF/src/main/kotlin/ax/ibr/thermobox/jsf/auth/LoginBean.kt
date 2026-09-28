@@ -43,7 +43,7 @@ class LoginBean : Serializable {
         // Protection contre la fixation de session
         (FacesContext.getCurrentInstance().externalContext.request as HttpServletRequest).changeSessionId()
         currentUser = user
-        return "/app/index?faces-redirect=true"
+        return "/app/dashboard?faces-redirect=true"
     }
 
     fun logout(): String {
@@ -53,12 +53,12 @@ class LoginBean : Serializable {
 
     /** f:viewAction de login/register : inutile d'y rester si déjà connecté. */
     fun redirectIfLoggedIn() {
-        if (isLoggedIn) redirect("/app/index.xhtml")
+        if (isLoggedIn) redirect("/app/dashboard.xhtml")
     }
 
     /** f:viewAction de la page racine index.xhtml */
     fun goHome() {
-        redirect("/app/index.xhtml")
+        redirect(if (isLoggedIn) "/app/dashboard.xhtml" else "/login.xhtml")
     }
 
     /**

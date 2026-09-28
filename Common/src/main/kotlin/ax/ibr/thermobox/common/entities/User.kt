@@ -15,8 +15,7 @@ class User {
         set(password) {
             field = password
         }
-    final var type: UserType? = null
-        private set
+    var type: UserType? = null
 
     fun isPasswordValid(password: String): Boolean {
         return !(password.isEmpty() || this.password == password)
@@ -29,6 +28,12 @@ class User {
         this.username = name
         this.password = password // TODO: ENCRYPT IT!!!!
         this.type = UserType.VIEWER
+    }
+
+    constructor(name: String, password: String, type: UserType) {
+        this.username = name
+        this.password = password // TODO: ENCRYPT IT!!!!
+        this.type = type
     }
 
     constructor()

@@ -1,0 +1,69 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Aperçu</ui:define>
+
+    <ui:define name="content">
+        <h:form id="dashForm">
+            <div class="tb-header">
+                <h1>Aperçu</h1>
+                <p:commandButton value="Actualiser" icon="pi pi-refresh" action="#{dashboardBean.refresh}"
+                                 process="@this" update="grille" styleClass="ui-button-flat"/>
+            </div>
+
+            <p:poll interval="30" listener="#{dashboardBean.refresh}" update="grille"/>
+
+            <h:panelGroup id="grille" layout="block">
+                <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty dashboardBean.resumes}">
+                    Aucune salle n'est enregistrée pour le moment.
+                </h:panelGroup>
+
+                <div class="tb-grid">
+                    <ui:repeat value="#{dashboardBean.resumes}" var="r">
+                        <p:card styleClass="tb-room">
+                            <div class="tb-room-name">#{r.salle.name}</div>
+
+                            <div class="tb-hero-temp">
+                                <h:outputText value="#{r.mesure.value}" rendered="#{r.mesure ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value="—" rendered="#{r.mesure eq null}"/>
+                                <span class="tb-unit">°</span>
+                            </div>
+
+                            <div class="tb-state">
+                                <p:tag value="#{r.etat}" severity="#{r.etatSeverity}"/>
+                            </div>
+
+                            <div class="tb-pill">
+                                Consigne
+                                <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value="—" rendered="#{r.consigne eq null}"/>
+                                °C
+                                <span class="tb-delta">#{r.ecartLabel}</span>
+                            </div>
+
+                            <div class="tb-row">
+                                <span class="tb-muted">
+                                    <h:outputText value="#{r.mesure.date}" rendered="#{r.mesure ne null}">
+                                        <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
+                                    </h:outputText>
+                                </span>
+                                <p:linkButton value="Détail" icon="pi pi-chart-line" outcome="/app/salle"
+                                              styleClass="ui-button-flat">
+                                    <f:param name="id" value="#{r.salle.id}"/>
+                                </p:linkButton>
+                            </div>
+                        </p:card>
+                    </ui:repeat>
+                </div>
+            </h:panelGroup>
+        </h:form>
+    </ui:define>
+</ui:composition>

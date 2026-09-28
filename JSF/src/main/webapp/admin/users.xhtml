@@ -22,9 +22,9 @@
                     <h:outputText value="#{u.username}"/>
                     <p:tag value="vous" severity="info" rendered="#{userBean.isSelf(u)}" styleClass="tb-ml"/>
                 </p:column>
-                <p:column headerText="Rôle" sortBy="#{u.role}">
-                    <p:tag value="#{u.role}"
-                           severity="#{u.role eq 'ADMIN' ? 'danger' : (u.role eq 'GESTIONNAIRE' ? 'warning' : 'success')}"/>
+                <p:column headerText="Rôle" sortBy="#{u.type}">
+                    <p:tag value="#{u.type}"
+                           severity="#{u.type eq 'ADMIN' ? 'danger' : (u.type eq 'GESTIONNAIRE' ? 'warning' : 'success')}"/>
                 </p:column>
                 <p:column headerText="Actions" styleClass="tb-col-actions">
                     <p:commandButton icon="pi pi-pencil" title="Modifier" action="#{userBean.edit(u)}"
@@ -54,7 +54,7 @@
                     </div>
                     <div class="tb-field">
                         <p:outputLabel for="role" value="Rôle"/>
-                        <p:selectOneMenu id="role" value="#{userBean.selected.role}" required="true"
+                        <p:selectOneMenu id="role" value="#{userBean.selected.type}" required="true"
                                          requiredMessage="Rôle obligatoire">
                             <f:selectItem itemLabel="Choisir…" noSelectionOption="true"/>
                             <f:selectItems value="#{userBean.roles}"/>

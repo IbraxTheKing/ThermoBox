@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletResponse
  * /app/*   : utilisateur connecté
  * /admin/* : ADMIN uniquement
  */
+*/
+
 @WebFilter(urlPatterns = ["/app/*", "/admin/*"])
 class AuthFilter : HttpFilter() {
 
@@ -40,4 +42,4 @@ class AuthFilter : HttpFilter() {
         }
     }
 }
-**/
+ */

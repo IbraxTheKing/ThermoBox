@@ -8,6 +8,7 @@ import jakarta.annotation.PostConstruct
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Named
 import java.io.Serializable
+import java.util.Locale
 
 /** Une carte du tableau de bord. */
 data class SalleResume(val salle: Salle, val mesure: Temperature?, val consigne: Temperature?) : Serializable {
@@ -31,6 +32,10 @@ data class SalleResume(val salle: Salle, val mesure: Temperature?, val consigne:
             "Stable" -> "success"
             else -> "info"
         }
+
+    /** Écart à la consigne, ex. « +0,8° » (vide si pas de données). */
+    val ecartLabel: String
+        get() = ecart?.let { String.format(Locale.FRANCE, "%+.1f°", it) } ?: ""
 }
 
 @Named
