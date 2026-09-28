@@ -52,7 +52,25 @@ class LoginBean : Serializable {
     }
 
     /** f:viewAction de login/register : inutile d'y rester si déjà connecté. */
-    fun redirectIfLoggedIn(): String? = if (isLoggedIn) "/app/index?faces-redirect=true" else null
+    fun redirectIfLoggedIn() {
+        if (isLoggedIn) redirect("/app/index.xhtml")
+    }
+
+    /** f:viewAction de la page racine index.xhtml */
+    fun goHome() {
+        redirect("/app/index.xhtml")
+    }
+
+    /**
+     * Redirection HTTP directe, sans passer par le NavigationHandler :
+     * dans un f:viewAction, Mojarra 4.0 plante sur le Flash (NPE ELFlash.setKeepMessages).
+     */
+    private fun redirect(path: String) {
+        val ctx = FacesContext.getCurrentInstance()
+        val ec = ctx.externalContext
+        ec.redirect(ec.requestContextPath + path)
+        ctx.responseComplete()
+    }
 
     /** Met à jour l'utilisateur en session après modification de son profil. */
     fun refresh(user: User) {

@@ -1,67 +1,10 @@
-<ui:composition template="/WEB-INF/templates/layout.xhtml"
-                xmlns="http://www.w3.org/1999/xhtml"
-                xmlns:h="jakarta.faces.html"
-                xmlns:f="jakarta.faces.core"
-                xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
-
-    <ui:define name="title">Tableau de bord</ui:define>
-
-    <ui:define name="content">
-        <h:form id="dash">
-            <p:poll interval="30" listener="#{dashboardBean.refresh}" update="cards"/>
-
-            <div class="tb-header">
-                <h1>Tableau de bord</h1>
-                <span class="tb-muted"><i class="pi pi-refresh"/> Actualisé toutes les 30 s</span>
-            </div>
-
-            <h:panelGroup id="cards" layout="block" styleClass="tb-grid">
-                <ui:repeat value="#{dashboardBean.resumes}" var="r">
-                    <p:card styleClass="tb-card">
-                        <div class="tb-card-head">
-                            <span class="tb-card-title">#{r.salle.name}</span>
-                            <p:tag value="#{r.etat}" severity="#{r.etatSeverity}"/>
-                        </div>
-
-                        <div class="tb-temp">
-                            <h:outputText value="#{r.mesure.value}" rendered="#{r.mesure ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value="—" rendered="#{r.mesure eq null}"/>
-                            <span class="tb-unit">°C</span>
-                        </div>
-
-                        <div class="tb-muted">
-                            Consigne :
-                            <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value=" °C" rendered="#{r.consigne ne null}"/>
-                            <h:outputText value="aucune" rendered="#{r.consigne eq null}"/>
-                        </div>
-                        <h:panelGroup layout="block" styleClass="tb-muted" rendered="#{r.mesure ne null}">
-                            Mesurée le
-                            <h:outputText value="#{r.mesure.date}">
-                                <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
-                            </h:outputText>
-                        </h:panelGroup>
-
-                        <f:facet name="footer">
-                            <p:linkButton value="Détails" icon="pi pi-arrow-right" iconPos="right"
-                                          outcome="/app/salle" styleClass="ui-button-flat">
-                                <f:param name="id" value="#{r.salle.id}"/>
-                            </p:linkButton>
-                        </f:facet>
-                    </p:card>
-                </ui:repeat>
-            </h:panelGroup>
-
-            <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty dashboardBean.resumes}">
-                Aucune salle pour le moment.
-                <p:linkButton value="Créer une salle" outcome="/app/salles" rendered="#{loginBean.admin}"
-                              styleClass="ui-button-flat"/>
-            </h:panelGroup>
-        </h:form>
-    </ui:define>
-</ui:composition>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:f="jakarta.faces.core"
+      xmlns:h="jakarta.faces.html">
+<f:metadata>
+    <f:viewAction action="#{loginBean.goHome}"/>
+</f:metadata>
+<h:head><title>Thermobox</title></h:head>
+<h:body/>
+</html>
