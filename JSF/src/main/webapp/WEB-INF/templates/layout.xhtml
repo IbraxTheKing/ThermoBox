@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+
+<ui:insert name="metadata"/>
+
+<h:head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Thermobox – <ui:insert name="title"/></title>
+    <h:outputStylesheet name="css/thermobox.css"/>
+</h:head>
+
+<h:body>
+    <h:form id="menuForm" rendered="#{loginBean.loggedIn}">
+        <p:menubar>
+            <f:facet name="start">
+                <h:link outcome="/app/index" styleClass="tb-brand">
+                    <i class="pi pi-sun"/> Thermobox
+                </h:link>
+            </f:facet>
+
+            <p:menuitem value="Tableau de bord" icon="pi pi-home" outcome="/app/index"/>
+            <p:menuitem value="Salles" icon="pi pi-building" outcome="/app/salles"/>
+            <p:menuitem value="Températures" icon="pi pi-chart-line" outcome="/app/temperatures"/>
+            <p:menuitem value="Utilisateurs" icon="pi pi-users" outcome="/admin/users"
+                        rendered="#{loginBean.admin}"/>
+
+            <f:facet name="options">
+                <p:linkButton value="#{loginBean.currentUser.username}" icon="pi pi-user"
+                              outcome="/app/profil" styleClass="ui-button-flat"/>
+                <p:commandButton value="Déconnexion" icon="pi pi-sign-out" action="#{loginBean.logout}"
+                                 ajax="false" styleClass="ui-button-outlined"/>
+            </f:facet>
+        </p:menubar>
+    </h:form>
+
+    <p:growl id="growl" showDetail="true" life="4000">
+        <p:autoUpdate/>
+    </p:growl>
+
+    <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="360">
+        <p:commandButton value="Annuler" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
+        <p:commandButton value="Confirmer" type="button" styleClass="ui-confirmdialog-yes ui-button-danger"/>
+    </p:confirmDialog>
+
+    <main class="tb-main">
+        <ui:insert name="content"/>
+    </main>
+</h:body>
+</html>

@@ -11,7 +11,7 @@ import java.io.Serializable
 
 /** Une carte du tableau de bord. */
 data class SalleResume(val salle: Salle, val mesure: Temperature?, val consigne: Temperature?) : Serializable {
-    private val ecart: Float? get() = if (mesure != null && consigne != null) mesure.value - consigne.value else null
+    private val ecart: Float? get() = if (mesure != null && consigne != null) mesure.value?.minus(consigne.value!!) else null
 
     val etat: String
         get() {

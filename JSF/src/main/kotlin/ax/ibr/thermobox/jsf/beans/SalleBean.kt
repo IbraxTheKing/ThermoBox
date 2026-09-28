@@ -30,7 +30,7 @@ class SalleBean : Serializable {
     }
 
     fun create() {
-        selected = Salle()
+        selected = Salle("")
     }
 
     fun edit(salle: Salle) {

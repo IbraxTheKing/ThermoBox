@@ -11,7 +11,7 @@ class User {
 
     var username: String? = null
 
-    private var password: String? = null
+    var password: String? = null
         set(password) {
             field = password
         }
@@ -30,5 +30,7 @@ class User {
         this.password = password // TODO: ENCRYPT IT!!!!
         this.type = UserType.VIEWER
     }
+
+    constructor()
 
 }
