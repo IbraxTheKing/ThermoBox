@@ -797,14 +797,15 @@ body .ui-button.tb-logout:hover {
 /* ---------- Verre dépoli & View Transitions ---------- */
 
 /* Le flou peut s'animer : il reviendra progressivement au lieu d'apparaître d'un coup */
-.ui-card, .ui-panel, .ui-menubar, .ui-datatable .ui-datatable-tablewrapper {
+.ui-card,
+.ui-panel,
+.ui-menubar,
+.ui-datatable .ui-datatable-tablewrapper {
     transition:
-            -webkit-backdrop-filter .4s ease,
-            backdrop-filter .4s ease,
-            background-color .4s ease,
             transform .32s var(--tb-spring),
             border-color .28s ease,
-            box-shadow .32s ease;
+            box-shadow .32s ease,
+            background-color .28s ease;
 }
 
 /* Pendant la transition : pas de flou, un fond un peu plus dense pour garder l'effet "verre" */
