@@ -37,6 +37,9 @@ object ChartBuilder {
             chartData.addChartDataSet(dataSet)
         }
 
-        return LineChartModel().apply { data = chartData }
+        return LineChartModel().apply {
+            data = chartData
+            extender = "tbChartExtender"
+        }
     }
 }

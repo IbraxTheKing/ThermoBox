@@ -1040,3 +1040,168 @@ img, canvas, svg { max-width: 100%; }
     body .ui-menubar { position: relative !important; top: 0 !important; }
     .ui-dialog { max-height: 92vh; }
 }
+
+/* ==========================================================================
+   Thermobox : correctifs mobile v2 + pastilles "contour"
+   À COLLER TOUT À LA FIN de thermobox.css (après le bloc responsive).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   PASTILLES (p:tag) : contour coloré + fond très léger, comme "Déconnexion"
+   (valable sur ordinateur ET mobile)
+   -------------------------------------------------------------------------- */
+body .ui-tag {
+    display: inline-flex !important; align-items: center; gap: .45rem;
+    padding: .28rem .75rem !important;
+    border-radius: 999px !important;
+    font-size: .76rem; font-weight: 700; letter-spacing: .03em; line-height: 1.2;
+    white-space: nowrap; vertical-align: middle;
+    background: rgba(255, 255, 255, .06) !important;
+    border: 1.5px solid rgba(255, 255, 255, .45) !important;
+    color: var(--tb-text) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 0 14px -6px currentColor !important;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+body .ui-tag .ui-tag-value, body .ui-tag .ui-tag-icon { color: inherit !important; }
+body .ui-tag::before {
+    content: ""; flex: 0 0 auto; width: .45rem; height: .45rem; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+body .ui-tag.ui-tag-success { color: #8ff0bf !important; border-color: rgba(113, 230, 170, .8) !important; background: rgba(113, 230, 170, .10) !important; }
+body .ui-tag.ui-tag-warning { color: #ffdc85 !important; border-color: rgba(255, 211, 106, .8) !important; background: rgba(255, 211, 106, .10) !important; }
+body .ui-tag.ui-tag-danger  { color: #ffa5a8 !important; border-color: rgba(255, 141, 145, .85) !important; background: rgba(255, 141, 145, .12) !important; }
+body .ui-tag.ui-tag-info    { color: #a6f3f7 !important; border-color: rgba(140, 236, 242, .8) !important; background: rgba(140, 236, 242, .10) !important; }
+
+
+/* ==========================================================================
+   TÉLÉPHONE (≤ 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+
+    /* ---------- En-tête de page : titre + bouton rond (icône seule) ---------- */
+    .tb-header {
+        flex-direction: row !important; flex-wrap: nowrap !important;
+        align-items: center !important; justify-content: space-between;
+        gap: .6rem; margin: .9rem 0 .75rem !important;
+    }
+    .tb-header h1 {
+        font-size: 1.6rem !important; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tb-header .ui-button {
+        flex: 0 0 auto; align-self: center !important;
+        width: 2.75rem !important; height: 2.75rem; min-height: 2.75rem;
+        padding: 0 !important; border-radius: 50% !important;
+    }
+    .tb-header .ui-linkbutton > a { padding: 0 !important; justify-content: center; }
+    .tb-header .ui-button .ui-button-text {
+        position: absolute !important; width: 1px; height: 1px;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+    }
+
+    /* ---------- Cartes plus compactes ---------- */
+    .ui-card .ui-card-body { padding: .85rem .95rem !important; }
+    .ui-card .ui-card-content { padding: 0 !important; }
+    .ui-card .ui-card-title { font-size: 1rem !important; margin-bottom: .35rem !important; }
+
+    /* Grilles : 2 colonnes pour les chiffres (moyennes, mesure/consigne) */
+    .tb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: .6rem !important; margin-bottom: .9rem !important; }
+    .tb-grid > .tb-span-2,
+    .tb-grid > .tb-span-2 + .ui-card,
+    .tb-grid > .ui-card:only-child { grid-column: 1 / -1 !important; }
+    .tb-span-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: .6rem !important; }
+
+    /* …mais 1 colonne pour les cartes de salle du tableau de bord */
+    .tb-grid:has(.tb-room) { grid-template-columns: 1fr !important; }
+
+    /* Chiffres adaptés à une demi-largeur d'écran */
+    .tb-grid .tb-temp {
+        font-size: clamp(2.1rem, 10.5vw, 2.8rem) !important;
+        margin: .25rem 0 .15rem !important;
+    }
+    .tb-grid .tb-muted { font-size: .78rem; }
+
+    /* Cartes de salle (dashboard) */
+    .tb-room .tb-hero-temp { font-size: clamp(3rem, 16vw, 3.8rem) !important; margin: .1rem 0 .3rem !important; }
+    .tb-room .tb-state { margin: .15rem 0 .55rem !important; }
+    .tb-room .tb-row { margin-top: .6rem !important; }
+
+    /* Filtre Toutes / Mesures / Consignes : 3 segments égaux */
+    .ui-selectonebutton { display: flex !important; width: 100% !important; box-sizing: border-box; }
+    .ui-selectonebutton .ui-button { flex: 1 1 0 !important; min-width: 0; padding: 0 .3rem !important; }
+
+    /* ---------- TABLEAUX → LISTE ----------
+       Plus de défilement horizontal : chaque ligne devient un bloc.
+       Colonne de gauche : les valeurs empilées. À droite : les boutons d'action. */
+    .ui-datatable .ui-datatable-tablewrapper { overflow: visible !important; }
+    .ui-datatable table { min-width: 0 !important; width: 100% !important; table-layout: auto; }
+    .ui-datatable table, .ui-datatable thead, .ui-datatable tbody { display: block; }
+
+    /* En-tête : on ne garde que le champ de filtre (s'il existe) */
+    .ui-datatable thead tr { display: flex; }
+    .ui-datatable thead th { display: none !important; }
+    .ui-datatable thead th.ui-filter-column {
+        display: block !important; flex: 1 1 auto;
+        padding: .7rem .8rem !important; background: transparent !important;
+    }
+    .ui-datatable thead th.ui-filter-column .ui-column-title,
+    .ui-datatable thead th.ui-filter-column .ui-sortable-column-icon { display: none !important; }
+    .ui-datatable thead th .ui-column-filter { margin: 0 !important; width: 100% !important; }
+
+    /* Lignes */
+    .ui-datatable tbody tr {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-auto-flow: row dense;
+        column-gap: .75rem; row-gap: .2rem;
+        align-items: center;
+        padding: .75rem .9rem;
+        border-bottom: 1px solid rgba(255, 255, 255, .07);
+        background: transparent !important;
+    }
+    .ui-datatable tbody tr:last-child { border-bottom: none; }
+    .ui-datatable.ui-datatable-striped tbody tr:nth-child(even) { background: rgba(255, 255, 255, .03) !important; }
+    .ui-datatable tbody tr:active { background: rgba(255, 255, 255, .08) !important; }
+
+    .ui-datatable tbody td {
+        display: block !important;
+        grid-column: 1;
+        padding: 0 !important; border: none !important;
+        background: transparent !important;
+        white-space: normal !important; min-width: 0;
+        text-align: left !important;
+        font-size: .88rem; color: var(--tb-text-soft) !important;
+    }
+    /* 1re colonne = info principale */
+    .ui-datatable tbody td:first-child { font-size: 1rem; font-weight: 600; color: var(--tb-text) !important; }
+
+    /* Colonne actions : à droite, sur la première ligne */
+    .ui-datatable tbody td.tb-col-actions {
+        grid-column: 2; grid-row: 1 / span 2; align-self: center;
+        display: flex !important; gap: .35rem; width: auto !important;
+    }
+    .ui-datatable tbody td.tb-col-actions .ui-button { margin: 0 !important; --tb-btn-h: 2.4rem; }
+
+    /* Ligne "aucun résultat" */
+    .ui-datatable tbody tr.ui-datatable-empty-message { display: block !important; }
+    .ui-datatable tbody tr.ui-datatable-empty-message td { text-align: center !important; padding: 1.2rem !important; }
+
+    /* ---------- Pagination compacte : « ‹ 3 › » ---------- */
+    .ui-datatable .ui-paginator-top { display: none !important; }
+    .ui-datatable .ui-paginator {
+        flex-wrap: nowrap !important; justify-content: center; gap: .3rem;
+        padding: .55rem .5rem !important;
+    }
+    .ui-paginator .ui-paginator-pages { display: inline-flex; }
+    .ui-paginator .ui-paginator-page:not(.ui-state-active) { display: none !important; }
+    .ui-paginator .ui-paginator-rpp-options, .ui-paginator .ui-paginator-current { display: none !important; }
+}
+/* Graphique : toute la largeur, hauteur fixe selon l'écran */
+.ui-chart { width: 100% !important; height: 360px !important; position: relative; }
+.ui-chart canvas { width: 100% !important; }
+
+@media (max-width: 640px) {
+    .ui-chart { height: 260px !important; }
+    /* Le graphique va d'un bord à l'autre du panneau */
+    .tb-panel .ui-panel-content .ui-chart { margin: 0 -.35rem; width: calc(100% + .7rem) !important; }
+}
