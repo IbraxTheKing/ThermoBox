@@ -816,3 +816,227 @@ html.tb-vt .ui-datatable .ui-datatable-tablewrapper {
     backdrop-filter: none !important;
     background-color: rgba(24, 92, 145, .42) !important;
 }
+
+/* ==========================================================================
+   Thermobox : responsive (tablette + téléphone)
+   À COLLER À LA FIN de thermobox.css (après tout le reste).
+   Points de rupture : 960px (tablette), 640px (téléphone), 380px (petit téléphone)
+   ========================================================================== */
+
+/* ---------- Base : rien ne dépasse horizontalement ---------- */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, canvas, svg { max-width: 100%; }
+.tb-main { padding-bottom: calc(3rem + env(safe-area-inset-bottom)); }
+.tb-card-title, .tb-room-name, h1 { overflow-wrap: anywhere; }
+
+/* Tableaux : défilement horizontal au lieu de casser la page */
+.ui-datatable .ui-datatable-tablewrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+
+/* ==========================================================================
+   TABLETTE (≤ 960px)
+   ========================================================================== */
+@media (max-width: 960px) {
+    .tb-main { padding-left: 1rem; padding-right: 1rem; }
+
+    .tb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+
+    /* Page salle : le bloc "état" prend toute la ligne, la carte consigne aussi */
+    .tb-span-2 { grid-column: 1 / -1; }
+    .tb-span-2 + .ui-card { grid-column: 1 / -1; }
+
+    /* Navbar : on garde les libellés mais on resserre */
+    body .ui-menubar { margin-left: .75rem !important; margin-right: .75rem !important; }
+    body .ui-menubar .ui-menuitem-link { padding: .5rem .7rem !important; gap: .4rem; }
+    body .ui-menubar .ui-menubar-options .ui-button { padding: 0 .85rem !important; }
+
+    .ui-datatable table { min-width: 560px; }
+}
+
+
+/* ==========================================================================
+   TÉLÉPHONE (≤ 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+
+    /* ---------- NAVBAR : 2 lignes ----------
+       Ligne 1 : logo (gauche) + compte / déconnexion en icônes (droite)
+       Ligne 2 : les pages, réparties sur toute la largeur, icône au-dessus du libellé */
+    body .ui-menubar {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .2rem;
+        position: sticky;
+        top: max(.4rem, env(safe-area-inset-top));
+        margin: .4rem .5rem 0 !important;
+        padding: .4rem !important;
+        border-radius: 22px !important;
+        max-width: none;
+        overflow: visible;
+    }
+    /* La liste disparaît en tant que boîte : ses éléments se placent directement dans la barre */
+    body .ui-menubar > .ui-menu-list,
+    body .ui-menubar .ui-menubar-root-list { display: contents !important; }
+
+    /* Pas de menu hamburger PrimeFaces : tout reste visible */
+    body .ui-menubar .ui-menubar-toggler { display: none !important; }
+
+    /* Ligne 1 */
+    body .ui-menubar .ui-menubar-start,
+    body .ui-menubar :has(> .tb-brand) { order: 1; display: flex; align-items: center; padding-left: .45rem; }
+    body .ui-menubar .tb-brand { margin: 0; font-size: 1.05rem; }
+
+    body .ui-menubar .ui-menubar-options {
+        order: 2;
+        margin-left: auto !important;
+        display: flex !important; align-items: center; gap: .35rem;
+        padding: 0 !important;
+    }
+    /* Compte + déconnexion : boutons ronds, icône seule */
+    body .ui-menubar .ui-menubar-options .ui-button {
+        width: 2.5rem; height: 2.5rem; min-height: 2.5rem;
+        padding: 0 !important; border-radius: 50% !important;
+    }
+    body .ui-menubar .ui-menubar-options .ui-linkbutton > a { padding: 0 !important; justify-content: center; }
+    body .ui-menubar .ui-menubar-options .ui-button .ui-button-text {
+        position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+    }
+
+    /* Saut de ligne entre la ligne 1 et la ligne 2 */
+    body .ui-menubar::after { content: ""; order: 3; flex-basis: 100%; height: 0; }
+
+    /* Ligne 2 : les pages, largeur égale */
+    body .ui-menubar .ui-menuitem:not(.ui-menubar-options):not(.ui-menubar-start) {
+        order: 4;
+        flex: 1 1 0;
+        min-width: 0;
+        float: none;
+    }
+    body .ui-menubar .ui-menuitem:not(.ui-menubar-options):not(.ui-menubar-start) > .ui-menuitem-link {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .25rem;
+        width: 100%;
+        box-sizing: border-box;
+        padding: .5rem .2rem !important;
+        border-radius: 14px !important;
+        text-align: center;
+    }
+    body .ui-menubar .ui-menuitem-link .ui-menuitem-icon { font-size: 1.15rem; width: 1.15rem; height: 1.15rem; }
+    body .ui-menubar .ui-menuitem-link .ui-menuitem-text {
+        font-size: .68rem; font-weight: 600; letter-spacing: .01em;
+        max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ---------- Mise en page ---------- */
+    .tb-main { padding: .75rem .75rem calc(2rem + env(safe-area-inset-bottom)); }
+
+    .tb-header { flex-direction: row; align-items: center; flex-wrap: wrap; gap: .6rem; margin: 1rem 0 .9rem; }
+    .tb-header h1 { font-size: 1.75rem; flex: 1 1 auto; min-width: 0; }
+
+    .tb-grid, .tb-span-2 { grid-template-columns: 1fr; gap: .75rem; }
+    .tb-span-2, .tb-span-2 + .ui-card { grid-column: auto; }
+
+    .ui-card { border-radius: 20px !important; }
+    .ui-card .ui-card-body { padding: 1rem 1.05rem; }
+    .ui-panel { border-radius: 20px !important; }
+    .ui-panel .ui-panel-titlebar { padding: 1rem 1.05rem .2rem; }
+    .ui-panel .ui-panel-content { padding: .5rem 1.05rem 1.05rem; }
+
+    /* Températures */
+    .tb-temp { font-size: clamp(3rem, 15vw, 4.2rem); }
+    .tb-hero-temp, .tb-room .tb-hero-temp { font-size: clamp(3.6rem, 19vw, 5rem); }
+
+    /* Cartes du dashboard */
+    .tb-room .tb-row { flex-wrap: nowrap; align-items: center; justify-content: space-between; }
+    .tb-pill { max-width: 100%; flex-wrap: wrap; justify-content: center; font-size: .88rem; padding: .45rem .85rem; }
+
+    /* ---------- Lignes de formulaire (consigne, historique) ---------- */
+    .tb-row { gap: .55rem; align-items: stretch; }
+    .tb-row .tb-spacer { display: none; }
+    .tb-row > .tb-field { flex: 1 1 100%; }
+    .tb-row > .ui-inputnumber { flex: 1 1 9rem; min-width: 0; }
+    .tb-row > .ui-inputnumber input { width: 100%; }
+    .tb-row > .ui-button { flex: 1 1 auto; }
+
+    /* Boutons 24 h / 7 j / 30 j : même largeur, sur une ligne */
+    .tb-row > .ui-button.ui-button-outlined { flex: 1 1 0; min-width: 0; padding: 0 .5rem !important; }
+
+    /* Graphique moins haut (écrase le style="height:360px" de la page) */
+    .ui-chart { height: 240px !important; }
+
+    /* Champs : 16px minimum sinon iOS zoome automatiquement */
+    .ui-inputfield, .ui-inputtext, .ui-inputnumber input, .ui-password input,
+    .ui-calendar input, .ui-datepicker-input { font-size: 16px !important; min-height: 2.75rem; box-sizing: border-box; }
+
+    /* Boutons plus faciles à toucher */
+    .ui-button { min-height: 2.75rem; }
+    .tb-actions { flex-direction: column-reverse; align-items: stretch; gap: .5rem; }
+    .tb-actions .ui-button { width: 100%; }
+
+    /* Filtre segmenté (Toutes / Mesures / Consignes) : toute la largeur */
+    .ui-selectonebutton { display: flex; width: 100%; box-sizing: border-box; }
+    .ui-selectonebutton .ui-button { flex: 1 1 0; min-width: 0; padding: 0 .4rem !important; }
+
+    /* ---------- Tableaux ---------- */
+    .ui-datatable table { min-width: 520px; }
+    .ui-datatable thead th { padding: .75rem .8rem; font-size: .68rem; }
+    .ui-datatable tbody td { padding: .7rem .8rem; }
+    .tb-col-actions { width: auto; }
+    .ui-paginator .ui-paginator-page, .ui-paginator .ui-paginator-next, .ui-paginator .ui-paginator-prev,
+    .ui-paginator .ui-paginator-first, .ui-paginator .ui-paginator-last { min-width: 2.4rem; height: 2.4rem; }
+
+    /* ---------- Dialogues : panneau qui monte du bas (style iOS) ---------- */
+    .ui-dialog {
+        position: fixed !important;
+        left: .5rem !important; right: .5rem !important;
+        top: auto !important; bottom: calc(.5rem + env(safe-area-inset-bottom)) !important;
+        width: auto !important; max-width: none !important;
+        max-height: 85vh; margin: 0 !important;
+        border-radius: 24px !important;
+        display: flex; flex-direction: column;
+    }
+    .ui-dialog .ui-dialog-content { overflow-y: auto; max-height: none !important; -webkit-overflow-scrolling: touch; }
+    .ui-dialog .ui-dialog-titlebar { padding: 1.1rem 1.1rem .3rem; }
+    .ui-dialog .ui-dialog-content { padding: .5rem 1.1rem 1.1rem; }
+
+    /* Calendrier et listes déroulantes : jamais plus larges que l'écran */
+    .ui-datepicker:not(.ui-datepicker-inline), .ui-selectonemenu-panel, .ui-overlaypanel {
+        max-width: calc(100vw - 1rem) !important; box-sizing: border-box;
+    }
+    .ui-datepicker:not(.ui-datepicker-inline) { left: .5rem !important; right: .5rem; width: auto !important; }
+
+    /* ---------- Notifications ---------- */
+    .ui-growl { left: .5rem !important; right: .5rem !important; top: calc(.5rem + env(safe-area-inset-top)) !important; width: auto !important; }
+    .ui-growl-item-container { width: 100% !important; box-sizing: border-box; }
+
+    /* ---------- Connexion / inscription / profil ---------- */
+    .tb-auth { margin: 4vh auto 0; padding: 0 .25rem; }
+    .tb-narrow { max-width: none; }
+}
+
+
+/* ==========================================================================
+   PETIT TÉLÉPHONE (≤ 380px)
+   ========================================================================== */
+@media (max-width: 380px) {
+    .tb-main { padding-left: .5rem; padding-right: .5rem; }
+    body .ui-menubar { margin-left: .35rem !important; margin-right: .35rem !important; }
+    body .ui-menubar .ui-menuitem-link .ui-menuitem-text { font-size: .62rem; }
+    .tb-header h1 { font-size: 1.5rem; }
+    .ui-card .ui-card-body { padding: .85rem; }
+    .tb-temp { font-size: 2.8rem; }
+    .tb-hero-temp, .tb-room .tb-hero-temp { font-size: 3.4rem; }
+}
+
+
+/* ==========================================================================
+   Téléphone à l'horizontale : la navbar n'est plus collée en haut
+   ========================================================================== */
+@media (max-height: 480px) and (orientation: landscape) {
+    body .ui-menubar { position: relative !important; top: 0 !important; }
+    .ui-dialog { max-height: 92vh; }
+}
