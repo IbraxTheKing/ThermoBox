@@ -1072,6 +1072,65 @@ body .ui-tag.ui-tag-warning { color: #ffdc85 !important; border-color: rgba(255,
 body .ui-tag.ui-tag-danger  { color: #ffa5a8 !important; border-color: rgba(255, 141, 145, .85) !important; background: rgba(255, 141, 145, .12) !important; }
 body .ui-tag.ui-tag-info    { color: #a6f3f7 !important; border-color: rgba(140, 236, 242, .8) !important; background: rgba(140, 236, 242, .10) !important; }
 
+/* ==========================================================================
+   Boutons : icône + texte bien espacés (corrige le padding:0 du thème Saga)
+   ========================================================================== */
+body .ui-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    box-sizing: border-box;
+    min-height: 2.6rem;
+    padding: 0 1.15rem !important;
+    line-height: 1.2;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* Texte : on enlève le gros padding que PrimeFaces réserve pour l'icône */
+body .ui-button .ui-button-text {
+    padding: 0 !important;
+    line-height: inherit;
+}
+
+/* Icône : dans le flux, à côté du texte, plus en position absolue */
+body .ui-button .ui-icon,
+body .ui-button .ui-button-icon-left,
+body .ui-button .ui-button-icon-right {
+    position: static !important;
+    margin: 0 !important;
+    top: auto !important; left: auto !important; right: auto !important;
+    flex: 0 0 auto;
+    width: 1rem; height: 1rem;
+    font-size: 1rem; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+body .ui-button .ui-button-icon-right { order: 2; }
+
+/* Boutons icône seule (crayon, poubelle…) : ronds, icône au centre */
+body .ui-button.ui-button-icon-only {
+    width: 2.6rem; height: 2.6rem; min-width: 2.6rem;
+    padding: 0 !important;
+    border-radius: 50% !important;
+}
+body .ui-button.ui-button-icon-only .ui-button-text {
+    position: absolute !important; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* p:linkButton : c'est le <a> intérieur qui porte l'espacement */
+body .ui-linkbutton { padding: 0 !important; }
+body .ui-linkbutton > a {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    width: 100%; min-height: calc(2.6rem - 2px); box-sizing: border-box;
+    padding: 0 1.15rem;
+    color: inherit !important; text-decoration: none !important;
+}
+body .ui-linkbutton.ui-button-icon-only > a { padding: 0; }
+
+/* Filtre segmenté : boutons un peu plus fins */
+body .ui-selectonebutton .ui-button { min-height: 2.2rem; padding: 0 1.1rem !important; }
 
 /* ==========================================================================
    TÉLÉPHONE (≤ 640px)
