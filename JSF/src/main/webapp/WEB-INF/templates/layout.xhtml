@@ -10,7 +10,7 @@
 
 <h:head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <title>Thermobox – <ui:insert name="title"/></title>
     <h:outputStylesheet name="css/thermobox.css"/>
     <script>
@@ -36,6 +36,56 @@
                 setTimeout(function () { root.classList.remove('tb-vt'); }, 600);
             });
         })();
+    </script>
+    <script>
+        function tbChartExtender() {
+            var mobile = window.matchMedia('(max-width: 640px)').matches;
+            var text = 'rgba(255, 255, 255, .85)';
+            var grid = 'rgba(255, 255, 255, .10)';
+            var font = { family: '"SF Pro Display", "Inter", -apple-system, system-ui, sans-serif', size: mobile ? 11 : 13 };
+
+            var o = this.cfg.config.options = this.cfg.config.options || {};
+
+            // Le graphique prend toute la largeur ET la hauteur de son conteneur
+            o.responsive = true;
+            o.maintainAspectRatio = false;
+            o.layout = { padding: { top: 4, right: 4, bottom: 0, left: 0 } };
+
+            // Légende : texte blanc, petits points ronds au lieu des gros rectangles
+            o.plugins = o.plugins || {};
+            o.plugins.legend = {
+                position: mobile ? 'bottom' : 'top',
+                labels: { color: text, font: font, usePointStyle: true, pointStyle: 'circle',
+                    boxWidth: 8, boxHeight: 8, padding: mobile ? 12 : 18 }
+            };
+            o.plugins.tooltip = { mode: 'index', intersect: false, titleFont: font, bodyFont: font };
+
+            // Axes : texte blanc, dates horizontales et espacées, date au-dessus de l'heure
+            o.scales = o.scales || {};
+            o.scales.x = {
+                grid: { color: grid, drawTicks: false },
+                ticks: {
+                    color: text, font: font, padding: 8,
+                    maxRotation: 0, autoSkip: true, maxTicksLimit: mobile ? 4 : 8,
+                    callback: function (value) {
+                        var label = this.getLabelForValue(value) || '';
+                        return label.split(' ');            // "29/09 10:07" → 2 lignes
+                    }
+                }
+            };
+            o.scales.y = {
+                grid: { color: grid, drawTicks: false },
+                border: { display: false },
+                ticks: { color: text, font: font, padding: 8, maxTicksLimit: mobile ? 5 : 8 }
+            };
+
+            // Courbes plus fines et plus lisibles, sans points sur mobile
+            o.elements = {
+                point: { radius: mobile ? 0 : 2.5, hoverRadius: 5, hitRadius: 12 },
+                line:  { tension: .35, borderWidth: mobile ? 2 : 2.5 }
+            };
+            o.interaction = { mode: 'index', intersect: false };
+        }
     </script>
 </h:head>
 
