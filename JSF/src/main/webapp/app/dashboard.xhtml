@@ -24,10 +24,15 @@
 
                 <div class="tb-grid">
                     <ui:repeat value="#{dashboardBean.resumes}" var="r">
-                        <p:card styleClass="tb-room">
-                            <div class="tb-room-name">#{r.salle.name}</div>
+                        <p:card styleClass="tb-room"
+                                style="view-transition-name: salle-card-#{r.salle.id}; view-transition-class: tb-card">
+                            <!-- Transition : le nom glisse vers le titre de la page détail -->
+                            <div class="tb-room-name"
+                                 style="view-transition-name: salle-nom-#{r.salle.id}">#{r.salle.name}</div>
 
-                            <div class="tb-hero-temp">
+                            <!-- Transition : la température glisse vers la carte "Température mesurée" -->
+                            <div class="tb-hero-temp"
+                                 style="view-transition-name: salle-temp-#{r.salle.id}">
                                 <h:outputText value="#{r.mesure.value}" rendered="#{r.mesure ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>

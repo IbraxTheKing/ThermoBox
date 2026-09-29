@@ -2,6 +2,7 @@
    Thermobox : thème "Liquid Glass" (surcharge PrimeFaces Saga)
    Emplacement : src/main/webapp/resources/css/thermobox.css
    Conserve toutes les classes tb-* existantes.
+   v2 : correctifs d'alignement (icônes / texte / boutons / champs)
    ========================================================================== */
 
 :root {
@@ -15,7 +16,6 @@
     --tb-green: #71e6aa;
     --tb-red: #ff8d91;
 
-    /* Liquid Glass : plusieurs couches translucides plutôt qu'un simple gradient */
     --tb-glass: rgba(255, 255, 255, .075);
     --tb-glass-flat: rgba(255, 255, 255, .055);
     --tb-glass-hover: rgba(255, 255, 255, .105);
@@ -30,7 +30,6 @@
     --tb-radius-md: 18px;
     --tb-radius-sm: 13px;
 
-    /* Bord interne + reflet supérieur + très légère profondeur */
     --tb-edge:
         inset 0 1px 0 rgba(255, 255, 255, .38),
         inset 0 -1px 0 rgba(255, 255, 255, .07),
@@ -41,6 +40,11 @@
         0 5px 16px -10px rgba(0, 8, 24, .25);
 
     --tb-spring: cubic-bezier(.22, 1, .36, 1);
+
+    /* Tailles communes boutons / icônes */
+    --tb-btn-h: 2.6rem;
+    --tb-btn-px: 1.15rem;
+    --tb-icon: 1rem;
 }
 
 /* ---------- Fond : dégradé + halos lumineux ---------- */
@@ -61,7 +65,6 @@ body {
     background-attachment: fixed;
 }
 
-/* Halos qui dérivent lentement derrière le verre */
 body::before, body::after {
     content: ""; position: fixed; z-index: -1; pointer-events: none;
     width: 42vmax; height: 42vmax; border-radius: 50%; filter: blur(85px); opacity: .38;
@@ -71,106 +74,68 @@ body::after  { bottom: -18vmax; right: -12vmax; background: radial-gradient(circ
 @keyframes tb-drift-a { to { transform: translate(12vmax, 10vmax) scale(1.15); } }
 @keyframes tb-drift-b { to { transform: translate(-14vmax, -8vmax) scale(1.2); } }
 
-/* ---------- Liquid Glass polish ---------- */
-
-/* Les surfaces réagissent légèrement à la lumière, sans effet "neon UI". */
-.ui-card, .ui-panel, .ui-fieldset {
-    transition:
-        transform .32s var(--tb-spring),
-        border-color .28s ease,
-        box-shadow .32s ease,
-        background .28s ease;
+@media (prefers-reduced-motion: reduce) {
+    body::before, body::after { animation: none; }
+    * { transition: none !important; }
 }
 
-.ui-card:hover, .ui-panel:hover {
-    border-color: rgba(255,255,255,.28) !important;
-}
-
-/* Reflet très discret : les composants restent lisibles et sobres. */
-.ui-button::before,
-.ui-menubar::before,
-.ui-selectonebutton::before,
-.tb-pill::after {
-    display: none;
-}
-
-/* Évite que le reflet passe au-dessus du contenu des boutons. */
-.ui-button > *,
-.ui-menubar > *,
-.ui-selectonebutton > * {
-    position: relative;
-}
-
-/* Sélection et focus plus "Apple", moins lumineux. */
-::selection {
-    background: rgba(137, 235, 241, .30);
-    color: #fff;
-}
-
-.ui-inputtext:focus,
-.ui-inputnumber input:focus,
-.ui-password input:focus,
-.ui-selectonemenu.ui-state-focus {
-    border-color: rgba(140,236,242,.72) !important;
-    box-shadow:
-        inset 0 1px 4px rgba(0,8,24,.20),
-        0 0 0 3px rgba(111,240,247,.13),
-        0 0 22px -8px rgba(111,240,247,.42) !important;
-}
-
-/* Sur petit écran, conserver de vraies surfaces plutôt qu'une énorme capsule. */
-@media (max-width: 640px) {
-    .ui-menubar {
-        border-radius: 18px !important;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) { body::before, body::after { animation: none; } * { transition: none !important; } }
-
-::selection { background: rgba(111, 240, 247, .4); }
+::selection { background: rgba(137, 235, 241, .30); color: #fff; }
 
 h1, h2, h3 { color: var(--tb-text); margin: 0; }
-h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 700; letter-spacing: -.035em; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 700; letter-spacing: -.035em; line-height: 1.1; }
 h3 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 .75rem; letter-spacing: -.01em; }
 a { color: var(--tb-cyan); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* Les liens qui sont en réalité des boutons / items de menu ne se soulignent jamais */
+.ui-button a, .ui-linkbutton a, .ui-menuitem-link, .ui-paginator a,
+.ui-dialog-titlebar-icon, .tb-brand { text-decoration: none !important; }
 
 /* ---------- Structure (classes existantes) ---------- */
 .tb-main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
 
 .tb-brand {
+    display: inline-flex; align-items: center; gap: .45rem;
     font-weight: 700; font-size: 1.15rem; letter-spacing: -.02em; margin-right: 1.5rem;
-    text-decoration: none; color: var(--tb-text) !important;
+    color: var(--tb-text) !important; line-height: 1;
 }
+.tb-brand .pi { color: var(--tb-orange); }
 
 .tb-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin: 1.75rem 0 1.5rem; }
 
 .tb-grid { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); margin-bottom: 1.5rem; }
 .tb-span-2 { grid-column: span 2; margin-bottom: 0; }
-@media (max-width: 640px) { .tb-span-2 { grid-column: span 1; } }
 
 .tb-card-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; }
-.tb-card-title { font-weight: 600; font-size: 1.1rem; }
+.tb-card-title { font-weight: 600; font-size: 1.1rem; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
 
-.tb-row { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: .9rem 0; }
+/* flex-end : les boutons s'alignent sur le bas des champs (et pas sur leur label) */
+.tb-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; margin: .9rem 0; }
 .tb-spacer { flex: 1 1 auto; }
-.tb-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.4rem; }
+.tb-actions { display: flex; justify-content: flex-end; align-items: center; gap: .6rem; margin-top: 1.4rem; }
 .tb-field { display: flex; flex-direction: column; gap: .45rem; margin-bottom: 1.1rem; }
 .tb-field .ui-inputfield, .tb-field .ui-password, .tb-field .ui-password input,
-.tb-field .ui-selectonemenu, .tb-field .ui-datepicker input, .tb-field .ui-inputnumber { width: 100%; box-sizing: border-box; }
+.tb-field .ui-selectonemenu, .tb-field .ui-calendar, .tb-field .ui-calendar input,
+.tb-field .ui-inputnumber, .tb-field .ui-inputnumber input { width: 100%; box-sizing: border-box; }
 .tb-field.tb-inline { margin-bottom: 0; }
 .tb-full { width: 100%; }
 .tb-ml { margin-left: .5rem; }
-.tb-muted { color: var(--tb-text-muted); font-size: .9rem; letter-spacing: .01em; }
+.tb-muted { color: var(--tb-text-muted); font-size: .9rem; letter-spacing: .01em; line-height: 1.45; }
+.tb-muted .pi { vertical-align: -.1em; margin-right: .3rem; font-size: .9em; }
 .tb-empty { padding: 2.5rem; text-align: center; color: var(--tb-text-muted); }
+.tb-empty .ui-button { margin-left: .5rem; }
 .tb-panel { margin-top: .75rem; }
 .tb-center { text-align: center; }
 .tb-col-actions { width: 11rem; white-space: nowrap; text-align: right !important; }
+.tb-col-actions .ui-button { margin-left: .2rem; }
 .tb-col-type { width: 8rem; }
 
 .tb-auth { max-width: 420px; margin: 9vh auto 0; }
-.tb-auth-title { text-align: center; font-size: clamp(2rem, 6vw, 2.6rem); font-weight: 700; letter-spacing: -.04em; margin-bottom: 1.75rem; }
-.tb-auth-title .pi { color: var(--tb-orange); margin-right: .4rem; filter: drop-shadow(0 0 14px rgba(255, 200, 87, .7)); }
+.tb-auth-title {
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+    font-size: clamp(2rem, 6vw, 2.6rem); font-weight: 700; letter-spacing: -.04em; margin-bottom: 1.75rem; line-height: 1;
+}
+.tb-auth-title .pi { font-size: .85em; color: var(--tb-orange); filter: drop-shadow(0 0 14px rgba(255, 200, 87, .7)); }
 .tb-auth .ui-card { width: 100%; box-sizing: border-box; }
 .tb-auth .ui-card-footer { text-align: center; color: var(--tb-text-muted); font-size: .92rem; padding-top: .75rem; }
 
@@ -182,102 +147,159 @@ a:hover { text-decoration: underline; }
     font-size: clamp(3.6rem, 6vw, 5rem); font-weight: 300; line-height: 1;
     letter-spacing: -.045em; margin: .35rem 0 .5rem; color: var(--tb-text);
     text-shadow: 0 4px 28px rgba(255, 255, 255, .22);
+    white-space: nowrap;
 }
 .tb-temp.tb-consigne { color: var(--tb-orange); text-shadow: 0 4px 28px rgba(255, 200, 87, .35); }
-.tb-unit { font-size: .38em; font-weight: 500; margin-left: .25rem; color: var(--tb-text-muted); letter-spacing: 0; vertical-align: top; position: relative; top: .35em; }
+
+/* Unité en exposant, alignée sur le haut des chiffres (sans position relative qui décale) */
+.tb-unit {
+    display: inline-block; vertical-align: top;
+    font-size: .36em; font-weight: 500; line-height: 1;
+    margin: .22em 0 0 .18em; letter-spacing: 0;
+    color: var(--tb-text-muted);
+}
 
 .tb-hero-temp {
     font-size: clamp(5rem, 11vw, 7.5rem); font-weight: 200; line-height: .95; text-align: center;
     letter-spacing: -.06em; margin: .4rem 0 .5rem; text-shadow: 0 6px 40px rgba(255, 255, 255, .3);
+    white-space: nowrap;
 }
-.tb-hero-temp .tb-unit { font-size: .4em; top: .12em; color: var(--tb-text); font-weight: 300; margin-left: .05em; }
+.tb-hero-temp .tb-unit { font-size: .38em; margin-top: .14em; color: var(--tb-text); font-weight: 300; }
 
-/* Pastille consigne (verre + point lumineux orange) */
 .tb-pill {
     display: inline-flex; align-items: center; gap: .55rem; padding: .5rem 1.05rem;
-    border-radius: 999px; font-size: .95rem; font-weight: 600;
+    border-radius: 999px; font-size: .95rem; font-weight: 600; line-height: 1.2;
     background: var(--tb-glass); border: 1px solid var(--tb-glass-border);
     box-shadow: var(--tb-edge); backdrop-filter: var(--tb-blur); -webkit-backdrop-filter: var(--tb-blur);
 }
-.tb-pill::before { content: ""; width: .8rem; height: .8rem; border-radius: 50%; background: var(--tb-orange); box-shadow: 0 0 12px 2px rgba(255, 200, 87, .75); }
+.tb-pill::before { content: ""; flex: 0 0 auto; width: .7rem; height: .7rem; border-radius: 50%; background: var(--tb-orange); box-shadow: 0 0 12px 2px rgba(255, 200, 87, .75); }
 .tb-pill .tb-delta { color: var(--tb-orange); font-weight: 700; }
 
-/* Carte salle du tableau de bord */
 .tb-room { text-align: center; transition: transform .35s var(--tb-spring), box-shadow .35s ease; }
 .tb-room:hover { transform: translateY(-3px) scale(1.008); }
 .tb-room .tb-room-name { font-size: 1.2rem; font-weight: 600; letter-spacing: -.02em; }
 .tb-room .tb-hero-temp { font-size: clamp(4.5rem, 8vw, 5.75rem); }
 .tb-room .tb-state { margin: .35rem 0 .9rem; }
-.tb-room .tb-row { justify-content: space-between; margin: 1.1rem 0 0; }
+.tb-room .tb-row { justify-content: space-between; align-items: center; margin: 1.1rem 0 0; }
 
 /* ---------- Verre : cartes, panneaux, tableaux ---------- */
 .ui-card, .ui-panel, .ui-fieldset, .ui-datatable .ui-datatable-tablewrapper {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background:
-        linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.045)) !important;
+    background: linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.045)) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius) !important;
     box-shadow: var(--tb-edge), var(--tb-shadow) !important;
     -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur);
     color: var(--tb-text) !important;
+    transition: transform .32s var(--tb-spring), border-color .28s ease, box-shadow .32s ease, background .28s ease;
 }
-/* Reflet diagonal en haut à gauche */
+.ui-card:hover, .ui-panel:hover { border-color: rgba(255,255,255,.28) !important; }
+
 .ui-card::before, .ui-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: -1;
-    background:
-        radial-gradient(80% 45% at 8% -8%, rgba(255,255,255,.16), transparent 58%);
-    opacity: .75;
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    pointer-events: none; z-index: -1; opacity: .75;
+    background: radial-gradient(80% 45% at 8% -8%, rgba(255,255,255,.16), transparent 58%);
 }
-.ui-card > *, .ui-panel > * { position: relative; }
-/* Pas de verre dans le verre */
 .ui-panel .ui-datatable .ui-datatable-tablewrapper { background: transparent !important; box-shadow: none !important; border: none !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 .ui-card .ui-card-body { padding: 1.4rem 1.5rem; }
-.ui-card .ui-card-title { color: var(--tb-text); font-size: 1.2rem; font-weight: 650; letter-spacing: -.02em; margin-bottom: .6rem; }
+.ui-card .ui-card-title { color: var(--tb-text); font-size: 1.2rem; font-weight: 650; letter-spacing: -.02em; margin-bottom: .6rem; line-height: 1.3; }
 .ui-card .ui-card-content { padding: .25rem 0; }
-.ui-card .ui-card-footer { color: var(--tb-text-muted); }
+.ui-card .ui-card-footer { color: var(--tb-text-muted); padding-top: .75rem; }
+.ui-card .ui-card-footer .ui-button { vertical-align: middle; }
 
 .ui-panel .ui-panel-titlebar, .ui-panel .ui-panel-content { background: transparent !important; border: none !important; color: var(--tb-text) !important; }
-.ui-panel .ui-panel-titlebar { padding: 1.3rem 1.6rem .3rem; font-weight: 650; font-size: 1.15rem; letter-spacing: -.02em; }
+.ui-panel .ui-panel-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 1.3rem 1.6rem .3rem; font-weight: 650; font-size: 1.15rem; letter-spacing: -.02em; }
 .ui-panel .ui-panel-content { padding: .75rem 1.6rem 1.6rem; }
 
 .tb-danger.ui-card { border-color: rgba(255, 122, 122, .55) !important; box-shadow: var(--tb-edge), 0 0 40px -10px rgba(255, 122, 122, .4), var(--tb-shadow) !important; }
 .tb-danger .ui-card-title { color: var(--tb-red); }
 
-/* ---------- Boutons ---------- */
+/* ==========================================================================
+   BOUTONS — flexbox : l'icône et le texte ne peuvent plus se chevaucher
+   PrimeFaces positionne l'icône en absolu et met un gros padding sur le
+   texte ; on neutralise les deux et on laisse "gap" gérer l'espacement.
+   ========================================================================== */
 .ui-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    box-sizing: border-box;
+    min-height: var(--tb-btn-h);
+    padding: 0 var(--tb-btn-px);
+    vertical-align: middle;
+    white-space: nowrap;
+    line-height: 1.2;
     position: relative;
     overflow: hidden;
     border-radius: 999px !important;
     font-weight: 600;
     letter-spacing: -.005em;
-    padding: .68rem 1.2rem;
-    background:
-        linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08)) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08)) !important;
     border: 1px solid rgba(255,255,255,.27) !important;
     color: var(--tb-text) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.34),
-        0 7px 22px -12px rgba(0,8,24,.65);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.34), 0 7px 22px -12px rgba(0,8,24,.65);
     -webkit-backdrop-filter: blur(18px) saturate(150%);
     backdrop-filter: blur(18px) saturate(150%);
-    transition:
-        transform .28s var(--tb-spring),
-        box-shadow .28s ease,
-        background .28s ease,
-        border-color .28s ease;
+    transition: transform .28s var(--tb-spring), box-shadow .28s ease, background .28s ease, border-color .28s ease;
 }
-.ui-button:enabled:hover { transform: translateY(-1px); background: rgba(255,255,255,.17) !important; border-color: rgba(255,255,255,.36) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 28px -14px rgba(0,8,24,.72); }
-.ui-button:enabled:active { transform: scale(.965); background: rgba(255,255,255,.12) !important; }
-.ui-button:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(111, 240, 247, .35); }
-.ui-button .ui-icon, .ui-button .ui-button-icon-left, .ui-button .ui-button-text { color: inherit !important; }
+.ui-button::before { display: none; }
+
+/* Texte : plus de padding PrimeFaces (c'est lui qui laissait la place à l'icône absolue) */
+.ui-button .ui-button-text {
+    padding: 0 !important;
+    line-height: inherit;
+    display: inline-block;
+}
+
+/* Icône : dans le flux, taille fixe, centrée */
+.ui-button .ui-icon,
+.ui-button .ui-button-icon-left,
+.ui-button .ui-button-icon-right {
+    position: static !important;
+    top: auto !important; left: auto !important; right: auto !important;
+    margin: 0 !important;
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: var(--tb-icon); height: var(--tb-icon);
+    font-size: var(--tb-icon); line-height: 1;
+    color: inherit !important;
+}
+/* iconPos="right" : PrimeFaces rend l'icône avant le texte → on la déplace après */
+.ui-button .ui-button-icon-right { order: 2; }
+
+/* Bouton icône seule : rond parfait, icône au centre */
+.ui-button.ui-button-icon-only {
+    width: var(--tb-btn-h); height: var(--tb-btn-h);
+    min-width: var(--tb-btn-h); padding: 0 !important;
+}
+.ui-button.ui-button-icon-only .ui-button-text {
+    /* texte masqué visuellement mais lisible par les lecteurs d'écran */
+    position: absolute !important; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* p:linkButton = <span class="ui-button"><a>…</a></span> : le lien porte la mise en page */
+.ui-linkbutton { padding: 0 !important; }
+.ui-linkbutton > a {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    width: 100%; min-height: calc(var(--tb-btn-h) - 2px); box-sizing: border-box;
+    padding: 0 var(--tb-btn-px);
+    color: inherit !important; border-radius: inherit;
+}
+.ui-linkbutton.ui-button-icon-only > a { padding: 0; height: 100%; }
+
+.ui-button:enabled:hover, .ui-linkbutton:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,.17) !important;
+    border-color: rgba(255,255,255,.36) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 28px -14px rgba(0,8,24,.72);
+}
+.ui-button:enabled:active, .ui-linkbutton:active { transform: scale(.965); background: rgba(255,255,255,.12) !important; }
+.ui-button:focus-visible, .ui-linkbutton > a:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(111, 240, 247, .35); }
 .ui-button:disabled, .ui-button.ui-state-disabled { opacity: .4; filter: saturate(.6); }
 
 .ui-button.ui-button-flat {
@@ -285,7 +307,7 @@ a:hover { text-decoration: underline; }
     border: 1px solid var(--tb-glass-border) !important;
     box-shadow: var(--tb-edge); backdrop-filter: var(--tb-blur); -webkit-backdrop-filter: var(--tb-blur);
 }
-.ui-button.ui-button-flat:enabled:hover { background: var(--tb-glass-hover) !important; }
+.ui-button.ui-button-flat:enabled:hover, .ui-linkbutton.ui-button-flat:hover { background: var(--tb-glass-hover) !important; }
 .ui-button.ui-button-outlined {
     background: transparent !important; color: var(--tb-text) !important;
     border: 1px solid var(--tb-glass-border) !important; box-shadow: none;
@@ -299,9 +321,22 @@ a:hover { text-decoration: underline; }
 .ui-button.ui-button-danger:enabled:hover { background: var(--tb-red) !important; color: #fff !important; }
 
 /* Bouton segmenté (filtre Toutes / Mesures / Consignes) */
-.ui-selectonebutton { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--tb-glass-flat); border: 1px solid var(--tb-glass-border); box-shadow: inset 0 2px 6px rgba(2, 14, 34, .25); }
-.ui-selectonebutton .ui-button { background: transparent !important; border: none !important; box-shadow: none !important; color: var(--tb-text-soft) !important; border-radius: 999px !important; padding: .5rem 1.1rem; }
-.ui-selectonebutton .ui-button.ui-state-active { background: linear-gradient(180deg, #a4f7fb, var(--tb-cyan-deep)) !important; color: #04304c !important; box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .8), 0 4px 14px -4px rgba(47, 201, 221, .7) !important; }
+.ui-selectonebutton {
+    display: inline-flex; align-items: center; gap: 2px; padding: 4px;
+    border-radius: 999px; background: var(--tb-glass-flat); border: 1px solid var(--tb-glass-border);
+    box-shadow: inset 0 2px 6px rgba(2, 14, 34, .25);
+}
+.ui-selectonebutton .ui-button {
+    min-height: 2.2rem; padding: 0 1.1rem;
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    color: var(--tb-text-soft) !important; border-radius: 999px !important;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.ui-selectonebutton .ui-button:hover { transform: none; }
+.ui-selectonebutton .ui-button.ui-state-active {
+    background: linear-gradient(180deg, #a4f7fb, var(--tb-cyan-deep)) !important; color: #04304c !important;
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .8), 0 4px 14px -4px rgba(47, 201, 221, .7) !important;
+}
 
 /* ---------- Champs ---------- */
 .ui-inputfield, .ui-inputtext, .ui-inputnumber input, .ui-password input,
@@ -309,34 +344,71 @@ a:hover { text-decoration: underline; }
     background: rgba(5, 24, 45, .34) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius-sm) !important;
-    color: var(--tb-text) !important; padding: .75rem 1rem; font-size: 1rem;
+    color: var(--tb-text) !important; padding: .75rem 1rem; font-size: 1rem; line-height: 1.25;
     box-shadow: inset 0 1px 4px rgba(0, 8, 24, .22), inset 0 1px 0 rgba(255,255,255,.09);
     transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
-.ui-selectonemenu .ui-selectonemenu-label, .ui-selectonemenu .ui-selectonemenu-trigger { color: var(--tb-text) !important; background: transparent !important; }
 .ui-inputtext::placeholder, .ui-inputnumber input::placeholder { color: rgba(255, 255, 255, .42); }
 .ui-inputtext:focus, .ui-inputnumber input:focus, .ui-password input:focus, .ui-selectonemenu.ui-state-focus {
-    outline: none !important; border-color: var(--tb-cyan) !important; background: rgba(5, 24, 45, .46) !important;
-    box-shadow: inset 0 2px 6px rgba(2, 14, 34, .3), 0 0 0 4px rgba(111, 240, 247, .22) !important;
+    outline: none !important; border-color: rgba(140,236,242,.72) !important; background: rgba(5, 24, 45, .46) !important;
+    box-shadow: inset 0 1px 4px rgba(0,8,24,.20), 0 0 0 3px rgba(111,240,247,.13), 0 0 22px -8px rgba(111,240,247,.42) !important;
 }
-.ui-outputlabel, label { color: var(--tb-text-soft); font-size: .82rem; font-weight: 600; letter-spacing: .02em; }
-.ui-password, .ui-inputnumber, .ui-datepicker { width: 100%; }
-.ui-password .ui-password-toggle, .ui-datepicker-trigger, .ui-password i { color: var(--tb-text-muted) !important; }
+.ui-inputfield.ui-state-error, .ui-inputtext.ui-state-error { border-color: var(--tb-red) !important; }
+
+/* Champs avec icône interne (œil du mot de passe, etc.) : place réservée à droite */
+.ui-password, .ui-input-icon-right, .ui-input-icon-left { position: relative; display: inline-block; }
+.ui-input-icon-right > input, .ui-input-icon-right > .ui-inputfield,
+.ui-password.ui-password-masked > input { padding-right: 2.75rem !important; }
+.ui-input-icon-left > input, .ui-input-icon-left > .ui-inputfield { padding-left: 2.75rem !important; }
+.ui-input-icon-right > i, .ui-input-icon-left > i, .ui-password > i {
+    position: absolute; top: 50%; transform: translateY(-50%); margin-top: 0 !important;
+    width: 1rem; height: 1rem; font-size: 1rem; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tb-text-muted) !important; cursor: pointer;
+}
+.ui-input-icon-right > i, .ui-password > i { right: 1rem; left: auto; }
+.ui-input-icon-left > i { left: 1rem; }
+.ui-datepicker-trigger { color: var(--tb-text-muted) !important; }
+
+/* Select : label et flèche alignés verticalement */
+.ui-selectonemenu { display: inline-flex !important; align-items: center; padding: 0 !important; min-height: 2.9rem; position: relative; }
+.ui-selectonemenu .ui-selectonemenu-label {
+    flex: 1 1 auto; padding: .75rem 2.75rem .75rem 1rem !important; line-height: 1.25;
+    color: var(--tb-text) !important; background: transparent !important; border: none !important;
+}
+.ui-selectonemenu .ui-selectonemenu-trigger {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 2.75rem;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent !important; border: none !important; color: var(--tb-text) !important;
+}
+.ui-selectonemenu .ui-selectonemenu-trigger .ui-icon { position: static; margin: 0; }
+
+/* p:inputNumber avec symbole " °C" : le texte reste dans l'input */
+.ui-inputnumber { display: inline-block; }
+
+.ui-outputlabel, label { color: var(--tb-text-soft); font-size: .82rem; font-weight: 600; letter-spacing: .02em; line-height: 1.3; }
+.ui-outputlabel .ui-outputlabel-rfi { color: var(--tb-red); margin-left: .2rem; }
 
 .ui-password-panel { background: var(--tb-overlay) !important; color: var(--tb-text) !important; border: 1px solid var(--tb-glass-border) !important; border-radius: var(--tb-radius-sm) !important; backdrop-filter: var(--tb-blur); }
 .ui-password-panel .ui-password-meter { background: rgba(255, 255, 255, .18) !important; border-radius: 999px; }
 
-.ui-message-error, .ui-message.ui-message-error { color: #ffb8b8 !important; background: transparent !important; border: none !important; box-shadow: none !important; font-size: .82rem; }
-.ui-inputfield.ui-state-error, .ui-inputtext.ui-state-error { border-color: var(--tb-red) !important; }
+/* Messages de validation sous les champs : icône + texte sur une ligne */
+.ui-message-error, .ui-message.ui-message-error {
+    display: inline-flex; align-items: center; gap: .4rem;
+    color: #ffb8b8 !important; background: transparent !important; border: none !important; box-shadow: none !important;
+    font-size: .82rem; padding: 0 !important; margin: 0;
+}
+.ui-message .ui-message-error-icon, .ui-message .ui-message-info-icon, .ui-message .ui-message-warn-icon { margin: 0 !important; position: static; }
 
 /* ---------- Tags : puces de verre avec point de couleur ---------- */
 .ui-tag {
-    display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .3rem .8rem;
+    display: inline-flex; align-items: center; gap: .45rem; vertical-align: middle; white-space: nowrap;
+    border-radius: 999px; padding: .3rem .8rem; line-height: 1.2;
     font-weight: 600; font-size: .78rem; letter-spacing: .02em; border: 1px solid transparent;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25);
 }
-.ui-tag::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-.ui-tag .ui-tag-value, .ui-tag .ui-tag-icon { color: inherit; }
+.ui-tag::before { content: ""; flex: 0 0 auto; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.ui-tag .ui-tag-value, .ui-tag .ui-tag-icon { color: inherit; line-height: inherit; margin: 0; }
 .ui-tag.ui-tag-success { background: rgba(88, 227, 154, .16); color: var(--tb-green); border-color: rgba(88, 227, 154, .45); }
 .ui-tag.ui-tag-warning { background: rgba(255, 200, 87, .16); color: var(--tb-orange); border-color: rgba(255, 200, 87, .45); }
 .ui-tag.ui-tag-danger  { background: rgba(255, 122, 122, .16); color: var(--tb-red); border-color: rgba(255, 122, 122, .45); }
@@ -344,26 +416,39 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Tableaux ---------- */
 .ui-datatable .ui-datatable-tablewrapper { overflow: hidden; }
-.ui-datatable table { border-collapse: separate; border-spacing: 0; }
+.ui-datatable table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .ui-datatable thead th {
     background: rgba(255, 255, 255, .07) !important; color: var(--tb-text-muted) !important; border: none !important;
     border-bottom: 1px solid var(--tb-glass-border) !important; font-size: .72rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .09em; padding: 1rem 1.1rem;
+    text-transform: uppercase; letter-spacing: .09em; padding: 1rem 1.1rem; vertical-align: middle; text-align: left;
 }
-.ui-datatable thead th .ui-sortable-column-icon { color: var(--tb-text-muted); }
+.ui-datatable thead th .ui-column-title { vertical-align: middle; }
+.ui-datatable thead th .ui-sortable-column-icon { color: var(--tb-text-muted); vertical-align: middle; margin: 0 0 0 .35rem !important; font-size: .75rem; }
+.ui-datatable thead th.tb-col-actions { text-align: right !important; }
 .ui-datatable tbody tr, .ui-datatable tbody td {
     background: transparent !important; color: var(--tb-text) !important; border: none !important;
-    border-bottom: 1px solid rgba(255, 255, 255, .07) !important; padding: .95rem 1.1rem; transition: background .2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, .07) !important; padding: .8rem 1.1rem; vertical-align: middle;
+    transition: background .2s ease;
 }
 .ui-datatable tbody tr:last-child td { border-bottom: none !important; }
 .ui-datatable.ui-datatable-striped tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .025) !important; }
 .ui-datatable tbody tr:hover td { background: rgba(255, 255, 255, .085) !important; }
 .ui-datatable .ui-datatable-empty-message td { color: var(--tb-text-muted) !important; text-align: center; padding: 2rem; }
-.ui-datatable .ui-paginator { background: transparent !important; border: none !important; color: var(--tb-text-muted) !important; padding: .75rem; }
+.ui-datatable .ui-column-filter { width: 100%; box-sizing: border-box; margin-top: .5rem; padding: .5rem .75rem; text-transform: none; letter-spacing: 0; }
+
+/* Boutons compacts dans les lignes de tableau */
+.ui-datatable tbody .ui-button.ui-button-icon-only { --tb-btn-h: 2.25rem; }
+
+.ui-datatable .ui-paginator { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .25rem; background: transparent !important; border: none !important; color: var(--tb-text-muted) !important; padding: .75rem; }
+.ui-paginator .ui-paginator-pages { display: inline-flex; gap: .25rem; }
 .ui-paginator .ui-paginator-page, .ui-paginator .ui-paginator-next, .ui-paginator .ui-paginator-prev,
-.ui-paginator .ui-paginator-first, .ui-paginator .ui-paginator-last { color: var(--tb-text) !important; border-radius: 999px; min-width: 2.2rem; height: 2.2rem; line-height: 2.2rem; }
+.ui-paginator .ui-paginator-first, .ui-paginator .ui-paginator-last {
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tb-text) !important; border-radius: 999px; min-width: 2.2rem; height: 2.2rem; padding: 0 .5rem;
+    line-height: 1; box-sizing: border-box; margin: 0;
+}
 .ui-paginator .ui-paginator-page.ui-state-active { background: linear-gradient(180deg, #a4f7fb, var(--tb-cyan-deep)) !important; color: #04304c !important; box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .8); }
-.ui-datatable .ui-column-filter { width: 100%; box-sizing: border-box; margin-top: .5rem; padding: .5rem .75rem; }
+.ui-paginator .ui-icon { position: static; margin: 0; }
 
 /* ---------- Dialogues & overlays ---------- */
 .ui-dialog {
@@ -374,10 +459,30 @@ a:hover { text-decoration: underline; }
     color: var(--tb-text) !important;
 }
 .ui-dialog .ui-dialog-titlebar, .ui-dialog .ui-dialog-content, .ui-dialog .ui-dialog-buttonpane { background: transparent !important; color: var(--tb-text) !important; border: none !important; }
-.ui-dialog .ui-dialog-titlebar { padding: 1.4rem 1.6rem .4rem; font-weight: 650; font-size: 1.15rem; letter-spacing: -.02em; }
-.ui-dialog .ui-dialog-titlebar-icon { color: var(--tb-text) !important; border-radius: 50%; }
+.ui-dialog .ui-dialog-titlebar {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 1.4rem 1.6rem .4rem; font-weight: 650; font-size: 1.15rem; letter-spacing: -.02em;
+}
+.ui-dialog .ui-dialog-title { float: none; margin: 0; line-height: 1.3; }
+.ui-dialog .ui-dialog-titlebar-icon {
+    float: none; position: static; margin: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: 50%; color: var(--tb-text) !important;
+}
+.ui-dialog .ui-dialog-titlebar-icon:hover { background: var(--tb-glass-hover) !important; }
+.ui-dialog .ui-dialog-titlebar-icon .ui-icon { position: static; margin: 0; }
 .ui-dialog .ui-dialog-content { padding: .6rem 1.6rem 1.6rem; }
-.ui-dialog .ui-confirm-dialog-message, .ui-dialog .ui-confirm-dialog-severity { color: var(--tb-text) !important; }
+
+/* Dialogue de confirmation : icône d'alerte + message côte à côte */
+.ui-confirm-dialog .ui-dialog-content { display: flex; align-items: flex-start; gap: .85rem; }
+.ui-dialog .ui-confirm-dialog-severity { float: none; margin: .1rem 0 0 !important; flex: 0 0 auto; font-size: 1.4rem; color: var(--tb-orange) !important; }
+.ui-dialog .ui-confirm-dialog-message { margin: 0 !important; line-height: 1.45; color: var(--tb-text) !important; }
+.ui-dialog .ui-dialog-buttonpane, .ui-confirm-dialog .ui-dialog-footer {
+    display: flex; justify-content: flex-end; align-items: center; gap: .6rem;
+    padding: 0 1.6rem 1.4rem !important; background: transparent !important; border: none !important;
+}
+.ui-dialog .ui-dialog-buttonpane .ui-button, .ui-confirm-dialog .ui-dialog-footer .ui-button { float: none; margin: 0; }
+
 .ui-widget-overlay { background: rgba(2, 12, 30, .55) !important; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 
 .ui-datepicker, .ui-selectonemenu-panel, .ui-autocomplete-panel, .ui-overlaypanel {
@@ -388,11 +493,13 @@ a:hover { text-decoration: underline; }
 }
 .ui-datepicker table td > span, .ui-datepicker .ui-datepicker-title, .ui-datepicker .ui-datepicker-header,
 .ui-datepicker-header button, .ui-datepicker table th, .ui-datepicker .ui-timepicker, .ui-datepicker .ui-timepicker span { color: var(--tb-text) !important; background: transparent !important; }
+.ui-datepicker .ui-datepicker-header { display: flex; align-items: center; justify-content: space-between; }
+.ui-datepicker table td > span { display: inline-flex; align-items: center; justify-content: center; width: 2.2rem; height: 2.2rem; }
 .ui-datepicker table td > span.ui-state-active { background: linear-gradient(180deg, #a4f7fb, var(--tb-cyan-deep)) !important; color: #04304c !important; border-radius: 50%; }
 .ui-selectonemenu-item { color: var(--tb-text) !important; border-radius: 10px; margin: 2px 4px; }
 .ui-selectonemenu-item:hover, .ui-selectonemenu-item.ui-state-highlight { background: var(--tb-glass-hover) !important; }
 
-/* ---------- Messages ---------- */
+/* ---------- Messages (growl, p:messages, p:staticMessage) ---------- */
 .ui-growl-item-container, .ui-messages, .ui-message-info, .ui-message-warn, .ui-message-fatal, .ui-staticmessage {
     border-radius: var(--tb-radius-md) !important; background: var(--tb-glass) !important;
     border: 1px solid var(--tb-glass-border) !important; box-shadow: var(--tb-edge), var(--tb-shadow) !important;
@@ -401,6 +508,22 @@ a:hover { text-decoration: underline; }
 .ui-growl-message, .ui-growl-title, .ui-messages-info-summary, .ui-messages-error-summary, .ui-messages-warn-summary,
 .ui-messages-info-detail, .ui-messages-error-detail, .ui-messages-warn-detail, .ui-staticmessage * { color: var(--tb-text) !important; }
 
+/* Growl : icône à gauche, texte à côté (plus de chevauchement) */
+.ui-growl-item { display: flex; align-items: flex-start; gap: .85rem; padding: 1rem 2.5rem 1rem 1rem; position: relative; }
+.ui-growl-image { float: none !important; position: static !important; flex: 0 0 auto; margin: 0 !important; font-size: 1.5rem; }
+.ui-growl-message { float: none !important; margin: 0 !important; padding: 0 !important; width: auto !important; flex: 1 1 auto; min-width: 0; }
+.ui-growl-title { display: block; font-weight: 650; margin-bottom: .2rem; }
+.ui-growl-message p { margin: 0; line-height: 1.4; opacity: .85; }
+.ui-growl-icon-close { position: absolute !important; top: .8rem; right: .8rem; margin: 0 !important; }
+
+/* p:staticMessage : icône + textes alignés */
+.ui-staticmessage { display: flex; align-items: flex-start; gap: .7rem; padding: .9rem 1.1rem !important; box-sizing: border-box; margin-bottom: 1rem; }
+.ui-staticmessage .ui-message-info-icon, .ui-staticmessage .ui-message-warn-icon, .ui-staticmessage .ui-message-error-icon {
+    position: static; margin: 0 !important; flex: 0 0 auto;
+}
+.ui-staticmessage .ui-message-info-summary, .ui-staticmessage .ui-message-warn-summary,
+.ui-staticmessage .ui-message-error-summary { font-weight: 650; margin-right: .35rem; }
+
 /* ---------- Navigation : barre de verre flottante ---------- */
 .ui-menubar, .ui-menu, .ui-tabmenu .ui-tabmenu-nav, .ui-megamenu, .ui-toolbar {
     background: linear-gradient(145deg, rgba(255, 255, 255, .20), rgba(255, 255, 255, .06)) !important;
@@ -408,14 +531,41 @@ a:hover { text-decoration: underline; }
     box-shadow: var(--tb-edge), var(--tb-shadow) !important;
     -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur); padding: .35rem .45rem;
 }
-.ui-menubar { position: sticky; top: .75rem; z-index: 500; margin: .75rem auto 0; max-width: 1200px; }
-.ui-menubar .ui-menuitem-link, .ui-menu .ui-menuitem-link, .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link {
-    color: var(--tb-text) !important; border-radius: 999px !important; background: transparent !important; transition: background .2s ease;
+.ui-menubar::before { display: none; }
+
+/* Menubar en flex : logo | items | options, tout centré verticalement */
+.ui-menubar {
+    position: sticky; top: .75rem; z-index: 500; margin: .75rem auto 0; max-width: 1200px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: .25rem; box-sizing: border-box;
 }
-.ui-menubar .ui-menuitem-text, .ui-menu .ui-menuitem-text, .ui-menubar .ui-menuitem-icon, .ui-menu .ui-menuitem-icon { color: var(--tb-text) !important; }
+.ui-menubar .ui-menubar-start { display: flex; align-items: center; padding-left: .6rem; }
+.ui-menubar > .ui-menu-list, .ui-menubar .ui-menubar-root-list {
+    display: flex; align-items: center; flex-wrap: wrap; gap: .15rem; margin: 0; padding: 0; float: none;
+}
+.ui-menubar .ui-menubar-options {
+    display: flex; align-items: center; gap: .5rem; margin-left: auto; float: none; padding-right: .15rem;
+}
+.ui-menubar .ui-menuitem { float: none; }
+
+.ui-menubar .ui-menuitem-link, .ui-menu .ui-menuitem-link, .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link {
+    display: inline-flex !important; align-items: center; gap: .5rem;
+    padding: .55rem .95rem !important; line-height: 1.2;
+    color: var(--tb-text) !important; border-radius: 999px !important; background: transparent !important;
+    transition: background .2s ease;
+}
+.ui-menubar .ui-menuitem-icon, .ui-menu .ui-menuitem-icon {
+    position: static !important; float: none !important; margin: 0 !important;
+    width: 1rem; height: 1rem; font-size: 1rem; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tb-text) !important;
+}
+.ui-menubar .ui-menuitem-text, .ui-menu .ui-menuitem-text { color: var(--tb-text) !important; float: none; line-height: inherit; }
 .ui-menubar .ui-menuitem-link:hover, .ui-menu .ui-menuitem-link:hover { background: var(--tb-glass-hover) !important; }
 .ui-tabmenu .ui-tabmenuitem.ui-state-active .ui-menuitem-link { background: rgba(255, 255, 255, .26) !important; box-shadow: var(--tb-edge); color: var(--tb-cyan) !important; }
 .ui-menubar .ui-submenu-list { background: var(--tb-overlay) !important; border-radius: var(--tb-radius-md); border: 1px solid var(--tb-glass-border); }
+
+/* Bouton "hamburger" mobile de la menubar */
+.ui-menubar .ui-menubar-toggler { display: none; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem; color: var(--tb-text) !important; border-radius: 50%; }
 
 /* ---------- Graphique ---------- */
 .ui-chart canvas { filter: drop-shadow(0 6px 16px rgba(111, 240, 247, .3)); }
@@ -428,319 +578,241 @@ a:hover { text-decoration: underline; }
     .ui-card, .ui-panel, .ui-dialog, .ui-menubar, .ui-datatable .ui-datatable-tablewrapper { background: rgba(16, 70, 120, .9) !important; }
 }
 
-/* ---------- Mobile / responsive ---------- */
-
+/* ==========================================================================
+   Mobile / responsive
+   ========================================================================== */
 @media (max-width: 900px) {
-    .tb-main {
-        width: auto;
-        max-width: none;
-        padding: 1rem .85rem 3rem;
-    }
+    .tb-main { width: auto; max-width: none; padding: 1rem .85rem 3rem; }
+    .tb-header { gap: .75rem; margin: 1.2rem 0 1rem; }
+    .tb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+    .tb-span-2 { grid-column: span 2; }
 
-    .tb-header {
-        gap: .75rem;
-        margin: 1.2rem 0 1rem;
-    }
+    .ui-card .ui-card-body { padding: 1.15rem; }
+    .ui-panel .ui-panel-titlebar { padding: 1.1rem 1.15rem .25rem; }
+    .ui-panel .ui-panel-content { padding: .65rem 1.15rem 1.2rem; }
 
-    .tb-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .8rem;
-    }
+    .tb-hero-temp { font-size: clamp(4rem, 12vw, 6rem); }
+    .tb-room .tb-hero-temp { font-size: clamp(3.5rem, 10vw, 5rem); }
 
-    .tb-span-2 {
-        grid-column: span 2;
-    }
+    .tb-actions { justify-content: stretch; flex-wrap: wrap; }
+    .tb-actions .ui-button { flex: 1 1 auto; min-width: 9rem; }
 
-    .ui-card .ui-card-body {
-        padding: 1.15rem;
-    }
+    .ui-datatable .ui-datatable-tablewrapper { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+    .ui-datatable table { min-width: 620px; }
+    .ui-datatable thead th, .ui-datatable tbody td { white-space: nowrap; }
 
-    .ui-panel .ui-panel-titlebar {
-        padding: 1.1rem 1.15rem .25rem;
-    }
+    .ui-dialog { width: calc(100vw - 1.5rem) !important; max-width: calc(100vw - 1.5rem) !important; margin: .75rem; }
+    .ui-dialog .ui-dialog-content { max-height: calc(100vh - 9rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    .ui-panel .ui-panel-content {
-        padding: .65rem 1.15rem 1.2rem;
-    }
-
-    .tb-hero-temp {
-        font-size: clamp(4rem, 12vw, 6rem);
-    }
-
-    .tb-room .tb-hero-temp {
-        font-size: clamp(3.5rem, 10vw, 5rem);
-    }
-
-    /* Don't force action buttons to the edge on touch screens. */
-    .tb-actions {
-        justify-content: stretch;
-        flex-wrap: wrap;
-    }
-
-    .tb-actions .ui-button {
-        flex: 1 1 auto;
-        min-width: 9rem;
-    }
-
-    /* DataTables can scroll horizontally instead of destroying the layout. */
-    .ui-datatable .ui-datatable-tablewrapper {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .ui-datatable table {
-        min-width: 620px;
-    }
-
-    .ui-datatable thead th,
-    .ui-datatable tbody td {
-        white-space: nowrap;
-    }
-
-    .ui-dialog {
-        width: calc(100vw - 1.5rem) !important;
-        max-width: calc(100vw - 1.5rem) !important;
-        margin: .75rem;
-    }
-
-    .ui-dialog .ui-dialog-content {
-        max-height: calc(100vh - 9rem);
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .ui-selectonebutton {
-        max-width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .ui-selectonebutton .ui-button {
-        flex: 0 0 auto;
-        white-space: nowrap;
-    }
+    .ui-selectonebutton { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .ui-selectonebutton .ui-button { flex: 0 0 auto; }
 }
 
 @media (max-width: 640px) {
-    html, body {
-        width: 100%;
-        min-width: 0;
-        overflow-x: hidden;
-    }
+    html, body { width: 100%; min-width: 0; overflow-x: hidden; }
+    body { background-attachment: scroll; }
 
-    body {
-        background-attachment: scroll;
-    }
+    :root { --tb-btn-h: 2.75rem; --tb-btn-px: 1rem; }
 
-    .tb-main {
-        padding: .75rem .7rem 2rem;
-    }
+    .tb-main { padding: .75rem .7rem 2rem; }
+    .tb-header { flex-direction: column; align-items: stretch; margin-top: .85rem; }
+    .tb-header .ui-button { align-self: flex-start; }
+    .tb-brand { margin-right: 0; }
+    .tb-grid { grid-template-columns: 1fr; gap: .7rem; }
+    .tb-span-2 { grid-column: span 1; }
+    .tb-card-head { align-items: flex-start; }
+    .tb-row { gap: .55rem; }
+    .tb-row .tb-spacer { display: none; }
 
-    .tb-header {
-        flex-direction: column;
-        align-items: stretch;
-        margin-top: .85rem;
-    }
+    .tb-actions { flex-direction: column; gap: .5rem; margin-top: 1rem; }
+    .tb-actions .ui-button { width: 100%; min-width: 0; }
 
-    .tb-brand {
-        margin-right: 0;
-    }
+    .tb-auth { width: auto; max-width: none; margin: 5vh .25rem 0; }
+    .tb-auth-title { font-size: clamp(1.8rem, 9vw, 2.35rem); margin-bottom: 1.25rem; }
 
-    .tb-grid {
-        grid-template-columns: 1fr;
-        gap: .7rem;
-    }
+    .tb-narrow { max-width: none; }
+    .tb-narrow .ui-card { margin-bottom: .7rem; }
 
-    .tb-span-2 {
-        grid-column: span 1;
-    }
+    .ui-card { border-radius: 20px !important; }
+    .ui-card .ui-card-body { padding: 1rem; }
+    .ui-card .ui-card-title { font-size: 1.08rem; }
+    .ui-panel .ui-panel-titlebar { padding: 1rem 1rem .2rem; }
+    .ui-panel .ui-panel-content { padding: .55rem 1rem 1rem; }
 
-    .tb-card-head {
-        align-items: flex-start;
-    }
+    .tb-temp { font-size: clamp(3.1rem, 16vw, 4.5rem); }
+    .tb-hero-temp { font-size: clamp(3.6rem, 20vw, 5.5rem); }
+    .tb-room .tb-hero-temp { font-size: clamp(3.4rem, 18vw, 5rem); }
+    .tb-room .tb-row { margin-top: .8rem; }
 
-    .tb-row {
-        gap: .55rem;
-    }
+    .tb-pill { max-width: 100%; box-sizing: border-box; padding: .45rem .8rem; font-size: .88rem; }
 
-    .tb-actions {
-        flex-direction: column;
-        gap: .5rem;
-        margin-top: 1rem;
-    }
+    .ui-menubar, .ui-menu, .ui-tabmenu .ui-tabmenu-nav, .ui-megamenu, .ui-toolbar { max-width: calc(100vw - 1rem); box-sizing: border-box; }
+    .ui-menubar { position: relative; top: 0; margin: .5rem auto 0; border-radius: 15px !important; }
+    .ui-menubar .ui-menubar-options { margin-left: 0; width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+    .ui-menubar .ui-menuitem-link, .ui-menu .ui-menuitem-link, .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link { white-space: nowrap; }
+    .ui-toolbar { flex-wrap: wrap; gap: .35rem; }
 
-    .tb-actions .ui-button {
-        width: 100%;
-        min-width: 0;
-    }
-
-    .tb-auth {
-        width: auto;
-        max-width: none;
-        margin: 5vh .25rem 0;
-    }
-
-    .tb-auth-title {
-        font-size: clamp(1.8rem, 9vw, 2.35rem);
-        margin-bottom: 1.25rem;
-    }
-
-    .tb-narrow {
-        max-width: none;
-    }
-
-    .tb-narrow .ui-card {
-        margin-bottom: .7rem;
-    }
-
-    .ui-card {
-        border-radius: 20px !important;
-    }
-
-    .ui-card .ui-card-body {
-        padding: 1rem;
-    }
-
-    .ui-card .ui-card-title {
-        font-size: 1.08rem;
-    }
-
-    .ui-panel .ui-panel-titlebar {
-        padding: 1rem 1rem .2rem;
-    }
-
-    .ui-panel .ui-panel-content {
-        padding: .55rem 1rem 1rem;
-    }
-
-    .tb-temp {
-        font-size: clamp(3.1rem, 16vw, 4.5rem);
-    }
-
-    .tb-hero-temp {
-        font-size: clamp(3.6rem, 20vw, 5.5rem);
-    }
-
-    .tb-room .tb-hero-temp {
-        font-size: clamp(3.4rem, 18vw, 5rem);
-    }
-
-    .tb-room .tb-row {
-        margin-top: .8rem;
-    }
-
-    .tb-pill {
-        max-width: 100%;
-        box-sizing: border-box;
-        padding: .45rem .8rem;
-        font-size: .88rem;
-    }
-
-    /* Menu can wrap instead of overflowing the viewport. */
-    .ui-menubar,
-    .ui-menu,
-    .ui-tabmenu .ui-tabmenu-nav,
-    .ui-megamenu,
-    .ui-toolbar {
-        max-width: calc(100vw - 1rem);
+    .ui-inputfield, .ui-inputtext, .ui-inputnumber input, .ui-password input,
+    .ui-datepicker-input, .ui-calendar input {
+        min-height: 2.75rem;
+        font-size: 16px; /* empêche le zoom automatique d'iOS Safari */
         box-sizing: border-box;
     }
+    .ui-selectonemenu { min-height: 2.75rem; }
 
-    .ui-menubar {
-        position: relative;
-        top: 0;
-        margin: .5rem auto 0;
-        border-radius: 15px !important;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+    .ui-datepicker, .ui-selectonemenu-panel, .ui-autocomplete-panel, .ui-overlaypanel { max-width: calc(100vw - 1rem); box-sizing: border-box; }
 
-    .ui-menubar .ui-menuitem-link,
-    .ui-menu .ui-menuitem-link,
-    .ui-tabmenu .ui-tabmenuitem .ui-menuitem-link {
-        white-space: nowrap;
-    }
-
-    .ui-toolbar {
-        flex-wrap: wrap;
-        gap: .35rem;
-    }
-
-    .ui-inputfield,
-    .ui-inputtext,
-    .ui-inputnumber input,
-    .ui-password input,
-    .ui-selectonemenu,
-    .ui-datepicker-input,
-    .ui-calendar input {
-        min-height: 2.7rem;
-        font-size: 16px; /* prevents iOS Safari from zooming inputs */
-        box-sizing: border-box;
-    }
-
-    .ui-button {
-        min-height: 2.65rem;
-        padding: .62rem 1rem;
-    }
-
-    .ui-datepicker,
-    .ui-selectonemenu-panel,
-    .ui-autocomplete-panel,
-    .ui-overlaypanel {
-        max-width: calc(100vw - 1rem);
-        box-sizing: border-box;
-    }
-
-    .ui-growl {
-        max-width: calc(100vw - 1rem);
-        right: .5rem !important;
-        left: .5rem !important;
-    }
-
-    .ui-growl-item-container {
-        width: 100%;
-        box-sizing: border-box;
-    }
+    .ui-growl { max-width: calc(100vw - 1rem); right: .5rem !important; left: .5rem !important; }
+    .ui-growl-item-container { width: 100%; box-sizing: border-box; }
 }
 
-/* Very narrow phones */
 @media (max-width: 380px) {
-    .tb-main {
-        padding-left: .55rem;
-        padding-right: .55rem;
-    }
-
-    .ui-card .ui-card-body {
-        padding: .85rem;
-    }
-
-    .tb-temp {
-        font-size: 2.9rem;
-    }
-
-    .tb-hero-temp {
-        font-size: 3.4rem;
-    }
-
-    .ui-button {
-        padding-left: .85rem;
-        padding-right: .85rem;
-    }
+    :root { --tb-btn-px: .85rem; }
+    .tb-main { padding-left: .55rem; padding-right: .55rem; }
+    .ui-card .ui-card-body { padding: .85rem; }
+    .tb-temp { font-size: 2.9rem; }
+    .tb-hero-temp { font-size: 3.4rem; }
 }
 
-/* Touch devices: no fake hover enlargement. */
+/* Écrans tactiles : pas de faux effet de survol */
 @media (hover: none) and (pointer: coarse) {
-    .ui-button:enabled:hover {
-        transform: none;
-    }
+    .ui-button:enabled:hover, .ui-linkbutton:hover, .tb-room:hover { transform: none; }
+    .ui-card:hover, .ui-panel:hover { border-color: var(--tb-glass-border) !important; }
+}
 
-    .tb-room:hover {
-        transform: none;
-    }
+/* ==========================================================================
+   Navbar : options (admin + Déconnexion) à droite, Déconnexion en rouge
+   À placer À LA FIN du fichier
+   ========================================================================== */
 
-    .ui-card:hover,
-    .ui-panel:hover {
-        border-color: var(--tb-glass-border) !important;
-    }
+/* La barre en flex sur toute la largeur */
+body .ui-menubar {
+    display: flex !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .25rem;
+}
+
+/* La liste des menus prend toute la place disponible… */
+body .ui-menubar > .ui-menu-list,
+body .ui-menubar .ui-menubar-root-list {
+    display: flex !important;
+    align-items: center;
+    flex: 1 1 auto;
+    float: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* …et les options sont poussées contre le bord droit */
+body .ui-menubar .ui-menubar-options {
+    display: flex !important;
+    align-items: center;
+    gap: .5rem;
+    margin-left: auto !important;
+    float: none !important;
+    padding: 0 .25rem 0 0 !important;
+    list-style: none;
+}
+
+/* Boutons des options : icône et texte bien espacés */
+body .ui-menubar .ui-menubar-options .ui-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    min-height: 2.4rem;
+    padding: 0 1rem !important;
+}
+body .ui-menubar .ui-menubar-options .ui-button .ui-button-text { padding: 0 !important; }
+body .ui-menubar .ui-menubar-options .ui-button .ui-icon {
+    position: static !important;
+    margin: 0 !important;
+}
+
+/* Bouton Déconnexion en rouge (dernier bouton des options, ou classe tb-logout) */
+body .ui-menubar .ui-menubar-options .ui-button:last-child,
+body .ui-button.tb-logout {
+    background: linear-gradient(145deg, rgba(255, 122, 122, .45), rgba(230, 70, 80, .25)) !important;
+    border: 1px solid rgba(255, 130, 130, .65) !important;
+    color: #fff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 6px 18px -8px rgba(255, 90, 100, .6) !important;
+}
+body .ui-menubar .ui-menubar-options .ui-button:last-child:hover,
+body .ui-button.tb-logout:hover {
+    background: #e5484d !important;
+    border-color: #ff8d91 !important;
+}
+
+/* ---------- Transitions entre pages ---------- */
+@view-transition { navigation: auto; }
+
+/* La navbar ne bouge pas pendant la transition */
+.ui-menubar { view-transition-name: tb-navbar; }
+
+/* Animation par défaut : la page sort en fondu, la nouvelle monte légèrement */
+::view-transition-old(root) { animation: tb-page-out .22s ease both; }
+::view-transition-new(root) { animation: tb-page-in .38s cubic-bezier(.22, 1, .36, 1) both; }
+
+@keyframes tb-page-out { to   { opacity: 0; transform: scale(.985); } }
+@keyframes tb-page-in  { from { opacity: 0; transform: translateY(14px) scale(.99); } }
+
+/* Éléments partagés (nom de salle, température) : glissement fluide d'une page à l'autre */
+::view-transition-group(*) { animation-duration: .45s; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* ---------- Carte dashboard → carte "Température mesurée" ---------- */
+
+/* Le cadre (taille + position) glisse avec un effet ressort */
+::view-transition-group(*.tb-card) {
+    animation-duration: .1s;
+    animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Les coins arrondis sont conservés pendant le déplacement */
+::view-transition-image-pair(*.tb-card) {
+    border-radius: 26px;
+    overflow: hidden;
+}
+
+/* Contenu non déformé : ancré en haut à gauche, sans étirement */
+::view-transition-old(*.tb-card),
+::view-transition-new(*.tb-card) {
+    width: 100%;
+    height: 100%;
+    object-fit: none;
+    object-position: top left;
+}
+
+/* L'ancienne carte s'efface vite, la nouvelle apparaît juste derrière */
+::view-transition-old(*.tb-card) { animation: tb-card-out .2s ease both; }
+::view-transition-new(*.tb-card) { animation: tb-card-in .35s .08s ease both; }
+
+@keyframes tb-card-out { to   { opacity: 0; } }
+@keyframes tb-card-in  { from { opacity: 0; } }
+
+/* ---------- Verre dépoli & View Transitions ---------- */
+
+/* Le flou peut s'animer : il reviendra progressivement au lieu d'apparaître d'un coup */
+.ui-card, .ui-panel, .ui-menubar, .ui-datatable .ui-datatable-tablewrapper {
+    transition:
+            -webkit-backdrop-filter .4s ease,
+            backdrop-filter .4s ease,
+            background-color .4s ease,
+            transform .32s var(--tb-spring),
+            border-color .28s ease,
+            box-shadow .32s ease;
+}
+
+/* Pendant la transition : pas de flou, un fond un peu plus dense pour garder l'effet "verre" */
+html.tb-vt .ui-card,
+html.tb-vt .ui-panel,
+html.tb-vt .ui-menubar,
+html.tb-vt .ui-datatable .ui-datatable-tablewrapper {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgba(24, 92, 145, .42) !important;
 }

@@ -13,6 +13,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Thermobox – <ui:insert name="title"/></title>
     <h:outputStylesheet name="css/thermobox.css"/>
+    <script>
+        (function () {
+            var root = document.documentElement;
+
+            // Ancienne page : on coupe le flou juste avant que le navigateur la capture
+            window.addEventListener('pageswap', function (e) {
+                if (e.viewTransition) root.classList.add('tb-vt');
+            });
+
+            // Nouvelle page : pas de flou pendant l'animation, puis il revient en fondu
+            window.addEventListener('pagereveal', function (e) {
+                if (!e.viewTransition) { root.classList.remove('tb-vt'); return; }
+                root.classList.add('tb-vt');
+                e.viewTransition.finished.finally(function () {
+                    requestAnimationFrame(function () { root.classList.remove('tb-vt'); });
+                });
+            });
+
+            // Retour arrière depuis le cache du navigateur : on ne reste jamais bloqué sans flou
+            window.addEventListener('pageshow', function () {
+                setTimeout(function () { root.classList.remove('tb-vt'); }, 600);
+            });
+        })();
+    </script>
 </h:head>
 
 <h:body>
@@ -34,7 +58,7 @@
                 <p:linkButton value="#{loginBean.currentUser.username}" icon="pi pi-user"
                               outcome="/app/profil" styleClass="ui-button-flat"/>
                 <p:commandButton value="Déconnexion" icon="pi pi-sign-out" action="#{loginBean.logout}"
-                                 ajax="false" styleClass="ui-button-outlined"/>
+                                 ajax="false" styleClass="tb-logout"/>
             </f:facet>
         </p:menubar>
     </h:form>
@@ -43,10 +67,12 @@
         <p:autoUpdate/>
     </p:growl>
 
-    <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="360">
-        <p:commandButton value="Annuler" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
-        <p:commandButton value="Confirmer" type="button" styleClass="ui-confirmdialog-yes ui-button-danger"/>
-    </p:confirmDialog>
+    <h:form id="confirmForm">
+        <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="360">
+            <p:commandButton value="Annuler" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
+            <p:commandButton value="Confirmer" type="button" styleClass="ui-confirmdialog-yes ui-button-danger"/>
+        </p:confirmDialog>
+    </h:form>
 
     <main class="tb-main">
         <ui:insert name="content"/>

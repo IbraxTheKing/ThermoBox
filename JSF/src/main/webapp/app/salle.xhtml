@@ -25,7 +25,8 @@
 
         <h:form id="detail" rendered="#{salleDetailBean.salle ne null}">
             <div class="tb-header">
-                <h1>#{salleDetailBean.salle.name}</h1>
+                <!-- Transition : reçoit le nom de la carte du dashboard -->
+                <h1 style="view-transition-name: salle-nom-#{salleDetailBean.salle.id}">#{salleDetailBean.salle.name}</h1>
                 <p:linkButton value="Toutes les salles" icon="pi pi-arrow-left" outcome="/app/salles"
                               styleClass="ui-button-flat"/>
             </div>
@@ -35,9 +36,9 @@
             <div class="tb-grid">
                 <!-- État courant (rafraîchi par le poll) -->
                 <h:panelGroup id="etat" layout="block" styleClass="tb-grid tb-span-2">
-                    <p:card>
+                    <p:card style="view-transition-name: salle-card-#{salleDetailBean.salle.id}; view-transition-class: tb-card">
                         <div class="tb-muted">Température mesurée</div>
-                        <div class="tb-temp">
+                        <div class="tb-temp" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}">
                             <h:outputText value="#{salleDetailBean.mesure.value}"
                                           rendered="#{salleDetailBean.mesure ne null}">
                                 <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
