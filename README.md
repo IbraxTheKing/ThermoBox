@@ -53,26 +53,6 @@ Capteur/MQTT -> Business -> Persistence -> API REST -> Interface utilisateur
 - GESTIONNAIRE : gestion des consignes et consultation
 - VIEWER : consultation seule
 
-## Exemple de lancement
-
-### Prérequis
-- Java 23+
-- Maven 3.8+
-
-### Compiler le projet
-```bash
-mvn clean package
-```
-
-### Lancer l'API
-```bash
-cd RestServer
-mvn exec:java
-```
-
-### Ouvrir l'interface
-Ouvrir l'application web du dossier `iaSlopTest` ou la partie JSF selon la configuration du projet.
-
 ## Notes
 
 Ce projet est surtout conçu comme un projet de démonstration / étude autour de l'architecture logicielle, de la persistance JPA, de l'API REST et de l'instrumentation de salles par température.
