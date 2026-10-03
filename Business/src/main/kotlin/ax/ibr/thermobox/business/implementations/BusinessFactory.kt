@@ -19,7 +19,6 @@ class BusinessFactory {
     private lateinit var userService: UserService
     private lateinit var salleTempAttrService: SalleTempAttrService
 
-
     private lateinit var driver: ProtocolDriver
     private val MQTT: Boolean = false
 
@@ -51,24 +50,7 @@ class BusinessFactory {
         return salleTempAttrService
     }
 
-    // Boxes stuffs
-
-    fun sendConsigne(s: Salle, c: Consigne) {
-        initializeDriver()
-        driver.sendConsigne(s,c)
-    }
-
-    fun listenToBoxes() {
-        initializeDriver()
-        driver.listen()
-    }
-
     fun getDriver(): ProtocolDriver {
-        initializeDriver()
-        return driver
-    }
-
-    private fun initializeDriver() {
         if (!::driver.isInitialized) {
             if (MQTT) {
                 driver = MqttDriver()
@@ -76,7 +58,6 @@ class BusinessFactory {
             // .... //
             driver = SimulatedProtocolDriver()
         }
-        return
+        return driver
     }
-
 }
