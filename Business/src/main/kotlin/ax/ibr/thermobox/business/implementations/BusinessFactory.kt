@@ -23,10 +23,6 @@ class BusinessFactory {
     private lateinit var driver: ProtocolDriver
     private val MQTT: Boolean = false
 
-    private val IMPOSSIBLE_TEMPERATURE_VALUE_MAX: Float = 100f
-    private val IMPOSSIBLE_TEMPERATURE_VALUE_MIN: Float = -10f
-    private val HOT_LIMIT_TEMPERATURE: Float = 50f
-
     fun getTemperatureService(): TemperatureService {
         if (!::temperatureService.isInitialized) {
             temperatureService = TemperatureServiceImpl()
@@ -59,27 +55,17 @@ class BusinessFactory {
 
     fun sendConsigne(s: Salle, c: Consigne) {
         initializeDriver()
-        if (s.id == null) {
-            throw Exception("Room id is null")
-        }
-        if (s != getSalleService().getById(s.id!!)) {
-            throw Exception("Room (id=${s.id}) doesn't exist in database.")
-        }
-        if (c.value!! >= IMPOSSIBLE_TEMPERATURE_VALUE_MAX) {
-            throw ImpossibleValueException("Consigne is impossible to reach")
-        }
-        if (c.value!! <= IMPOSSIBLE_TEMPERATURE_VALUE_MIN) {
-            throw ImpossibleValueException("Consigne is impossible to reach")
-        }
-        if (c.value!! >= HOT_LIMIT_TEMPERATURE) {
-            throw TooHotException("Consigne is too hot")
-        }
         driver.sendConsigne(s,c)
     }
 
     fun listenToBoxes() {
         initializeDriver()
         driver.listen()
+    }
+
+    fun getDriver(): ProtocolDriver {
+        initializeDriver()
+        return driver
     }
 
     private fun initializeDriver() {

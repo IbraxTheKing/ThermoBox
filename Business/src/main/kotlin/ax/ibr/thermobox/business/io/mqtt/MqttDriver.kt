@@ -60,6 +60,7 @@ class MqttDriver(
     }
 
     override fun sendConsigne(s: Salle, c: Consigne) {
+        super.sendConsigne(s, c)
         val salleId = requireNotNull(s?.id) {
             throw NullException("La salle doit avoir un id pour envoyer une consigne") }
         val payload = c.value?.toString() ?: return
