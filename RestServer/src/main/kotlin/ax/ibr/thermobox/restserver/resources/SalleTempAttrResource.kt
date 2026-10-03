@@ -6,7 +6,7 @@ import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
-import ax.ibr.thermobox.io.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
 import ax.ibr.utils.exceptions.AlreadyExistsException
 import ax.ibr.utils.rest.RequiresAuth
 import jakarta.ws.rs.*

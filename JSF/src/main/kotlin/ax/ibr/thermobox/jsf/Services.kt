@@ -6,7 +6,7 @@ import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.Temperature
-import ax.ibr.thermobox.io.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
 import java.time.LocalDateTime
 
 /**

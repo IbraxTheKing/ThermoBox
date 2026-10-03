@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
-    <file url="file://$APPLICATION_HOME_DIR$/bin/src/main/java" charset="UTF-8" />
-    <file url="file://$APPLICATION_HOME_DIR$/bin/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Business/Io/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Business/Io/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Business/Io/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Business/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Business/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Business/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Common/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Common/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Common/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/Io/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/Io/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/Io/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/JSF/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/JSF/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/JSF/src/main/resources" charset="UTF-8" />
@@ -26,5 +24,10 @@
     <file url="file://$PROJECT_DIR$/ibr-utils/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+    <file url="file://$APPLICATION_HOME_DIR$/bin/src/main/java" charset="UTF-8" />
+    <file url="file://$APPLICATION_HOME_DIR$/bin/src/main/resources" charset="UTF-8" />
+    <file url="file://$APPLICATION_HOME_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$APPLICATION_HOME_DIR$/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$APPLICATION_HOME_DIR$/src/main/resources" charset="UTF-8" />
   </component>
 </project>
