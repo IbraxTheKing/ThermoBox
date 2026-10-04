@@ -1,4 +1,4 @@
-package ax.ibr.thermobox.io.mqtt
+package ax.ibr.thermobox.business.io.mqtt
 
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
@@ -60,6 +60,7 @@ class MqttDriver(
     }
 
     override fun sendConsigne(s: Salle, c: Consigne) {
+        super.sendConsigne(s, c)
         val salleId = requireNotNull(s?.id) {
             throw NullException("La salle doit avoir un id pour envoyer une consigne") }
         val payload = c.value?.toString() ?: return

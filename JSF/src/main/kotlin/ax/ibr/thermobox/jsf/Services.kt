@@ -6,7 +6,7 @@ import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.Temperature
-import ax.ibr.thermobox.io.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
 import java.time.LocalDateTime
 
 /**
@@ -21,8 +21,7 @@ object Services {
     val temperatures by lazy { factory.getTemperatureService() }
     val users by lazy { factory.getUserService() }
 
-    /** Driver vers les boîtiers (simulé, comme dans SalleTempAttrResource). */
-    val driver: ProtocolDriver by lazy { SimulatedProtocolDriver() }
+    val driver: ProtocolDriver by lazy { factory.getDriver() }
 }
 
 /** Lectures "temps réel" d'une salle, partagées par le tableau de bord et la page détail. */

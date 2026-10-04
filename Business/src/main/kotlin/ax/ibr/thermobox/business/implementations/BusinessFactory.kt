@@ -1,10 +1,16 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
+import ax.ibr.thermobox.business.exceptions.TooHotException
+import ax.ibr.thermobox.business.io.mqtt.MqttDriver
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.common.services.UserService
-import ax.ibr.thermobox.business.implementations.UserServiceImpl
+import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.common.entities.Consigne
+import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
 
 class BusinessFactory {
 
@@ -12,6 +18,9 @@ class BusinessFactory {
     private lateinit var salleService: SalleService
     private lateinit var userService: UserService
     private lateinit var salleTempAttrService: SalleTempAttrService
+
+    private lateinit var driver: ProtocolDriver
+    private val MQTT: Boolean = false
 
     fun getTemperatureService(): TemperatureService {
         if (!::temperatureService.isInitialized) {
@@ -41,4 +50,14 @@ class BusinessFactory {
         return salleTempAttrService
     }
 
+    fun getDriver(): ProtocolDriver {
+        if (!::driver.isInitialized) {
+            if (MQTT) {
+                driver = MqttDriver()
+            }
+            // .... //
+            driver = SimulatedProtocolDriver()
+        }
+        return driver
+    }
 }

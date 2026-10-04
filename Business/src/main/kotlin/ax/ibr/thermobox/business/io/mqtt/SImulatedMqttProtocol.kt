@@ -1,4 +1,4 @@
-package ax.ibr.thermobox.io.mqtt
+package ax.ibr.thermobox.business.io.mqtt
 
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Consigne
@@ -79,7 +79,7 @@ class SimulatedProtocolDriver(
     }
 
     override fun sendConsigne(s: Salle, c: Consigne) {
-        // Pas de broker à publier : on log simplement l'action pour vérifier le flux
+        super.sendConsigne(s, c)
         println("[SimulatedProtocolDriver] Consigne simulée envoyée à ${s?.name ?: "salle inconnue"} : ${c.value}")
         temperatureService.add(c)
         salleTempAttrService.add(SalleTempAttr(s,c))
