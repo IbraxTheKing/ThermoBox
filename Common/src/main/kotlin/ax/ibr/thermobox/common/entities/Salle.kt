@@ -3,7 +3,10 @@ package ax.ibr.thermobox.common.entities
 import jakarta.persistence.*
 
 @Entity
-class Salle(var name: String?) {
+class Salle() {
+
+    @Column(name = "name")
+    var name: String? = null
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,5 +16,8 @@ class Salle(var name: String?) {
         return "Salle(id=$id, name=$name)"
     }
 
+    constructor(name: String?) : this() {
+        this.name = name
+    }
 
 }
