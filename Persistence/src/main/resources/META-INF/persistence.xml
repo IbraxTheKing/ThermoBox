@@ -25,14 +25,7 @@
             <property name="jakarta.persistence.jdbc.driver"
                       value="com.mysql.cj.jdbc.Driver"/>
 
-            <property name="jakarta.persistence.jdbc.url"
-                      value="jdbc:mysql://localhost:3306/thermobox"/>
-
-            <property name="jakarta.persistence.jdbc.user"
-                      value="ibrr"/>
-
-            <property name="jakarta.persistence.jdbc.password"
-                      value="1010"/>
+            <!-- URL, user and password come from environment variables (see PersistenceFactory). -->
 
             <property name="jakarta.persistence.schema-generation.database.action"
                       value="create"/>
