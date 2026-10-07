@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.restserver
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.restserver.security.JwtService
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
@@ -22,7 +23,10 @@ fun main() {
     )
 
     // Listen to the boxes
-    BusinessFactory().getDriver().listen()
+    BusinessFactory.getDriver().listen()
+
+    // Release the database connection pool when the server stops.
+    Runtime.getRuntime().addShutdownHook(Thread { PersistenceFactory.close() })
 
     println("REST server started on http://localhost:8080/ (JWT lifetime: ${tokenTtl.toMinutes()} min)")
 

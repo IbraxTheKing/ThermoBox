@@ -3,16 +3,15 @@ package ax.ibr.thermobox.persistence.jpa
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService
 import ax.ibr.utils.services.jpa.CrudJpaService
-import jakarta.persistence.EntityManager
-import java.sql.Date
+import jakarta.persistence.EntityManagerFactory
 import java.time.LocalDateTime
 
-class TemperatureDataServiceJPAImpl(pu: String, em: EntityManager,
+class TemperatureDataServiceJPAImpl(emf: EntityManagerFactory,
                                     entityClass: Class<Temperature>
-) : TemperatureDataService, CrudJpaService<Temperature>(em, entityClass) {
+) : TemperatureDataService, CrudJpaService<Temperature>(emf, entityClass) {
 
-    override fun getByType(temperatureClass: Temperature): List<Temperature> {
-        return em.createQuery(
+    override fun getByType(temperatureClass: Temperature): List<Temperature> = read { em ->
+        em.createQuery(
             "SELECT t FROM Temperature t WHERE TYPE(t) = :type ORDER BY t.date DESC",
             Temperature::class.java
         ).setParameter("type", temperatureClass.javaClass)
@@ -20,11 +19,13 @@ class TemperatureDataServiceJPAImpl(pu: String, em: EntityManager,
     }
 
     override fun getAverage(temperatureClass: Temperature): Temperature? {
-        val avg = em.createQuery(
-            "SELECT AVG(t.value) FROM Temperature t WHERE TYPE(t) = :type",
-            java.lang.Double::class.java
-        ).setParameter("type", temperatureClass.javaClass)
-            .singleResult ?: return null
+        val avg = read { em ->
+            em.createQuery(
+                "SELECT AVG(t.value) FROM Temperature t WHERE TYPE(t) = :type",
+                java.lang.Double::class.java
+            ).setParameter("type", temperatureClass.javaClass)
+                .singleResult
+        } ?: return null
 
         return Temperature(avg.toFloat(), LocalDateTime.now())
     }

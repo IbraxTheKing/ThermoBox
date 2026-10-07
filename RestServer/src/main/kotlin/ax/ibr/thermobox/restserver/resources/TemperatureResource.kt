@@ -15,7 +15,7 @@ import java.time.LocalDateTime
 @Consumes(MediaType.APPLICATION_JSON)
 class TemperatureResource {
 
-    private val service = BusinessFactory().getTemperatureService()
+    private val service = BusinessFactory.getTemperatureService()
 
     @GET
     @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])

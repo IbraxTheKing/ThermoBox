@@ -20,7 +20,7 @@ import java.security.MessageDigest
 @Consumes(MediaType.APPLICATION_JSON)
 class AuthResource {
 
-    private val userService = BusinessFactory().getUserService()
+    private val userService = BusinessFactory.getUserService()
 
     /** Exchanges credentials for a JWT, to send back as `Authorization: Bearer <token>`. */
     @POST

@@ -7,9 +7,10 @@ import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
 
 
-class UserServiceImpl : UserService, Serializable {
-
-    private val userService: UserService = PersistenceFactory().getUserDataService()
+// The data service is a constructor parameter so tests can pass a mock.
+class UserServiceImpl(
+    private val userService: UserService = PersistenceFactory.getUserDataService()
+) : UserService, Serializable {
 
     override fun getByUsername(username: String): User? {
         return userService.getByUsername(username)

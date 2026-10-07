@@ -7,9 +7,10 @@ import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
 
-class TemperatureServiceImpl : TemperatureService, Serializable {
-
-    private val temperatureService = PersistenceFactory().getTemperatureDataService()
+// The data service is a constructor parameter so tests can pass a mock.
+class TemperatureServiceImpl(
+    private val temperatureService: TemperatureService = PersistenceFactory.getTemperatureDataService()
+) : TemperatureService, Serializable {
 
     private val isFahrenheit: Boolean = false
 

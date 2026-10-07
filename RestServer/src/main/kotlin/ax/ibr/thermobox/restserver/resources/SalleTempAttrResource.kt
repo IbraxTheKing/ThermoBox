@@ -20,10 +20,10 @@ import java.time.LocalDateTime
 @Consumes(MediaType.APPLICATION_JSON)
 class SalleTempAttrResource {
 
-    private val service = BusinessFactory().getSalleTempAttrService()
-    private val salleService = BusinessFactory().getSalleService()
+    private val service = BusinessFactory.getSalleTempAttrService()
+    private val salleService = BusinessFactory.getSalleService()
 
-    private var requestBoxes: ProtocolDriver = BusinessFactory().getDriver()
+    private val requestBoxes: ProtocolDriver = BusinessFactory.getDriver()
 
     @GET
     fun getAll(): List<SalleTempAttr> {
