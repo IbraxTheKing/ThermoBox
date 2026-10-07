@@ -3,11 +3,14 @@ package ax.ibr.thermobox.common.entities
 import jakarta.persistence.*
 
 @Entity
+@Table(name = "salle_temperature_attr")
 class SalleTempAttr(
     @ManyToOne
+    @JoinColumn(name = "salle_id")
     var salle: Salle,
 
     @OneToOne(cascade = [CascadeType.ALL])
+    @JoinColumn(name = "temperature_id")
     var temperature: Temperature
 ) {
     @Id
