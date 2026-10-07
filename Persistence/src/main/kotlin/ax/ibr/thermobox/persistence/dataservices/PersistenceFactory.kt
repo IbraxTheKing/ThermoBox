@@ -23,7 +23,24 @@ class PersistenceFactory {
     private val PU: String = "thermoboxPU"
 
     private val entityManager: EntityManager by lazy {
-        Persistence.createEntityManagerFactory(PU).createEntityManager()
+        Persistence.createEntityManagerFactory(PU, databaseProperties()).createEntityManager()
+    }
+
+    /**
+     * JDBC settings read from the environment, so no credentials live in persistence.xml:
+     * `THERMOBOX_DB_URL`, `THERMOBOX_DB_USER`, `THERMOBOX_DB_PASSWORD`.
+     */
+    private fun databaseProperties(): Map<String, String> = mapOf(
+        "jakarta.persistence.jdbc.url" to (System.getenv("THERMOBOX_DB_URL") ?: DEFAULT_DB_URL),
+        "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
+        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD")
+    )
+
+    private fun requireEnv(name: String): String =
+        System.getenv(name) ?: error("Environment variable $name is not set")
+
+    private companion object {
+        const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
     }
 
     fun getUserDataService() : UserDataService {

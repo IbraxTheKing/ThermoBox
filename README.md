@@ -47,6 +47,18 @@ Le projet est organisé en modules Maven :
 
 Capteur/MQTT -> Business -> Persistence -> API REST -> Interface utilisateur
 
+## Configuration
+
+Variables d'environnement :
+
+| Variable | Obligatoire | Description |
+|---|---|---|
+| `THERMOBOX_DB_URL` | non | URL JDBC (défaut : `jdbc:mysql://localhost:3306/thermobox`) |
+| `THERMOBOX_DB_USER` | oui | Utilisateur de la base |
+| `THERMOBOX_DB_PASSWORD` | oui | Mot de passe de la base |
+| `THERMOBOX_JWT_SECRET` | recommandé | Clé de signature JWT (32 octets min.). Sans elle, clé aléatoire : les tokens sont invalidés à chaque redémarrage |
+| `THERMOBOX_JWT_TTL_MINUTES` | non | Durée de vie d'un token (défaut : 60) |
+
 ## Rôles
 
 - ADMIN : gestion complète
