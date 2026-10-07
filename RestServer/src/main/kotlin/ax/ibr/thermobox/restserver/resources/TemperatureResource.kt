@@ -18,21 +18,21 @@ class TemperatureResource {
     private val service = BusinessFactory().getTemperatureService()
 
     @GET
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"], allowOwner = true)
+    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
     fun getAll(): List<Temperature> {
         return service.getAll()
     }
 
     @GET
     @Path("/{id}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"], allowOwner = true)
+    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
     fun getById(@PathParam("id") id: Long): Temperature? {
         return service.getById(id)
     }
 
     @GET
     @Path("/type/{type}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"], allowOwner = true)
+    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
     fun getByType(@PathParam("type") type: String): List<Temperature>? {
         val sample = resolveSample(type) ?: return null
         return service.getByType(sample)
@@ -40,7 +40,7 @@ class TemperatureResource {
 
     @GET
     @Path("/average/{type}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"], allowOwner = true)
+    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
     fun getAverage(@PathParam("type") type: String): Temperature? {
         val sample = resolveSample(type) ?: return null
         return service.getAverage(sample)
