@@ -12,22 +12,22 @@ object BusinessFactory {
 
     private const val MQTT: Boolean = false
 
-    private val temperatureService: TemperatureService by lazy { TemperatureServiceImpl() }
-    private val salleService: SalleService by lazy { SalleServiceImpl() }
-    private val userService: UserService by lazy { UserServiceImpl() }
-    private val salleTempAttrService: SalleTempAttrService by lazy { SalleTempAttrServiceImpl() }
+    private val temperatureServiceInstance: TemperatureService by lazy { TemperatureServiceImpl() }
+    private val salleServiceInstance: SalleService by lazy { SalleServiceImpl() }
+    private val userServiceInstance: UserService by lazy { UserServiceImpl() }
+    private val salleTempAttrServiceInstance: SalleTempAttrService by lazy { SalleTempAttrServiceImpl() }
 
-    private val driver: ProtocolDriver by lazy {
+    private val driverInstance: ProtocolDriver by lazy {
         if (MQTT) MqttDriver() else SimulatedProtocolDriver()
     }
 
-    fun getTemperatureService(): TemperatureService = temperatureService
+    fun getTemperatureService(): TemperatureService = temperatureServiceInstance
 
-    fun getSalleService(): SalleService = salleService
+    fun getSalleService(): SalleService = salleServiceInstance
 
-    fun getUserService(): UserService = userService
+    fun getUserService(): UserService = userServiceInstance
 
-    fun getSalleTempAttrService(): SalleTempAttrService = salleTempAttrService
+    fun getSalleTempAttrService(): SalleTempAttrService = salleTempAttrServiceInstance
 
-    fun getDriver(): ProtocolDriver = driver
+    fun getDriver(): ProtocolDriver = driverInstance
 }
