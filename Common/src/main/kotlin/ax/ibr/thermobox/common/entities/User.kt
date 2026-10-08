@@ -3,7 +3,7 @@ package ax.ibr.thermobox.common.entities
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "salle")
+@Table(name = "user")
 class User {
 
     @Id
