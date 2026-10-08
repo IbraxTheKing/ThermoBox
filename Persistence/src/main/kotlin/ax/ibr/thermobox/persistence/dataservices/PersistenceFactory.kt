@@ -8,22 +8,44 @@ import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
-import jakarta.persistence.EntityManager
+import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
-import kotlin.jvm.java
 
-class PersistenceFactory {
+object PersistenceFactory {
 
-    private lateinit var temperatureService: TemperatureDataService
-    private lateinit var salleService: SalleDataService
-    private lateinit var userService: UserDataService
-    private lateinit var salleTempAttrService: SalleTempAttrDataService
+    private const val JDBC: Boolean = false
+    private const val PU: String = "thermoboxPU"
+    private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
-    private val JDBC: Boolean = false
-    private val PU: String = "thermoboxPU"
+    private val emfHolder = lazy { Persistence.createEntityManagerFactory(PU, databaseProperties()) }
+    private val emf: EntityManagerFactory by emfHolder
 
-    private val entityManager: EntityManager by lazy {
-        Persistence.createEntityManagerFactory(PU, databaseProperties()).createEntityManager()
+    private val userService: UserDataService by lazy {
+        if (JDBC) TODO("JDBC version") else UserDataServiceJPAImpl(emf, User::class.java)
+    }
+
+    private val salleService: SalleDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleDataServiceJPAImpl(emf, Salle::class.java)
+    }
+
+    private val salleTempAttrService: SalleTempAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleTempAttrDataServiceJPAImpl(emf, SalleTempAttr::class.java)
+    }
+
+    private val temperatureService: TemperatureDataService by lazy {
+        if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
+    }
+
+    fun getUserDataService(): UserDataService = userService
+
+    fun getSalleDataService(): SalleDataService = salleService
+
+    fun getSalleTempAttrDataService(): SalleTempAttrDataService = salleTempAttrService
+
+    fun getTemperatureDataService(): TemperatureDataService = temperatureService
+
+    fun close() {
+        if (emfHolder.isInitialized() && emf.isOpen) emf.close()
     }
 
     /**
@@ -38,49 +60,4 @@ class PersistenceFactory {
 
     private fun requireEnv(name: String): String =
         System.getenv(name) ?: error("Environment variable $name is not set")
-
-    private companion object {
-        const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
-    }
-
-    fun getUserDataService() : UserDataService {
-        if (!::userService.isInitialized) {
-            if (!JDBC) {
-                userService = UserDataServiceJPAImpl(PU, entityManager, User::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return userService
-    }
-
-    fun getSalleDataService() : SalleDataService {
-        if (!::salleService.isInitialized) {
-            if (!JDBC) {
-                salleService = SalleDataServiceJPAImpl(PU, entityManager, Salle::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return salleService
-    }
-
-    fun getSalleTempAttrDataService() : SalleTempAttrDataService {
-        if (!::salleTempAttrService.isInitialized) {
-            if (!JDBC) {
-                salleTempAttrService = SalleTempAttrDataServiceJPAImpl(PU, entityManager, SalleTempAttr::class.java)
-            }
-            //TODO: Faire la version JDBC
-        }
-        return salleTempAttrService
-    }
-
-    fun getTemperatureDataService() : TemperatureDataService {
-        if (!::temperatureService.isInitialized) {
-            if (!JDBC) {
-                temperatureService = TemperatureDataServiceJPAImpl(PU, entityManager, Temperature::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return temperatureService
-    }
-
 }

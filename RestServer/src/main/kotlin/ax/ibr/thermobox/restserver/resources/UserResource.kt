@@ -26,7 +26,7 @@ import jakarta.ws.rs.core.SecurityContext
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class UserResource {
-    private val service = BusinessFactory().getUserService()
+    private val service = BusinessFactory.getUserService()
 
     @GET
     @Path("/{id}")

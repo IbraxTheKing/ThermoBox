@@ -9,19 +9,14 @@ import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
 import java.time.LocalDateTime
 
-/**
- * Point d'accès unique aux services métier (même couche que les resources REST).
- * Un `object` évite de stocker les services dans les beans sérialisables (session / vue).
- */
+
 object Services {
-    private val factory by lazy { BusinessFactory() }
+    val salles get() = BusinessFactory.getSalleService()
+    val salleTemps get() = BusinessFactory.getSalleTempAttrService()
+    val temperatures get() = BusinessFactory.getTemperatureService()
+    val users get() = BusinessFactory.getUserService()
 
-    val salles by lazy { factory.getSalleService() }
-    val salleTemps by lazy { factory.getSalleTempAttrService() }
-    val temperatures by lazy { factory.getTemperatureService() }
-    val users by lazy { factory.getUserService() }
-
-    val driver: ProtocolDriver by lazy { factory.getDriver() }
+    val driver: ProtocolDriver get() = BusinessFactory.getDriver()
 }
 
 /** Lectures "temps réel" d'une salle, partagées par le tableau de bord et la page détail. */

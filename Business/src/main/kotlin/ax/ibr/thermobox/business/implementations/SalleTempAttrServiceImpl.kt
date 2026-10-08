@@ -10,9 +10,10 @@ import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDateTime
 
-class SalleTempAttrServiceImpl : SalleTempAttrService, Serializable {
-
-    private val salleTempAttrService: SalleTempAttrService = PersistenceFactory().getSalleTempAttrDataService()
+// The data service is a constructor parameter so tests can pass a mock.
+class SalleTempAttrServiceImpl(
+    private val salleTempAttrService: SalleTempAttrService = PersistenceFactory.getSalleTempAttrDataService()
+) : SalleTempAttrService, Serializable {
 
     override fun getBySalle(salleId: Long): List<SalleTempAttr>? {
         return salleTempAttrService.getBySalle(salleId)

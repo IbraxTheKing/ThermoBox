@@ -7,16 +7,13 @@ import ax.ibr.thermobox.common.entities.SalleTempAttr;
 import ax.ibr.thermobox.common.entities.Temperature;
 import ax.ibr.thermobox.common.entities.User;
 import ax.ibr.thermobox.common.entities.UserType;
-import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory;
 import ax.ibr.thermobox.persistence.dataservices.SalleDataService;
 import ax.ibr.thermobox.persistence.dataservices.SalleTempAttrDataService;
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService;
 import ax.ibr.thermobox.persistence.dataservices.UserDataService;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedConstruction;
 
 import java.util.Collections;
 import java.util.List;
@@ -27,30 +24,19 @@ import static org.mockito.Mockito.*;
 class UserServiceImplTest {
 
     private UserDataService dataService;
-    private MockedConstruction<PersistenceFactory> persistenceFactoryMock;
 
     @BeforeEach
     void setUp() {
         dataService = mock(UserDataService.class);
-
-        persistenceFactoryMock = mockConstruction(
-                PersistenceFactory.class,
-                (mock, context) -> when(mock.getUserDataService()).thenReturn(dataService)
-        );
-    }
-
-    @AfterEach
-    void tearDown() {
-        persistenceFactoryMock.close();
     }
 
     @Test
     void delegueGetByUsernameAuDataService() {
         User user = mock(User.class);
 
-        when(dataService.getByUsername("ibrahim")).thenReturn(user);
+        when(dataService.getByUsername("ib")).thenReturn(user);
 
-        assertEquals(user, new UserServiceImpl().getByUsername("ibrahim"));
+        assertEquals(user, new UserServiceImpl(dataService).getByUsername("ib"));
     }
 
     @Test
@@ -62,13 +48,13 @@ class UserServiceImplTest {
 
         when(dataService.getByType(UserType.ADMIN)).thenReturn(users);
 
-        assertEquals(users, new UserServiceImpl().getByType(UserType.ADMIN));
+        assertEquals(users, new UserServiceImpl(dataService).getByType(UserType.ADMIN));
     }
 
     @Test
     void delegueAddUpdateEtRemoveAuDataService() {
         User user = mock(User.class);
-        UserServiceImpl service = new UserServiceImpl();
+        UserServiceImpl service = new UserServiceImpl(dataService);
 
         service.add(user);
         service.update(user);
@@ -84,21 +70,10 @@ class UserServiceImplTest {
 class SalleServiceImplTest {
 
     private SalleDataService dataService;
-    private MockedConstruction<PersistenceFactory> persistenceFactoryMock;
 
     @BeforeEach
     void setUp() {
         dataService = mock(SalleDataService.class);
-
-        persistenceFactoryMock = mockConstruction(
-                PersistenceFactory.class,
-                (mock, context) -> when(mock.getSalleDataService()).thenReturn(dataService)
-        );
-    }
-
-    @AfterEach
-    void tearDown() {
-        persistenceFactoryMock.close();
     }
 
     @Test
@@ -107,7 +82,7 @@ class SalleServiceImplTest {
 
         when(dataService.getByName("Salle101")).thenReturn(salle);
 
-        assertEquals(salle, new SalleServiceImpl().getByName("Salle101"));
+        assertEquals(salle, new SalleServiceImpl(dataService).getByName("Salle101"));
     }
 
     @Test
@@ -117,7 +92,7 @@ class SalleServiceImplTest {
 
         when(dataService.getAll()).thenReturn(salles);
 
-        assertEquals(salles, new SalleServiceImpl().getAll());
+        assertEquals(salles, new SalleServiceImpl(dataService).getAll());
     }
 }
 
@@ -125,21 +100,10 @@ class SalleServiceImplTest {
 class TemperatureServiceImplTest {
 
     private TemperatureDataService dataService;
-    private MockedConstruction<PersistenceFactory> persistenceFactoryMock;
 
     @BeforeEach
     void setUp() {
         dataService = mock(TemperatureDataService.class);
-
-        persistenceFactoryMock = mockConstruction(
-                PersistenceFactory.class,
-                (mock, context) -> when(mock.getTemperatureDataService()).thenReturn(dataService)
-        );
-    }
-
-    @AfterEach
-    void tearDown() {
-        persistenceFactoryMock.close();
     }
 
     @Test
@@ -150,7 +114,7 @@ class TemperatureServiceImplTest {
 
         assertEquals(
                 temperature,
-                new TemperatureServiceImpl().getById(5L)
+                new TemperatureServiceImpl(dataService).getById(5L)
         );
     }
 
@@ -158,7 +122,7 @@ class TemperatureServiceImplTest {
     void delegueAddAuDataService() {
         Temperature temperature = mock(Temperature.class);
 
-        new TemperatureServiceImpl().add(temperature);
+        new TemperatureServiceImpl(dataService).add(temperature);
 
         verify(dataService).add(temperature);
     }
@@ -168,21 +132,10 @@ class TemperatureServiceImplTest {
 class SalleTempAttrServiceImplTest {
 
     private SalleTempAttrDataService dataService;
-    private MockedConstruction<PersistenceFactory> persistenceFactoryMock;
 
     @BeforeEach
     void setUp() {
         dataService = mock(SalleTempAttrDataService.class);
-
-        persistenceFactoryMock = mockConstruction(
-                PersistenceFactory.class,
-                (mock, context) -> when(mock.getSalleTempAttrDataService()).thenReturn(dataService)
-        );
-    }
-
-    @AfterEach
-    void tearDown() {
-        persistenceFactoryMock.close();
     }
 
     @Test
@@ -193,7 +146,7 @@ class SalleTempAttrServiceImplTest {
 
         assertEquals(
                 attr,
-                new SalleTempAttrServiceImpl().getBySalle(3)
+                new SalleTempAttrServiceImpl(dataService).getBySalle(3)
         );
     }
 
@@ -206,7 +159,7 @@ class SalleTempAttrServiceImplTest {
 
         assertEquals(
                 attr,
-                new SalleTempAttrServiceImpl().getBySalle(salle)
+                new SalleTempAttrServiceImpl(dataService).getBySalle(salle)
         );
     }
 }

@@ -5,9 +5,10 @@ import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
 
-class SalleServiceImpl : SalleService, Serializable {
-
-    private val salleService: SalleService = PersistenceFactory().getSalleDataService()
+// The data service is a constructor parameter so tests can pass a mock.
+class SalleServiceImpl(
+    private val salleService: SalleService = PersistenceFactory.getSalleDataService()
+) : SalleService, Serializable {
 
     override fun getByName(name: String): Salle? {
         return salleService.getByName(name)

@@ -14,7 +14,7 @@ import jakarta.ws.rs.core.Response
 @Consumes(MediaType.APPLICATION_JSON)
 class SalleResource {
 
-    private val service = BusinessFactory().getSalleService()
+    private val service = BusinessFactory.getSalleService()
 
     @GET
     fun getAll(): List<Salle> {

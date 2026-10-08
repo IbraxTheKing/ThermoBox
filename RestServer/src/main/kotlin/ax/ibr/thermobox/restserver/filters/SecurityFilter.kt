@@ -33,7 +33,7 @@ class SecurityFilter : ContainerRequestFilter {
     @Context
     private lateinit var resourceInfo: ResourceInfo
 
-    private val userService by lazy { BusinessFactory().getUserService() }
+    private val userService = BusinessFactory.getUserService()
 
     override fun filter(requestContext: ContainerRequestContext) {
         // CORS preflights never carry the Authorization header.

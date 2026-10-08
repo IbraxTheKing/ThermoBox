@@ -13,9 +13,9 @@ import ax.ibr.utils.exceptions.NullException
 
 abstract class ProtocolDriver {
 
-    protected val salleService: SalleService = BusinessFactory().getSalleService()
-    protected val temperatureService: TemperatureService = BusinessFactory().getTemperatureService()
-    protected val salleTempAttrService: SalleTempAttrService = BusinessFactory().getSalleTempAttrService()
+    protected val salleService: SalleService = BusinessFactory.getSalleService()
+    protected val temperatureService: TemperatureService = BusinessFactory.getTemperatureService()
+    protected val salleTempAttrService: SalleTempAttrService = BusinessFactory.getSalleTempAttrService()
 
     private val IMPOSSIBLE_TEMPERATURE_VALUE_MAX: Float = 100f
     private val IMPOSSIBLE_TEMPERATURE_VALUE_MIN: Float = -10f
