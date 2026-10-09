@@ -36,6 +36,10 @@ object PersistenceFactory {
         if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
     }
 
+    private val salleSalleAttrService: SalleSalleAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else TODO("JPA version")
+    }
+
     fun getUserDataService(): UserDataService = userService
 
     fun getSalleDataService(): SalleDataService = salleService
@@ -43,6 +47,8 @@ object PersistenceFactory {
     fun getSalleTempAttrDataService(): SalleTempAttrDataService = salleTempAttrService
 
     fun getTemperatureDataService(): TemperatureDataService = temperatureService
+
+    fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()
