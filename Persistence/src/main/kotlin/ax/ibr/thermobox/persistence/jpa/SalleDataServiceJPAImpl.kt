@@ -8,6 +8,9 @@ import jakarta.persistence.EntityManagerFactory
 class SalleDataServiceJPAImpl(emf: EntityManagerFactory,
                               entityClass: Class<Salle>
 ) : SalleDataService, CrudJpaService<Salle>(emf, entityClass) {
+    override fun getByAllType(c: Salle): List<Salle> {
+        TODO("Not yet implemented")
+    }
 
     override fun getByName(name: String): Salle? = read { em ->
         em.createQuery(

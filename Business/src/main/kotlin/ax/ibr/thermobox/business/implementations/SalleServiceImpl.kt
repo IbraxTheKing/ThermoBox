@@ -10,6 +10,10 @@ class SalleServiceImpl(
     private val salleService: SalleService = PersistenceFactory.getSalleDataService()
 ) : SalleService, Serializable {
 
+    override fun getByAllType(t: Salle) : List<Salle> {
+        return salleService.getByAllType(t)
+    }
+
     override fun getByName(name: String): Salle? {
         return salleService.getByName(name)
     }
