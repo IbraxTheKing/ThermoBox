@@ -7,7 +7,7 @@ import ax.ibr.thermobox.persistence.jpa.*
 
 class PersistenceFactoryTest {
 
-    private val factory = PersistenceFactory()
+    private val factory = PersistenceFactory
 
     @Test
     fun `test getSalleDataService returns SalleDataServiceJPAImpl`() {

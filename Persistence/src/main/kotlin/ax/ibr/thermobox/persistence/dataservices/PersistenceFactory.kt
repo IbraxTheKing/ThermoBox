@@ -1,69 +1,71 @@
 package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
-import jakarta.persistence.EntityManager
+import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
-import kotlin.jvm.java
 
-class PersistenceFactory {
+object PersistenceFactory {
 
-    private lateinit var temperatureService: TemperatureDataService
-    private lateinit var salleService: SalleDataService
-    private lateinit var userService: UserDataService
-    private lateinit var salleTempAttrService: SalleTempAttrDataService
+    private const val JDBC: Boolean = false
+    private const val PU: String = "thermoboxPU"
+    private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
-    private val JDBC: Boolean = false
-    private val PU: String = "thermoboxPU"
+    private val emfHolder = lazy { Persistence.createEntityManagerFactory(PU, databaseProperties()) }
+    private val emf: EntityManagerFactory by emfHolder
 
-    private val entityManager: EntityManager by lazy {
-        Persistence.createEntityManagerFactory(PU).createEntityManager()
+    private val userService: UserDataService by lazy {
+        if (JDBC) TODO("JDBC version") else UserDataServiceJPAImpl(emf, User::class.java)
     }
 
-    fun getUserDataService() : UserDataService {
-        if (!::userService.isInitialized) {
-            if (!JDBC) {
-                userService = UserDataServiceJPAImpl(PU, entityManager, User::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return userService
+    private val salleService: SalleDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleDataServiceJPAImpl(emf, Salle::class.java)
     }
 
-    fun getSalleDataService() : SalleDataService {
-        if (!::salleService.isInitialized) {
-            if (!JDBC) {
-                salleService = SalleDataServiceJPAImpl(PU, entityManager, Salle::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return salleService
+    private val salleTempAttrService: SalleTempAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleTempAttrDataServiceJPAImpl(emf, SalleTempAttr::class.java)
     }
 
-    fun getSalleTempAttrDataService() : SalleTempAttrDataService {
-        if (!::salleTempAttrService.isInitialized) {
-            if (!JDBC) {
-                salleTempAttrService = SalleTempAttrDataServiceJPAImpl(PU, entityManager, SalleTempAttr::class.java)
-            }
-            //TODO: Faire la version JDBC
-        }
-        return salleTempAttrService
+    private val temperatureService: TemperatureDataService by lazy {
+        if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
     }
 
-    fun getTemperatureDataService() : TemperatureDataService {
-        if (!::temperatureService.isInitialized) {
-            if (!JDBC) {
-                temperatureService = TemperatureDataServiceJPAImpl(PU, entityManager, Temperature::class.java)
-            }
-            // TODO: Faire la version JDBC
-        }
-        return temperatureService
+    private val salleSalleAttrService: SalleSalleAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleSalleAttrDataServiceJPAImpl(emf, SalleSalleAttr::class.java)
     }
 
+    fun getUserDataService(): UserDataService = userService
+
+    fun getSalleDataService(): SalleDataService = salleService
+
+    fun getSalleTempAttrDataService(): SalleTempAttrDataService = salleTempAttrService
+
+    fun getTemperatureDataService(): TemperatureDataService = temperatureService
+
+    fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
+
+    fun close() {
+        if (emfHolder.isInitialized() && emf.isOpen) emf.close()
+    }
+
+    /**
+     * JDBC settings read from the environment, so no credentials live in persistence.xml:
+     * `THERMOBOX_DB_URL`, `THERMOBOX_DB_USER`, `THERMOBOX_DB_PASSWORD`.
+     */
+    private fun databaseProperties(): Map<String, String> = mapOf(
+        "jakarta.persistence.jdbc.url" to (System.getenv("THERMOBOX_DB_URL") ?: DEFAULT_DB_URL),
+        "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
+        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD")
+    )
+
+    private fun requireEnv(name: String): String =
+        System.getenv(name) ?: error("Environment variable $name is not set")
 }

@@ -19,7 +19,7 @@ object DatabaseSeeder {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val factory = BusinessFactory()
+        val factory = BusinessFactory
 
         val salleService = factory.getSalleService()
         val temperatureService = factory.getTemperatureService()

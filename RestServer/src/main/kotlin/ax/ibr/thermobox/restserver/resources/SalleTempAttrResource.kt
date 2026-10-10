@@ -20,10 +20,10 @@ import java.time.LocalDateTime
 @Consumes(MediaType.APPLICATION_JSON)
 class SalleTempAttrResource {
 
-    private val service = BusinessFactory().getSalleTempAttrService()
-    private val salleService = BusinessFactory().getSalleService()
+    private val service = BusinessFactory.getSalleTempAttrService()
+    private val salleService = BusinessFactory.getSalleService()
 
-    private var requestBoxes: ProtocolDriver = SimulatedProtocolDriver()
+    private val requestBoxes: ProtocolDriver = BusinessFactory.getDriver()
 
     @GET
     fun getAll(): List<SalleTempAttr> {
@@ -130,7 +130,7 @@ class SalleTempAttrResource {
     }
 
     @PUT
-    //@RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE"], allowOwner = false)
+    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE"], allowOwner = false)
     @Path("/room/{id}/consigne")
     fun sendConsigne(
         @PathParam("id") id: Long,

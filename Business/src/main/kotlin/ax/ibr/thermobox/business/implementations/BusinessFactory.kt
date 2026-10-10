@@ -1,63 +1,37 @@
 package ax.ibr.thermobox.business.implementations
 
-import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
-import ax.ibr.thermobox.business.exceptions.TooHotException
 import ax.ibr.thermobox.business.io.mqtt.MqttDriver
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.common.services.SalleSalleAttrService
 
-class BusinessFactory {
+object BusinessFactory {
 
-    private lateinit var temperatureService: TemperatureService
-    private lateinit var salleService: SalleService
-    private lateinit var userService: UserService
-    private lateinit var salleTempAttrService: SalleTempAttrService
+    private const val MQTT: Boolean = false
 
-    private lateinit var driver: ProtocolDriver
-    private val MQTT: Boolean = false
+    private val temperatureServiceInstance: TemperatureService by lazy { TemperatureServiceImpl() }
+    private val salleServiceInstance: SalleService by lazy { SalleServiceImpl() }
+    private val userServiceInstance: UserService by lazy { UserServiceImpl() }
+    private val salleTempAttrServiceInstance: SalleTempAttrService by lazy { SalleTempAttrServiceImpl() }
+    private val salleSalleAttrServiceInstance: SalleSalleAttrService by lazy { SalleSalleAttrServiceImpl() }
 
-    fun getTemperatureService(): TemperatureService {
-        if (!::temperatureService.isInitialized) {
-            temperatureService = TemperatureServiceImpl()
-        }
-        return temperatureService
+    private val driverInstance: ProtocolDriver by lazy {
+        if (MQTT) MqttDriver() else SimulatedProtocolDriver()
     }
 
-    fun getSalleService(): SalleService {
-        if (!::salleService.isInitialized) {
-            salleService = SalleServiceImpl()
-        }
-        return salleService
-    }
+    fun getTemperatureService(): TemperatureService = temperatureServiceInstance
 
-    fun getUserService(): UserService {
-        if (!::userService.isInitialized) {
-            userService = UserServiceImpl()
-        }
-        return userService
-    }
+    fun getSalleService(): SalleService = salleServiceInstance
 
-    fun getSalleTempAttrService(): SalleTempAttrService {
-        if (!::salleTempAttrService.isInitialized) {
-            salleTempAttrService = SalleTempAttrServiceImpl()
-        }
-        return salleTempAttrService
-    }
+    fun getUserService(): UserService = userServiceInstance
 
-    fun getDriver(): ProtocolDriver {
-        if (!::driver.isInitialized) {
-            if (MQTT) {
-                driver = MqttDriver()
-            }
-            // .... //
-            driver = SimulatedProtocolDriver()
-        }
-        return driver
-    }
+    fun getSalleTempAttrService(): SalleTempAttrService = salleTempAttrServiceInstance
+
+    fun getSalleSalleAttrService(): SalleSalleAttrService = salleSalleAttrServiceInstance
+
+    fun getDriver(): ProtocolDriver = driverInstance
 }
