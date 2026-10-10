@@ -1,10 +1,12 @@
 package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
@@ -37,7 +39,7 @@ object PersistenceFactory {
     }
 
     private val salleSalleAttrService: SalleSalleAttrDataService by lazy {
-        if (JDBC) TODO("JDBC version") else TODO("JPA version")
+        if (JDBC) TODO("JDBC version") else SalleSalleAttrDataServiceJPAImpl(emf, SalleSalleAttr::class.java)
     }
 
     fun getUserDataService(): UserDataService = userService

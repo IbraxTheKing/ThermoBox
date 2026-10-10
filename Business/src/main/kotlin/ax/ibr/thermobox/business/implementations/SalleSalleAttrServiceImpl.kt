@@ -55,8 +55,8 @@ class SalleSalleAttrServiceImpl(
     }
 
     private fun verification(t: SalleSalleAttr) : Boolean {
-        var a = t.salleA
-        var b = t.salleB
+        val a = t.salleA
+        val b = t.salleB
         if (a is Etage && b is Etage) {
             throw Exception("Un etage ne peux pas avoir un etage.")
         }
