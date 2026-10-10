@@ -7,6 +7,7 @@ import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
+import ax.ibr.thermobox.common.services.SalleSalleAttrService
 
 object BusinessFactory {
 
@@ -16,6 +17,7 @@ object BusinessFactory {
     private val salleServiceInstance: SalleService by lazy { SalleServiceImpl() }
     private val userServiceInstance: UserService by lazy { UserServiceImpl() }
     private val salleTempAttrServiceInstance: SalleTempAttrService by lazy { SalleTempAttrServiceImpl() }
+    private val salleSalleAttrServiceInstance: SalleSalleAttrService by lazy { SalleSalleAttrServiceImpl() }
 
     private val driverInstance: ProtocolDriver by lazy {
         if (MQTT) MqttDriver() else SimulatedProtocolDriver()
@@ -28,6 +30,8 @@ object BusinessFactory {
     fun getUserService(): UserService = userServiceInstance
 
     fun getSalleTempAttrService(): SalleTempAttrService = salleTempAttrServiceInstance
+
+    fun getSalleSalleAttrService(): SalleSalleAttrService = salleSalleAttrServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
 }

@@ -1,10 +1,12 @@
 package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
@@ -36,6 +38,10 @@ object PersistenceFactory {
         if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
     }
 
+    private val salleSalleAttrService: SalleSalleAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleSalleAttrDataServiceJPAImpl(emf, SalleSalleAttr::class.java)
+    }
+
     fun getUserDataService(): UserDataService = userService
 
     fun getSalleDataService(): SalleDataService = salleService
@@ -43,6 +49,8 @@ object PersistenceFactory {
     fun getSalleTempAttrDataService(): SalleTempAttrDataService = salleTempAttrService
 
     fun getTemperatureDataService(): TemperatureDataService = temperatureService
+
+    fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()
