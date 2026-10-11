@@ -1,4 +1,4 @@
-package ax.ibr.thermobox.restserver.security
+package ax.ibr.thermobox.business.security
 
 import ax.ibr.thermobox.common.entities.User
 import com.auth0.jwt.JWT
@@ -12,7 +12,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Issues and validates the HS256 JWTs used by the REST API.
+ * Issues and validates the HS256 JWTs used by the REST API (Bearer header) and the JSF
+ * front end (cookie). Both read the same configuration, so a token works with either.
  *
  * Configuration (environment variables):
  * - `THERMOBOX_JWT_SECRET`: signing key, at least 32 bytes. If unset, a random key is
@@ -21,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object JwtService {
 
-    private const val ISSUER = "thermobox-rest"
+    private const val ISSUER = "thermobox"
     private const val MIN_SECRET_BYTES = 32
 
     val tokenTtl: Duration = Duration.ofMinutes(

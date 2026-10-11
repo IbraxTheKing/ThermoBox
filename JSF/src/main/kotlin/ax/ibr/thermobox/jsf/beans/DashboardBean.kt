@@ -1,18 +1,27 @@
 package ax.ibr.thermobox.jsf.beans
 
+import ax.ibr.thermobox.common.entities.Boitier
+import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.Temperature
-import ax.ibr.thermobox.jsf.SalleData
 import ax.ibr.thermobox.jsf.Services
+import ax.ibr.thermobox.jsf.cheminLabel
 import jakarta.annotation.PostConstruct
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Named
 import java.io.Serializable
+import java.time.LocalDateTime
 import java.util.Locale
 
-/** Une carte du tableau de bord. */
-data class SalleResume(val salle: Salle, val mesure: Temperature?, val consigne: Temperature?) : Serializable {
-    private val ecart: Float? get() = if (mesure != null && consigne != null) mesure.value?.minus(consigne.value!!) else null
+/** Une carte du tableau de bord : une salle et la moyenne de ses boîtiers. */
+data class SalleResume(
+    val salle: Salle,
+    val chemin: String,
+    val moyenne: Float?,
+    val derniereMesure: LocalDateTime?,
+    val boitiers: Int,
+    val consigne: Consigne?,
+) : Serializable {
+    private val ecart: Float? get() = consigne?.value?.let { c -> moyenne?.minus(c) }
 
     val etat: String
         get() {
@@ -44,10 +53,25 @@ class DashboardBean : Serializable {
 
     var resumes: List<SalleResume> = emptyList()
 
+    /** Boxes that measure but belong to no salle: their readings appear nowhere until attached. */
+    var boitiersNonRattaches: Int = 0
+
     @PostConstruct
     fun refresh() {
-        resumes = Services.salles.getAll().map { salle ->
-            SalleResume(salle, SalleData.latestMesure(salle), SalleData.consigne(salle))
-        }
+        // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
+        resumes = Services.salles.getAllByType(Salle(null))
+            .sortedBy { it.name?.lowercase() }
+            .map { salle ->
+                val mesures = Services.climat.getMesures(salle)
+                SalleResume(
+                    salle = salle,
+                    chemin = cheminLabel(salle),
+                    moyenne = Services.climat.getMoyenne(salle),
+                    derniereMesure = mesures.mapNotNull { it.mesure?.date }.maxOrNull(),
+                    boitiers = mesures.size,
+                    consigne = Services.climat.getConsigne(salle),
+                )
+            }
+        boitiersNonRattaches = Services.hierarchie.getRacines().count { it is Boitier }
     }
 }

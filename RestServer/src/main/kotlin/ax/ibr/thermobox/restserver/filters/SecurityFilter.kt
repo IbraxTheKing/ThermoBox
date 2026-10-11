@@ -3,7 +3,7 @@ package ax.ibr.thermobox.restserver.filters
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.restserver.security.JwtSecurityContext
-import ax.ibr.thermobox.restserver.security.JwtService
+import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.utils.rest.PublicEndpoint
 import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole

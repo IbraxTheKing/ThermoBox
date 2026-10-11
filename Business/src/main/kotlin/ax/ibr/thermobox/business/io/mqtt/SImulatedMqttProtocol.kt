@@ -23,7 +23,7 @@ import kotlin.random.Random
  * (ou dans BusinessFactory) le temps de tester la BDD.
  */
 class SimulatedProtocolDriver(
-    private val simulatedSalleNames: List<String> = listOf("Salle A", "Salle B", "Salle C"),
+    private val simulatedSalleNames: List<String> = listOf("Boîtier A", "Boîtier B", "Boîtier C"),
     private val temperatureIntervalMs: Long = 300000L,
     private val salleDiscoveryIntervalMs: Long = 10000L,
     private val minTemp: Float = 10f,
@@ -46,9 +46,8 @@ class SimulatedProtocolDriver(
         scheduler.scheduleAtFixedRate({
             try {
                 val name = simulatedSalleNames.random()
-                if (salleService.getByName(name) == null) {
-                    salleService.update(Salle(name))
-                    println("[SimulatedProtocolDriver] Nouvelle salle simulée : $name")
+                if (registerBoitier(name)) {
+                    println("[SimulatedProtocolDriver] Nouveau boîtier simulé : $name")
                 }
             } catch (e: Exception) {
                 println("[SimulatedProtocolDriver] Erreur listenToRooms : ${e.message}")
@@ -60,15 +59,15 @@ class SimulatedProtocolDriver(
         // Simule l'arrivée régulière de mesures de température pour toutes les salles existantes
         scheduler.scheduleAtFixedRate({
             try {
-                val salles = salleService.getAll()
+                val salles = getBoitiers()
                 if (salles.isEmpty()) return@scheduleAtFixedRate
 
                 salles.forEach { salle ->
                     val value = Random.nextFloat() * (maxTemp - minTemp) + minTemp
                     val temperature = Mesurer(value, LocalDateTime.now())
 
-                    temperatureService.update(temperature)
-                    salleTempAttrService.update(SalleTempAttr(salle, temperature))
+                    // The link cascades to the temperature: saving it separately would insert it twice.
+                    salleTempAttrService.add(SalleTempAttr(salle, temperature))
 
                     println("[SimulatedProtocolDriver] Température simulée pour ${salle.name} : %.2f°C".format(value))
                 }
@@ -81,8 +80,7 @@ class SimulatedProtocolDriver(
     override fun sendConsigne(s: Salle, c: Consigne) {
         super.sendConsigne(s, c)
         println("[SimulatedProtocolDriver] Consigne simulée envoyée à ${s?.name ?: "salle inconnue"} : ${c.value}")
-        temperatureService.add(c)
-        salleTempAttrService.add(SalleTempAttr(s,c))
+        salleTempAttrService.add(SalleTempAttr(s, c))
 
     }
 

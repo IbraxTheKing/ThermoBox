@@ -1,8 +1,8 @@
 package ax.ibr.thermobox.business.protocols
 
-import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
-import ax.ibr.thermobox.business.exceptions.TooHotException
 import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.business.rules.ConsigneRules
+import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.services.SalleService
@@ -17,10 +17,6 @@ abstract class ProtocolDriver {
     protected val temperatureService: TemperatureService = BusinessFactory.getTemperatureService()
     protected val salleTempAttrService: SalleTempAttrService = BusinessFactory.getSalleTempAttrService()
 
-    private val IMPOSSIBLE_TEMPERATURE_VALUE_MAX: Float = 100f
-    private val IMPOSSIBLE_TEMPERATURE_VALUE_MIN: Float = -10f
-    private val HOT_LIMIT_TEMPERATURE: Float = 50f
-
     abstract fun listen()
 
     abstract fun listenToRooms()
@@ -31,6 +27,17 @@ abstract class ProtocolDriver {
         checkConsigne(s, c)
     }
 
+    /** Boxes known in database (measures only ever go to a box). */
+    protected fun getBoitiers(): List<Boitier> =
+        salleService.getAllByType(Boitier(null)).filterIsInstance<Boitier>()
+
+    /** Saves a box that announced itself, unless a box with that name already exists. */
+    protected fun registerBoitier(name: String): Boolean {
+        if (name.isBlank() || getBoitiers().any { it.name == name }) return false
+        salleService.add(Boitier(name))
+        return true
+    }
+
     private fun checkConsigne(s: Salle, c: Consigne) {
         if (s.id == null) {
             throw NullException("Room id is null")
@@ -38,12 +45,7 @@ abstract class ProtocolDriver {
         if (s.id != salleService.getById(s.id!!)?.id) {
             throw DontExistException("Room (id=${s.id}) doesn't exist in database.")
         }
-        if (c.value!! >= IMPOSSIBLE_TEMPERATURE_VALUE_MAX || c.value!! <= IMPOSSIBLE_TEMPERATURE_VALUE_MIN) {
-            throw ImpossibleValueException("Consigne is impossible to reach: ${c.value} C (min: ${c.value} C, max: ${c.value} C)")
-        }
-        if (c.value!! >= HOT_LIMIT_TEMPERATURE) {
-            throw TooHotException("Consigne is too hot")
-        }
+        ConsigneRules.check(c.value!!)
     }
 
 }

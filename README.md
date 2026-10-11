@@ -98,13 +98,19 @@ Après compilation, déployez cette archive dans un conteneur compatible Jakarta
 
 Rôles et sécurité
 
-Les autorisations sont vérifiées côté API. Les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
+Les autorisations sont vérifiées côté serveur, dans l’API comme dans l’interface JSF. Côté API, les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
 
 * ADMIN : opérations d’administration, dont certaines suppressions.
 * GESTIONNAIRE : gestion des données et des consignes selon les routes.
 * VIEWER : consultation lorsque les droits de la route le permettent.
 
 Un jeton JWT doit être transmis dans l’en-tête Authorization avec le préfixe Bearer. Une clé stable configurée via THERMOBOX_JWT_SECRET est nécessaire si les jetons doivent rester valides après un redémarrage.
+
+L’interface JSF utilise les mêmes jetons (même JwtService, dans Business), transmis dans un cookie HttpOnly et SameSite=Strict. Chaque page de /app et /admin vérifie le jeton et relit l’utilisateur en base : un compte supprimé ou un changement de rôle s’applique immédiatement. JSF appelle directement la couche Business, jamais l’API REST.
+
+Bâtiments, étages, salles et boîtiers
+
+Les quatre héritent de Salle et sont reliés par SalleSalleAttr (parent → enfant) : un bâtiment contient des étages, un étage des salles, une salle des boîtiers, et chaque élément n’a qu’un parent. Les mesures arrivent sur les boîtiers ; la température d’une salle est la moyenne de ses boîtiers, et une consigne de salle est envoyée à chacun d’eux.
 
 Développement
 

@@ -2,9 +2,10 @@ package ax.ibr.thermobox.common.entities
 
 import jakarta.persistence.*
 
+// Open because Etage, Batiment and Boitier extend it (single table, one row per kind).
 @Entity
 @Table(name = "salle")
-class Salle() {
+open class Salle() {
 
     @Column(name = "name")
     var name: String? = null

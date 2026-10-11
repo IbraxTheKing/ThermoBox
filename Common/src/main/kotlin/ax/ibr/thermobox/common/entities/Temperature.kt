@@ -9,9 +9,10 @@ import jakarta.persistence.Table
 import java.time.LocalDateTime
 
 
+// Open because Consigne and Mesurer extend it.
 @Entity
 @Table(name = "temperature")
-class Temperature {
+open class Temperature {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null

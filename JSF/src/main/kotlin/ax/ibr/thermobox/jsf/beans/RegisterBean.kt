@@ -27,9 +27,8 @@ class RegisterBean {
             return null
         }
 
-        val user = User()
-        user.username = name
-        user.password = password
+        // This constructor makes a VIEWER: a self-registered account never gets more rights.
+        val user = User(name, password)
 
         return try {
             Services.users.add(user)

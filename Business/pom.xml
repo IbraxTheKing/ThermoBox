@@ -63,6 +63,13 @@
 
 
 
+        <!-- JWT (shared by RestServer and JSF) -->
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+
         <!-- MQTT -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>

@@ -1,7 +1,9 @@
 package ax.ibr.thermobox.jsf.beans
 
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.jsf.Services
+import ax.ibr.thermobox.jsf.usernameTaken
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.isNew
 import ax.ibr.thermobox.jsf.util.Faces
@@ -21,8 +23,7 @@ class UserBean : Serializable {
     @Inject
     private lateinit var login: LoginBean
 
-    /** ⚠️ Adapte aux valeurs réelles de User.role */
-    val roles: List<String> = listOf("ADMIN", "GESTIONNAIRE", "USER")
+    val roles: List<UserType> = UserType.entries.toList()
 
     var users: List<User> = emptyList()
     var selected: User? = null
@@ -51,6 +52,10 @@ class UserBean : Serializable {
         if (!login.require(login.isAdmin)) return
         val user = selected ?: return
         val creating = isNew(user.id)
+        if (usernameTaken(user)) {
+            Faces.error("Ce nom d'utilisateur est déjà pris")
+            return
+        }
 
         if (newPassword.isNotBlank()) {
             user.password = newPassword
@@ -65,7 +70,6 @@ class UserBean : Serializable {
                 Faces.info("Utilisateur « ${user.username} » créé")
             } else {
                 Services.users.update(user)
-                if (login.isOwner(user)) login.refresh(user)
                 Faces.info("Utilisateur « ${user.username} » modifié")
             }
             newPassword = ""

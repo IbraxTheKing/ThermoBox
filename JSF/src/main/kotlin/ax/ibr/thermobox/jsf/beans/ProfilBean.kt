@@ -2,6 +2,7 @@ package ax.ibr.thermobox.jsf.beans
 
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.jsf.Services
+import ax.ibr.thermobox.jsf.usernameTaken
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.utils.exceptions.AlreadyExistsException
@@ -31,6 +32,10 @@ class ProfilBean : Serializable {
     fun save() {
         val u = user ?: return
         if (!login.require(login.isOwner(u))) return
+        if (usernameTaken(u)) {
+            Faces.error("Ce nom d'utilisateur est déjà pris")
+            return
+        }
 
         if (newPassword.isNotBlank()) {
             if (newPassword != confirmPassword) {
@@ -41,7 +46,6 @@ class ProfilBean : Serializable {
         }
         try {
             Services.users.update(u)
-            login.refresh(u)
             newPassword = ""
             confirmPassword = ""
             Faces.info("Profil mis à jour")
