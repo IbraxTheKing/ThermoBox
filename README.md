@@ -1,74 +1,128 @@
-# ThermoBox
+ThermoBox
 
-ThermoBox est une application de supervision de température par salle. Le projet combine une API REST backend en Kotlin/JPA, une couche métier orientée services, et un front web pour visualiser les mesures, les consignes et l'historique des salles.
+ThermoBox est un projet de supervision thermique permettant d’organiser des salles, de consulter leurs températures et de gérer des consignes. Il comprend une API REST sécurisée par JWT, une interface web JSF/PrimeFaces et une couche de communication avec les équipements, avec un pilote simulé disponible pour le développement.
 
-## Objectif
+État du projet : projet en cours de développement. Certaines parties, notamment les associations entre salles, étages et bâtiments ainsi que leur persistance JPA, évoluent encore.
 
-Le système permet de :
-- mesurer la température d'une salle,
-- enregistrer les historiques de température,
-- définir une consigne de température,
-- consulter les données via une interface web ou une API REST,
-- gérer les accès selon plusieurs rôles utilisateurs.
+Fonctionnalités
 
-## Fonctionnalités
+* Gestion des salles et des attributs associés.
+* Enregistrement et consultation des températures et des consignes.
+* Consultation de l’historique des mesures sur une période donnée.
+* API REST JSON pour accéder aux données et envoyer des consignes.
+* Authentification par jetons JWT et contrôle des droits selon les rôles.
+* Pilote de communication simulé et intégration MQTT dans la couche métier.
+* Interface web construite avec Jakarta Faces (JSF) et PrimeFaces.
 
-- Collecte et stockage des mesures de température
-- Gestion des consignes par salle
-- Visualisation des données sur des périodes (heure, journée, semaine)
-- API REST exposée pour les clients et le front office
-- Authentification et rôles : ADMIN, GESTIONNAIRE, VIEWER
-- Architecture multi-modules Maven
-- Support MQTT pour l'intégration de capteurs / box connectées
+Architecture
 
-## Architecture
+Le dépôt est un projet Maven multi-modules écrit principalement en Kotlin.
 
-Le projet est organisé en modules Maven :
+Module	Rôle
+Common	Entités, modèles et interfaces partagés
+Business	Services métier, validation et accès au pilote de communication
+Persistence	Accès aux données avec JPA
+RestServer	API REST avec Jersey, serveur Jetty et sécurité JWT
+JSF	Interface web Jakarta Faces / PrimeFaces
+ibr-utils	Utilitaires et annotations partagés
 
-- `Business` : logique métier et services applicatifs
-- `Common` : modèles, entités JPA et interfaces partagées
-- `Persistence` : accès aux données via JPA
-- `RestServer` : API REST
-- `JSF` : interface web JavaServer Faces / PrimeFaces
-- `ibr-utils` : utilitaires et composants transverses
+Les fabriques BusinessFactory et PersistenceFactory centralisent respectivement les services métier et le pilote de communication, puis les services de persistance.
 
-## Stack technique
+Prérequis
 
-- Kotlin
-- Java / Jakarta EE
-- JPA / Hibernate
-- Maven
-- API REST (JAX-RS)
-- MQTT
-- HTML / CSS / JavaScript
-- JSF / PrimeFaces (selon partie front)
+* Git
+* JDK 23
+* Maven
+* MySQL, avec une base de données accessible par l’application
+* Pour l’interface JSF : un conteneur compatible, par exemple Tomcat 10.1 avec les dépendances nécessaires
 
-## Flux principal
+Installation
 
-Capteur/MQTT -> Business -> Persistence -> API REST -> Interface utilisateur
+Récupérez le dépôt :
 
-## Configuration
+git clone https://github.com/IbraxTheKing/ThermoBox.git
+cd ThermoBox
 
-Variables d'environnement :
+Configurez les variables d’environnement décrites ci-dessous, puis compilez le projet :
 
-| Variable | Obligatoire | Description |
-|---|---|---|
-| `THERMOBOX_DB_URL` | non | URL JDBC (défaut : `jdbc:mysql://localhost:3306/thermobox`) |
-| `THERMOBOX_DB_USER` | oui | Utilisateur de la base |
-| `THERMOBOX_DB_PASSWORD` | oui | Mot de passe de la base |
-| `THERMOBOX_JWT_SECRET` | recommandé | Clé de signature JWT (32 octets min.). Sans elle, clé aléatoire : les tokens sont invalidés à chaque redémarrage |
-| `THERMOBOX_JWT_TTL_MINUTES` | non | Durée de vie d'un token (défaut : 60) |
+mvn clean install
 
-## Rôles
+Cette commande compile les modules et exécute les tests configurés. Elle ne démarre pas automatiquement l’API ni l’interface web.
 
-- ADMIN : gestion complète
-- GESTIONNAIRE : gestion des consignes et consultation
-- VIEWER : consultation seule
+Configuration
 
-## Notes
+Variables d’environnement
 
-Ce projet est surtout conçu comme un projet de démonstration / étude autour de l'architecture logicielle, de la persistance JPA, de l'API REST et de l'instrumentation de salles par température.
+Variable	Obligatoire	Description
+THERMOBOX_DB_URL	Non	URL JDBC (défaut : jdbc:mysql://localhost:3306/thermobox)
+THERMOBOX_DB_USER	Oui	Utilisateur de la base
+THERMOBOX_DB_PASSWORD	Oui	Mot de passe de la base
+THERMOBOX_JWT_SECRET	Recommandé	Clé de signature JWT d’au moins 32 octets. Si elle est absente, une clé aléatoire est générée au démarrage et les jetons ne survivent pas au redémarrage
+THERMOBOX_JWT_TTL_MINUTES	Non	Durée de vie d’un jeton JWT en minutes (défaut : 60)
 
-## Licence
+Exemple de configuration sous Linux/macOS :
+
+export THERMOBOX_DB_URL='jdbc:mysql://localhost:3306/thermobox'
+export THERMOBOX_DB_USER='votre_utilisateur'
+export THERMOBOX_DB_PASSWORD='votre_mot_de_passe'
+export THERMOBOX_JWT_SECRET='remplacer-par-une-cle-secrete-de-32-octets-minimum'
+export THERMOBOX_JWT_TTL_MINUTES='60'
+
+Adaptez les valeurs à votre environnement. Ne publiez jamais vos vrais identifiants ni votre clé JWT dans le dépôt.
+
+Attention à la base de données : le fichier Persistence/src/main/resources/META-INF/persistence.xml configure actuellement la génération du schéma avec l’action create. Vérifiez ce réglage avant d’utiliser des données à conserver, car le schéma peut être recréé au démarrage selon le fournisseur JPA et sa configuration.
+
+Démarrage
+
+API REST
+
+Après avoir configuré les variables et compilé le projet, lancez la classe principale ax.ibr.thermobox.restserver.MainKt du module RestServer depuis votre IDE, avec le classpath Maven du module.
+
+Le serveur écoute par défaut sur :
+
+http://localhost:8080/
+
+Les ressources REST sont déclarées sous le préfixe /api. Par exemple, les ressources associant températures et salles utilisent /api/salletemps.
+
+La plupart des routes nécessitent un jeton JWT transmis dans l’en-tête HTTP suivant :
+
+Authorization: Bearer <votre_jeton>
+
+Les routes publiques, notamment celles d’authentification, font exception. Consultez les classes de ressources du module RestServer pour connaître précisément les routes, paramètres et méthodes disponibles.
+
+Interface web JSF
+
+Le module JSF produit une archive WAR nommée thermobox.war.
+
+Après compilation, déployez cette archive dans un conteneur compatible Jakarta Faces et Jakarta Servlet, par exemple Tomcat 10.1. Le point d’entrée de l’interface est index.xhtml.
+
+Rôles et sécurité
+
+Les autorisations sont vérifiées côté API. Les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
+
+* ADMIN : opérations d’administration, dont certaines suppressions.
+* GESTIONNAIRE : gestion des données et des consignes selon les routes.
+* VIEWER : consultation lorsque les droits de la route le permettent.
+
+Un jeton JWT doit être transmis dans l’en-tête Authorization avec le préfixe Bearer. Une clé stable configurée via THERMOBOX_JWT_SECRET est nécessaire si les jetons doivent rester valides après un redémarrage.
+
+Développement
+
+Les derniers changements portent notamment sur :
+
+* la centralisation des fabriques métier et de persistance ;
+* la sécurisation de l’API REST par JWT ;
+* la configuration SQL via des variables d’environnement ;
+* l’ajout des entités Etage et Batiment, qui héritent de Salle ;
+* l’ajout de SalleSalleAttr et le renforcement des validations métier ;
+* l’implémentation progressive des services JPA.
+
+La persistance des nouvelles associations doit encore être vérifiée et complétée.
+
+Pour suivre les changements et consulter les commits :
+
+Historique du dépôt
+
+Licence
 
 MIT
