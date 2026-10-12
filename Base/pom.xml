@@ -12,7 +12,7 @@
     <!--
         Deployment only (built with -Pdeploy, see the root pom): no code of its own, it merges
         ibr-utils, Common, Persistence and Business into a single base.jar, shared by
-        RestServer.jar and JsfServer.war. Third-party libraries are not bundled: each server
+        RestServer.jar and JsfClient.war. Third-party libraries are not bundled: each server
         brings them.
     -->
     <artifactId>base</artifactId>
