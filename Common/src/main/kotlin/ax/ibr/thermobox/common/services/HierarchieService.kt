@@ -19,6 +19,9 @@ interface HierarchieService {
     /** Every box under [salle], at any depth ([salle] itself if it is a box). */
     fun getBoitiers(salle: Salle): List<Boitier>
 
+    /** Every salle (not étage, not box) under [salle], at any depth, sorted by name. */
+    fun getSalles(salle: Salle): List<Salle>
+
     /**
      * Attaches [child] to [parent], or detaches it when [parent] is null.
      * Replaces the current parent, if any.

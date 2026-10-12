@@ -28,6 +28,9 @@ class LoginBean {
     val currentUser: User? get() = auth?.user
 
     val isLoggedIn: Boolean get() = auth != null
+
+    /** First letter of the username, shown in the avatar. */
+    val initiale: String get() = currentUser?.username?.trim()?.firstOrNull()?.uppercase().orEmpty()
     val isAdmin: Boolean get() = auth?.hasRole("ADMIN") == true
 
     /** Like hasRole("GESTIONNAIRE") in REST: an ADMIN is also a GESTIONNAIRE. */

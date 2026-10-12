@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter
 object ChartBuilder {
     private val fmt = DateTimeFormatter.ofPattern("dd/MM HH:mm")
 
+    /** [color]: a CSS colour, or a custom property of the theme ("--name"), resolved by tbChartExtender. */
     data class Serie(val label: String, val points: List<Temperature>, val color: String)
 
     fun build(series: List<Serie>): LineChartModel {

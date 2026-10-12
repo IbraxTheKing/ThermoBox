@@ -9,7 +9,13 @@
 
     <ui:define name="content">
         <div class="tb-narrow">
-            <div class="tb-header"><h1>Mon profil</h1></div>
+            <header class="tb-page-head">
+                <span class="tb-avatar tb-avatar-xl">#{loginBean.initiale}</span>
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">#{profilBean.user.type}</span>
+                    <h1>Mon profil</h1>
+                </div>
+            </header>
 
             <h:form id="profilForm" rendered="#{profilBean.user ne null}">
                 <p:card>

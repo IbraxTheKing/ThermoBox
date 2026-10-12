@@ -11,6 +11,7 @@ import ax.ibr.thermobox.common.services.SalleSalleAttrService
 import ax.ibr.thermobox.common.services.ClimatService
 import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.HierarchieService
+import ax.ibr.thermobox.common.services.SalleImageService
 
 object BusinessFactory {
 
@@ -24,6 +25,7 @@ object BusinessFactory {
     private val hierarchieServiceInstance: HierarchieService by lazy { HierarchieServiceImpl() }
     private val climatServiceInstance: ClimatService by lazy { ClimatServiceImpl() }
     private val favoriServiceInstance: FavoriService by lazy { FavoriServiceImpl() }
+    private val salleImageServiceInstance: SalleImageService by lazy { SalleImageServiceImpl() }
 
     private val driverInstance: ProtocolDriver by lazy {
         if (MQTT) MqttDriver() else SimulatedProtocolDriver()
@@ -44,6 +46,8 @@ object BusinessFactory {
     fun getClimatService(): ClimatService = climatServiceInstance
 
     fun getFavoriService(): FavoriService = favoriServiceInstance
+
+    fun getSalleImageService(): SalleImageService = salleImageServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
 }

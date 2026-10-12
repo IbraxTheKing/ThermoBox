@@ -2,12 +2,14 @@ package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Favori
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleImage
 import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.persistence.jpa.FavoriDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.SalleImageDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
@@ -48,6 +50,10 @@ object PersistenceFactory {
         if (JDBC) TODO("JDBC version") else FavoriDataServiceJPAImpl(emf, Favori::class.java)
     }
 
+    private val salleImageService: SalleImageDataService by lazy {
+        if (JDBC) TODO("JDBC version") else SalleImageDataServiceJPAImpl(emf, SalleImage::class.java)
+    }
+
     fun getUserDataService(): UserDataService = userService
 
     fun getSalleDataService(): SalleDataService = salleService
@@ -59,6 +65,8 @@ object PersistenceFactory {
     fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
 
     fun getFavoriDataService(): FavoriDataService = favoriService
+
+    fun getSalleImageDataService(): SalleImageDataService = salleImageService
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()

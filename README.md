@@ -102,54 +102,15 @@ Authorization: Bearer <votre_jeton>
 
 Les routes publiques, notamment celles d'authentification, font exception. Consultez les classes de ressources du module `RestServer` pour connaître précisément les routes, paramètres et méthodes disponibles.
 
-### Interface web JSF
+### Interface
 
-Le module `JSF` produit une archive WAR nommée `thermobox.war`.
+Thème « verre bleu » : surfaces translucides et teintées sur un fond bleu brumeux, en mode clair et en mode sombre. Le bouton lune / soleil change de mode ; le choix est gardé dans un cookie `thermobox-theme`, et tant qu'il n'a pas servi, la page suit le réglage du système. PrimeFaces utilise `saga` en mode clair et `vela` en mode sombre. La police Manrope est servie par l'application (`resources/fonts`, licence OFL).
 
-Après compilation, déployez cette archive dans un conteneur compatible Jakarta Faces et Jakarta Servlet, par exemple Tomcat 10.1. Le point d'entrée de l'interface est `index.xhtml`.
+Revenir au tableau de bord depuis une salle le rouvre à l'endroit où était sa carte, qui reprend sa place en animation. Les pages entrent en animation (cartes l'une après l'autre, courbes qui se dessinent), les cartes glissent vers leur nouvelle place quand on filtre ou épingle une salle, et une température qui change au rafraîchissement l'indique d'un petit mouvement. Tout cela est coupé si le système demande de réduire les animations.
 
-## Déploiement
+## Photos des salles
 
-Le profil Maven `deploy` produit les trois livrables dans le dossier `deploy/` à la racine :
-
-```bash
-mvn -Pdeploy -DskipTests clean package
-```
-
-| Fichier | Contenu |
-|---|---|
-| `base.jar` | `ibr-utils`, `Common`, `Persistence` et `Business` réunis (module `Base`), avec `persistence.xml` |
-| `RestServer.jar` | Le serveur REST, exécutable, avec Jersey, Jetty et les bibliothèques tierces. Il charge `base.jar` posé à côté de lui |
-| `JsfServer.war` | L'interface JSF, avec `base.jar` dans `WEB-INF/lib` à la place des quatre modules séparés |
-
-- API REST : placer `RestServer.jar` et `base.jar` dans le même dossier, puis lancer `java -jar RestServer.jar` avec les variables d'environnement ci-dessus.
-- Interface JSF : copier `JsfServer.war` dans le dossier `webapps` de Tomcat. L'application répond alors sur `/JsfServer` (renommer le fichier pour changer ce chemin).
-
-Sans `-Pdeploy`, le build reste celui du développement (`thermobox.war`, jars par module).
-
-## Rôles et sécurité
-
-Les autorisations sont vérifiées côté serveur, dans l'API comme dans l'interface JSF. Côté API, les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
-
-- `ADMIN` : opérations d'administration, dont certaines suppressions.
-- `GESTIONNAIRE` : gestion des données et des consignes selon les routes.
-- `VIEWER` : consultation lorsque les droits de la route le permettent.
-
-Un jeton JWT doit être transmis dans l'en-tête `Authorization` avec le préfixe `Bearer`. Une clé stable configurée via `THERMOBOX_JWT_SECRET` est nécessaire si les jetons doivent rester valides après redémarrage.
-
-L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et relit l'utilisateur associé.
-
-Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire par mot de passe), jamais en clair, et sont limités à 72 octets, la limite de BCrypt. Un compte créé avant le hachage est migré à sa connexion suivante. Pour tout migrer d'un coup, lancer `HashExistingPasswords` (`Business/src/test/kotlin`) avec les variables d'environnement de la base.
-
-## Bâtiments, étages, salles et boîtiers
-
-Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.
-
-Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les éléments par glisser-déposer : le serveur vérifie ces règles avant que l'arbre ne bouge à l'écran.
-
-## Tableau de bord
-
-Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle.
+Chaque élément (salle, étage, bâtiment) peut avoir une photo, ajoutée ou retirée par un administrateur depuis sa page. Elle est enregistrée dans la table `salle_image`, à part de `salle`, pour que charger les salles ne charge jamais les images. Le fichier envoyé (10 Mo au plus) est décodé, redressé selon son orientation EXIF, réduit à 1600 px et réenregistré en JPEG : un fichier qui n'est pas une image est refusé, et les métadonnées (position GPS d'une photo de téléphone…) disparaissent. Les photos sont servies sur `/media/salle/{id}`, aux seuls utilisateurs connectés.
 
 ## Données de démonstration
 

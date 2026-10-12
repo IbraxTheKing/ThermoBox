@@ -4,121 +4,101 @@
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
       xmlns:ui="jakarta.faces.facelets"
-      xmlns:p="http://primefaces.org/ui">
+      xmlns:p="http://primefaces.org/ui"
+      data-theme="#{themeBean.mode}"
+      data-ctx="#{request.contextPath}/">
 
 <ui:insert name="metadata"/>
 
 <h:head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta name="theme-color" content="#{themeBean.dark ? '#0f141c' : '#bccde2'}"/>
     <title>Thermobox – <ui:insert name="title"/></title>
+    <!-- Loaded early: text measured before it arrives (scroll back to a card) would move -->
+    <link rel="preload" href="#{resource['fonts/manrope-latin.woff2']}" as="font" type="font/woff2" crossorigin="anonymous"/>
     <h:outputStylesheet name="css/thermobox.css"/>
-    <script>
-        (function () {
-            var root = document.documentElement;
-
-            // Ancienne page : on coupe le flou juste avant que le navigateur la capture
-            window.addEventListener('pageswap', function (e) {
-                if (e.viewTransition) root.classList.add('tb-vt');
-            });
-
-            // Nouvelle page : pas de flou pendant l'animation, puis il revient en fondu
-            window.addEventListener('pagereveal', function (e) {
-                if (!e.viewTransition) { root.classList.remove('tb-vt'); return; }
-                root.classList.add('tb-vt');
-                e.viewTransition.finished.finally(function () {
-                    requestAnimationFrame(function () { root.classList.remove('tb-vt'); });
-                });
-            });
-
-            // Retour arrière depuis le cache du navigateur : on ne reste jamais bloqué sans flou
-            window.addEventListener('pageshow', function () {
-                setTimeout(function () { root.classList.remove('tb-vt'); }, 600);
-            });
-        })();
-    </script>
-    <script>
-        function tbChartExtender() {
-            var mobile = window.matchMedia('(max-width: 640px)').matches;
-            var text = 'rgba(255, 255, 255, .85)';
-            var grid = 'rgba(255, 255, 255, .10)';
-            var font = { family: '"SF Pro Display", "Inter", -apple-system, system-ui, sans-serif', size: mobile ? 11 : 13 };
-
-            var o = this.cfg.config.options = this.cfg.config.options || {};
-
-            // Le graphique prend toute la largeur ET la hauteur de son conteneur
-            o.responsive = true;
-            o.maintainAspectRatio = false;
-            o.layout = { padding: { top: 4, right: 4, bottom: 0, left: 0 } };
-
-            // Légende : texte blanc, petits points ronds au lieu des gros rectangles
-            o.plugins = o.plugins || {};
-            o.plugins.legend = {
-                position: mobile ? 'bottom' : 'top',
-                labels: { color: text, font: font, usePointStyle: true, pointStyle: 'circle',
-                    boxWidth: 8, boxHeight: 8, padding: mobile ? 12 : 18 }
-            };
-            o.plugins.tooltip = { mode: 'index', intersect: false, titleFont: font, bodyFont: font };
-
-            // Axes : texte blanc, dates horizontales et espacées, date au-dessus de l'heure
-            o.scales = o.scales || {};
-            o.scales.x = {
-                grid: { color: grid, drawTicks: false },
-                ticks: {
-                    color: text, font: font, padding: 8,
-                    maxRotation: 0, autoSkip: true, maxTicksLimit: mobile ? 4 : 8,
-                    callback: function (value) {
-                        var label = this.getLabelForValue(value) || '';
-                        return label.split(' ');            // "29/09 10:07" → 2 lignes
-                    }
-                }
-            };
-            o.scales.y = {
-                grid: { color: grid, drawTicks: false },
-                border: { display: false },
-                ticks: { color: text, font: font, padding: 8, maxTicksLimit: mobile ? 5 : 8 }
-            };
-
-            // Courbes plus fines et plus lisibles, sans points sur mobile
-            o.elements = {
-                point: { radius: mobile ? 0 : 2.5, hoverRadius: 5, hitRadius: 12 },
-                line:  { tension: .35, borderWidth: mobile ? 2 : 2.5 }
-            };
-            o.interaction = { mode: 'index', intersect: false };
-        }
-    </script>
+    <h:outputScript name="js/thermobox.js" target="head"/>
 </h:head>
 
-<h:body>
-    <h:form id="menuForm" rendered="#{loginBean.loggedIn}">
-        <p:menubar>
-            <f:facet name="start">
-                <h:link outcome="/app/index" styleClass="tb-brand">
-                    <i class="pi pi-sun"/> Thermobox
+<h:body styleClass="#{loginBean.loggedIn ? 'tb-app' : 'tb-public'}">
+    <h:form id="menuForm" rendered="#{loginBean.loggedIn}" styleClass="tb-shell-nav">
+        <!-- Top app bar: phones only (the rail holds these actions on wider screens) -->
+        <header class="tb-topbar">
+            <h:link outcome="/app/dashboard" styleClass="tb-brand">
+                <span class="tb-logo" aria-hidden="true"/>Thermobox
+            </h:link>
+            <span class="tb-spacer"/>
+            <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
+                    title="Changer de thème" aria-label="Changer de thème">
+                <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+            </button>
+            <h:link outcome="/app/profil" styleClass="tb-avatar" title="Mon profil (#{loginBean.currentUser.username})">
+                #{loginBean.initiale}
+            </h:link>
+            <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
+                             ajax="false" styleClass="ui-button-flat tb-logout"/>
+        </header>
+
+        <!-- Navigation rail (desktop), bottom navigation bar (phones) -->
+        <nav class="tb-rail" aria-label="Navigation principale">
+            <h:link outcome="/app/dashboard" styleClass="tb-rail-brand" title="Thermobox">
+                <span class="tb-logo" aria-hidden="true"/>
+            </h:link>
+
+            <div class="tb-dests">
+                <h:link outcome="/app/dashboard"
+                        styleClass="tb-dest #{view.viewId eq '/app/dashboard.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-th-large"/></span>
+                    <span class="tb-dest-label">Aperçu</span>
                 </h:link>
-            </f:facet>
+                <h:link outcome="/app/salles"
+                        styleClass="tb-dest #{view.viewId eq '/app/salles.xhtml' or view.viewId eq '/app/salle.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-building"/></span>
+                    <span class="tb-dest-label">Salles</span>
+                </h:link>
+                <h:link outcome="/app/temperatures"
+                        styleClass="tb-dest #{view.viewId eq '/app/temperatures.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-chart-line"/></span>
+                    <span class="tb-dest-label">Mesures</span>
+                </h:link>
+                <h:link outcome="/admin/users" rendered="#{loginBean.admin}"
+                        styleClass="tb-dest #{view.viewId eq '/admin/users.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-users"/></span>
+                    <span class="tb-dest-label">Utilisateurs</span>
+                </h:link>
+            </div>
 
-            <p:menuitem value="Tableau de bord" icon="pi pi-home" outcome="/app/index"/>
-            <p:menuitem value="Bâtiments &amp; salles" icon="pi pi-building" outcome="/app/salles"/>
-            <p:menuitem value="Températures" icon="pi pi-chart-line" outcome="/app/temperatures"/>
-            <p:menuitem value="Utilisateurs" icon="pi pi-users" outcome="/admin/users"
-                        rendered="#{loginBean.admin}"/>
-
-            <f:facet name="options">
-                <p:linkButton value="#{loginBean.currentUser.username}" icon="pi pi-user"
-                              outcome="/app/profil" styleClass="ui-button-flat"/>
-                <p:commandButton value="Déconnexion" icon="pi pi-sign-out" action="#{loginBean.logout}"
-                                 ajax="false" styleClass="tb-logout"/>
-            </f:facet>
-        </p:menubar>
+            <div class="tb-rail-end">
+                <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
+                        title="Changer de thème" aria-label="Changer de thème">
+                    <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+                </button>
+                <h:link outcome="/app/profil"
+                        styleClass="tb-avatar #{view.viewId eq '/app/profil.xhtml' ? 'tb-avatar-on' : ''}"
+                        title="Mon profil (#{loginBean.currentUser.username})">
+                    #{loginBean.initiale}
+                </h:link>
+                <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
+                                 ajax="false" styleClass="ui-button-flat tb-logout"/>
+            </div>
+        </nav>
     </h:form>
+
+    <!-- Login and registration: the toggle sits in a corner -->
+    <h:panelGroup rendered="#{not loginBean.loggedIn}">
+        <button type="button" class="tb-icon-btn tb-theme-btn tb-theme-corner" onclick="tbTheme.toggle(this)"
+                title="Changer de thème" aria-label="Changer de thème">
+            <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+        </button>
+    </h:panelGroup>
 
     <p:growl id="growl" showDetail="true" life="4000">
         <p:autoUpdate/>
     </p:growl>
 
     <h:form id="confirmForm">
-        <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="360">
+        <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="380">
             <p:commandButton value="Annuler" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
             <p:commandButton value="Confirmer" type="button" styleClass="ui-confirmdialog-yes ui-button-danger"/>
         </p:confirmDialog>

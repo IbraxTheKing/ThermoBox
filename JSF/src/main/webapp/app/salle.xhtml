@@ -16,168 +16,304 @@
 
     <ui:define name="content">
         <!-- Salle introuvable -->
-        <h:panelGroup layout="block" rendered="#{salleDetailBean.salle eq null}">
-            <p:staticMessage severity="warn" summary="Élément introuvable"
-                             detail="Cet élément n'existe pas ou a été supprimé." style="width:100%"/>
+        <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{salleDetailBean.salle eq null}">
+            <span class="tb-empty-icon"><i class="pi pi-question"/></span>
+            <strong>Élément introuvable</strong>
+            <span>Cet élément n'existe pas ou a été supprimé.</span>
             <p:linkButton value="Retour aux bâtiments et salles" icon="pi pi-arrow-left" outcome="/app/salles"
-                          styleClass="ui-button-flat"/>
+                          styleClass="tb-tonal"/>
         </h:panelGroup>
 
-        <h:form id="detail" rendered="#{salleDetailBean.salle ne null}">
-            <div class="tb-header">
-                <!-- Transition : reçoit le nom de la carte du dashboard -->
-                <div class="tb-title">
-                    <h1 style="view-transition-name: salle-nom-#{salleDetailBean.salle.id}">#{salleDetailBean.salle.name}</h1>
+        <!-- Multipart for the photo upload; PrimeFaces sends the other AJAX requests the same way. -->
+        <h:form id="detail" enctype="multipart/form-data" rendered="#{salleDetailBean.salle ne null}">
+            <header class="tb-page-head">
+                <p:linkButton icon="pi pi-arrow-left" outcome="/app/dashboard" title="Retour au tableau de bord"
+                              styleClass="ui-button-flat tb-back"/>
+                <div class="tb-page-title">
                     <!-- Fil d'Ariane : chaque bâtiment / étage ouvre sa propre page -->
-                    <div class="tb-muted tb-breadcrumb">
-                        #{salleDetailBean.kindLabel}
-                        <ui:repeat value="#{salleDetailBean.ancetres}" var="a" varStatus="st">
-                            <span>#{st.first ? '·' : '›'}</span>
-                            <h:link outcome="/app/salle" value="#{a.name}">
+                    <nav class="tb-crumbs" aria-label="Emplacement">
+                        <span class="tb-crumb tb-crumb-kind">#{salleDetailBean.kindLabel}</span>
+                        <ui:repeat value="#{salleDetailBean.ancetres}" var="a">
+                            <i class="pi pi-angle-right"/>
+                            <h:link outcome="/app/salle" value="#{a.name}" styleClass="tb-crumb">
                                 <f:param name="id" value="#{a.id}"/>
                             </h:link>
                         </ui:repeat>
-                    </div>
+                    </nav>
+                    <!-- Transition : reçoit le nom de la carte du dashboard -->
+                    <h1 style="view-transition-name: salle-nom-#{salleDetailBean.salle.id}">#{salleDetailBean.salle.name}</h1>
                 </div>
-                <div class="tb-nav">
+                <div class="tb-head-actions">
                     <p:commandButton id="favori" icon="pi #{salleDetailBean.favori ? 'pi-star-fill' : 'pi-star'}"
                                      title="#{salleDetailBean.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
-                                     styleClass="ui-button-flat #{salleDetailBean.favori ? 'tb-fav-on' : ''}"
+                                     styleClass="ui-button-flat tb-fav #{salleDetailBean.favori ? 'tb-fav-on' : ''}"
                                      action="#{salleDetailBean.basculerFavori}" process="@this" update="@this"
                                      rendered="#{salleDetailBean.salleSimple}"/>
-                    <p:linkButton value="Tableau de bord" icon="pi pi-home" outcome="/app/dashboard"
-                                  styleClass="ui-button-flat"/>
                     <p:linkButton value="Bâtiments et salles" icon="pi pi-sitemap" outcome="/app/salles"
-                                  styleClass="ui-button-flat"/>
+                                  styleClass="tb-tonal tb-hide-sm"/>
                 </div>
-            </div>
+            </header>
 
             <!-- Étage / bâtiment : accès direct à ce qu'il contient -->
-            <h:panelGroup layout="block" styleClass="tb-row" rendered="#{not empty salleDetailBean.enfants}">
-                <span class="tb-muted">Contient :</span>
+            <h:panelGroup layout="block" styleClass="tb-chips" rendered="#{not empty salleDetailBean.enfants}">
+                <span class="tb-chips-label">Contient</span>
                 <ui:repeat value="#{salleDetailBean.enfants}" var="e">
-                    <p:linkButton value="#{e.name}" outcome="/app/salle" styleClass="ui-button-outlined">
+                    <h:link outcome="/app/salle" styleClass="tb-chip">
                         <f:param name="id" value="#{e.id}"/>
-                    </p:linkButton>
+                        #{e.name}
+                    </h:link>
                 </ui:repeat>
             </h:panelGroup>
 
-            <p:poll interval="30" listener="#{salleDetailBean.refresh}" update="etat boitiers"/>
+            <p:poll interval="30" listener="#{salleDetailBean.refresh}" process="@this" update="etat boitiers salles"
+                    onstart="tbWatch.before()" oncomplete="tbWatch.after()"/>
 
-            <div class="tb-grid">
+            <div class="tb-hero">
                 <!-- État courant (rafraîchi par le poll) -->
-                <h:panelGroup id="etat" layout="block" styleClass="tb-grid tb-span-2">
-                    <p:card style="view-transition-name: salle-card-#{salleDetailBean.salle.id}; view-transition-class: tb-card">
-                        <div class="tb-muted">
-                            #{salleDetailBean.boitier ? 'Température mesurée' : 'Moyenne des boîtiers'}
-                        </div>
-                        <div class="tb-temp" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}">
-                            <h:outputText value="#{salleDetailBean.moyenne}"
-                                          rendered="#{salleDetailBean.moyenne ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value="—" rendered="#{salleDetailBean.moyenne eq null}"/>
-                            <span class="tb-unit">°C</span>
-                        </div>
-                        <h:outputText styleClass="tb-muted" value="#{salleDetailBean.derniereMesure}"
-                                      rendered="#{salleDetailBean.derniereMesure ne null}">
-                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                <h:panelGroup id="etat" layout="block" styleClass="tb-hero-reading tb-ton-#{salleDetailBean.etat.ton}"
+                              style="view-transition-name: salle-card-#{salleDetailBean.salle.id}; view-transition-class: tb-card">
+                    <span class="tb-hero-label">
+                        #{salleDetailBean.boitier ? 'Température mesurée' : 'Moyenne des boîtiers'}
+                    </span>
+                    <span class="tb-temp-hero" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}"
+                          data-watch="moyenne">
+                        <h:outputText value="#{salleDetailBean.moyenne}" rendered="#{salleDetailBean.moyenne ne null}">
+                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                         </h:outputText>
-                        <h:outputText styleClass="tb-muted" value="Aucun boîtier rattaché"
-                                      rendered="#{empty salleDetailBean.mesures}"/>
-                    </p:card>
-
-                    <p:card>
-                        <div class="tb-muted">Consigne actuelle</div>
-                        <div class="tb-temp tb-consigne">
+                        <h:outputText value="—" rendered="#{salleDetailBean.moyenne eq null}"/>
+                        <span class="tb-deg">°C</span>
+                    </span>
+                    <div class="tb-hero-row">
+                        <span class="tb-state">#{salleDetailBean.etat.label}</span>
+                        <span class="tb-hero-meta">
+                            <h:outputText value="Aucun boîtier rattaché" rendered="#{empty salleDetailBean.mesures}"/>
+                            <h:outputText value="Mesuré le " rendered="#{salleDetailBean.derniereMesure ne null}"/>
+                            <h:outputText value="#{salleDetailBean.derniereMesure}"
+                                          rendered="#{salleDetailBean.derniereMesure ne null}">
+                                <f:convertDateTime type="localDateTime" pattern="dd/MM 'à' HH:mm"/>
+                            </h:outputText>
+                        </span>
+                    </div>
+                    <div class="tb-hero-consigne">
+                        <span>Consigne</span>
+                        <strong data-watch="consigne">
                             <h:outputText value="#{salleDetailBean.consigne.value}"
                                           rendered="#{salleDetailBean.consigne ne null}">
                                 <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                             </h:outputText>
                             <h:outputText value="—" rendered="#{salleDetailBean.consigne eq null}"/>
-                            <span class="tb-unit">°C</span>
-                        </div>
-                        <h:outputText styleClass="tb-muted" value="#{salleDetailBean.consigne.date}"
+                            °C
+                        </strong>
+                        <h:outputText styleClass="tb-hero-meta" value="#{salleDetailBean.consigne.date}"
                                       rendered="#{salleDetailBean.consigne ne null}">
-                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
+                            <f:convertDateTime type="localDateTime" pattern="'depuis le' dd/MM 'à' HH:mm"/>
                         </h:outputText>
-                    </p:card>
+                        <!-- No consigne of its own: it follows its étage or bâtiment -->
+                        <h:link outcome="/app/salle" styleClass="tb-hero-source"
+                                rendered="#{salleDetailBean.consigneEffective.heritee}">
+                            <f:param name="id" value="#{salleDetailBean.consigneEffective.source.id}"/>
+                            <i class="pi pi-sitemap"/> héritée de #{salleDetailBean.consigneEffective.source.name}
+                        </h:link>
+                    </div>
                 </h:panelGroup>
 
-                <!-- Envoi d'une consigne (ADMIN / GESTIONNAIRE) -->
-                <p:card rendered="#{loginBean.canSetConsigne and not salleDetailBean.boitier}">
-                    <div class="tb-muted">Nouvelle consigne (envoyée à tous les boîtiers)</div>
-                    <div class="tb-row">
-                        <p:inputNumber id="consigneInput" value="#{salleDetailBean.nouvelleConsigne}"
-                                       minValue="5" maxValue="35" decimalPlaces="1" symbol=" °C"
-                                       symbolPosition="s" required="true"
-                                       requiredMessage="Indique une température" placeholder="ex. 20,5"/>
-                        <p:commandButton value="Envoyer" icon="pi pi-send"
-                                         action="#{salleDetailBean.envoyerConsigne}"
-                                         process="@this consigneInput"
-                                         update="etat boitiers consigneInput :detail:historique"/>
-                    </div>
-                    <p:message for="consigneInput"/>
-                </p:card>
+                <!-- Photo : affichée par SalleImageServlet, changée par les administrateurs -->
+                <h:panelGroup id="photo" layout="block"
+                              styleClass="tb-photo #{salleDetailBean.image eq null ? 'tb-photo-empty' : ''}"
+                              style="view-transition-name: salle-photo-#{salleDetailBean.salle.id}">
+                    <ui:fragment rendered="#{salleDetailBean.image ne null}">
+                        <img src="#{request.contextPath}#{salleDetailBean.image}"
+                             alt="Photo de #{salleDetailBean.salle.name}"/>
+                    </ui:fragment>
+                    <ui:fragment rendered="#{salleDetailBean.image eq null}">
+                        <span class="tb-photo-shape"><i class="pi pi-image"/></span>
+                        <span class="tb-photo-hint">Pas encore de photo</span>
+                    </ui:fragment>
+
+                    <h:panelGroup layout="block" styleClass="tb-photo-actions" rendered="#{loginBean.admin}">
+                        <p:fileUpload mode="simple" skinSimple="true" auto="true" styleClass="tb-upload"
+                                      label="#{salleDetailBean.image eq null ? 'Ajouter une photo' : 'Changer'}"
+                                      chooseIcon="pi pi-camera" accept="image/*"
+                                      allowTypes="/(\.|\/)(jpe?g|png|gif|bmp)$/i" sizeLimit="10485760"
+                                      invalidFileMessage="Choisis une image JPEG, PNG, GIF ou BMP."
+                                      invalidSizeMessage="L'image ne doit pas dépasser 10 Mo."
+                                      listener="#{salleDetailBean.televerserImage}" process="@this" update="photo"/>
+                        <p:commandButton icon="pi pi-trash" title="Retirer la photo"
+                                         rendered="#{salleDetailBean.image ne null}"
+                                         action="#{salleDetailBean.retirerImage}" process="@this" update="photo"
+                                         styleClass="tb-photo-remove">
+                            <p:confirm header="Retirer la photo" message="La photo de « #{salleDetailBean.salle.name} » sera supprimée."
+                                       icon="pi pi-exclamation-triangle"/>
+                        </p:commandButton>
+                    </h:panelGroup>
+                </h:panelGroup>
             </div>
 
+            <!-- Envoi d'une consigne (ADMIN / GESTIONNAIRE) -->
+            <h:panelGroup layout="block" styleClass="tb-card tb-consigne-card"
+                          rendered="#{loginBean.canSetConsigne and not salleDetailBean.boitier}">
+                <div class="tb-card-head">
+                    <span class="tb-section-icon"><i class="pi pi-sliders-h"/></span>
+                    <div>
+                        <h2>Nouvelle consigne</h2>
+                        <span class="tb-muted">
+                            #{salleDetailBean.conteneur
+                              ? 'Les salles sans consigne propre la suivent, et leurs boîtiers la reçoivent.'
+                              : 'Enregistrée sur la salle et envoyée à chacun de ses boîtiers.'}
+                        </span>
+                    </div>
+                </div>
+                <div class="tb-consigne-form">
+                    <p:spinner id="consigneInput" value="#{salleDetailBean.nouvelleConsigne}" buttons="horizontal"
+                               min="5" max="35" stepFactor="0.5" decimalPlaces="1" decimalSeparator=","
+                               suffix=" °C" required="true" requiredMessage="Indique une température"
+                               styleClass="tb-stepper"/>
+                    <p:commandButton value="Envoyer" icon="pi pi-send"
+                                     action="#{salleDetailBean.envoyerConsigne}"
+                                     process="@this consigneInput consigneOptions"
+                                     update="etat boitiers salles consigneInput consigneOptions historique"
+                                     onstart="tbWatch.before()" oncomplete="tbWatch.after()"
+                                     styleClass="tb-btn-lg"/>
+                </div>
+                <p:message for="consigneInput"/>
+
+                <!-- Some étages / salles below have their own consigne: keep it, or force the new one? -->
+                <h:panelGroup id="consigneOptions" layout="block">
+                    <h:panelGroup layout="block" styleClass="tb-consigne-options"
+                                  rendered="#{not empty salleDetailBean.consignesPropres}">
+                        <span class="tb-consigne-options-icon"><i class="pi pi-info-circle"/></span>
+                        <div class="tb-consigne-options-text">
+                            <strong>#{salleDetailBean.consignesPropres.size()} élément(s) ont leur propre consigne</strong>
+                            <span>#{salleDetailBean.consignesPropresLabel}</span>
+                        </div>
+                        <!-- Not a <label>: a click would reach the switch twice (slider + label) and undo itself. -->
+                        <div class="tb-switch-row">
+                            <p:toggleSwitch id="forcer" widgetVar="forcerSwitch" value="#{salleDetailBean.forcer}"
+                                            styleClass="tb-switch"/>
+                            <span class="tb-switch-text" onclick="PF('forcerSwitch').toggle()">
+                                Forcer la consigne pour toutes les salles
+                            </span>
+                        </div>
+                    </h:panelGroup>
+                </h:panelGroup>
+            </h:panelGroup>
+
             <!-- Température de chaque boîtier, à côté de la moyenne -->
-            <p:panel id="boitiers" header="Boîtiers" styleClass="tb-panel" rendered="#{not salleDetailBean.boitier}">
-                <p:dataTable value="#{salleDetailBean.mesures}" var="m" stripedRows="true" size="small"
-                             emptyMessage="Aucun boîtier rattaché. Rattache-les depuis « Bâtiments et salles ».">
-                    <p:column headerText="Boîtier">
-                        <h:link outcome="/app/salle" value="#{m.boitier.name}">
+            <h:panelGroup id="boitiers" layout="block" styleClass="tb-section"
+                          rendered="#{not salleDetailBean.boitier and not salleDetailBean.conteneur}">
+                <h2 class="tb-section-title">
+                    <span class="tb-section-icon"><i class="pi pi-wifi"/></span>
+                    Boîtiers
+                    <span class="tb-section-meta">#{salleDetailBean.mesures.size()}</span>
+                </h2>
+                <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty salleDetailBean.mesures}">
+                    Aucun boîtier rattaché. Rattache-les depuis « Bâtiments et salles ».
+                </h:panelGroup>
+                <div class="tb-boxes">
+                    <ui:repeat value="#{salleDetailBean.mesures}" var="m">
+                        <h:link outcome="/app/salle" styleClass="tb-box">
                             <f:param name="id" value="#{m.boitier.id}"/>
+                            <span class="tb-box-name"><i class="pi pi-wifi"/>#{m.boitier.name}</span>
+                            <span class="tb-temp-l" data-watch="b#{m.boitier.id}">
+                                <h:outputText value="#{m.mesure.value}" rendered="#{m.mesure ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value="—" rendered="#{m.mesure eq null}"/>
+                                <span class="tb-deg">°</span>
+                            </span>
+                            <span class="tb-box-meta">
+                                <h:panelGroup styleClass="tb-delta" rendered="#{not empty salleDetailBean.ecart(m)}">
+                                    #{salleDetailBean.ecart(m)}
+                                </h:panelGroup>
+                                <h:outputText value="#{m.mesure.date}" rendered="#{m.mesure ne null}">
+                                    <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
+                                </h:outputText>
+                                <h:outputText value="Pas encore de mesure" rendered="#{m.mesure eq null}"/>
+                            </span>
                         </h:link>
-                    </p:column>
-                    <p:column headerText="Température">
-                        <h:outputText value="#{m.mesure.value}" rendered="#{m.mesure ne null}">
-                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                        </h:outputText>
-                        <h:outputText value=" °C" rendered="#{m.mesure ne null}"/>
-                        <h:outputText value="Pas encore de mesure" styleClass="tb-muted" rendered="#{m.mesure eq null}"/>
-                    </p:column>
-                    <p:column headerText="Écart à la moyenne">
-                        <h:outputText value="#{salleDetailBean.ecart(m)}"/>
-                    </p:column>
-                    <p:column headerText="Dernière mesure">
-                        <h:outputText value="#{m.mesure.date}" rendered="#{m.mesure ne null}">
-                            <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
-                        </h:outputText>
-                    </p:column>
-                </p:dataTable>
-            </p:panel>
+                    </ui:repeat>
+                </div>
+            </h:panelGroup>
+
+            <!-- Étage / bâtiment : ses salles, avec leur moyenne et leur consigne -->
+            <h:panelGroup id="salles" layout="block" styleClass="tb-section" rendered="#{salleDetailBean.conteneur}">
+                <h2 class="tb-section-title">
+                    <span class="tb-section-icon"><i class="pi pi-home"/></span>
+                    Salles
+                    <span class="tb-section-meta">#{salleDetailBean.salles.size()}</span>
+                </h2>
+                <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty salleDetailBean.salles}">
+                    Aucune salle ici pour le moment.
+                </h:panelGroup>
+                <div class="tb-boxes">
+                    <ui:repeat value="#{salleDetailBean.salles}" var="r">
+                        <h:link outcome="/app/salle" styleClass="tb-box tb-room-mini tb-ton-#{r.etat.ton}">
+                            <f:param name="id" value="#{r.salle.id}"/>
+                            <span class="tb-box-name"><i class="pi pi-home"/>#{r.salle.name}</span>
+                            <span class="tb-temp-l" data-watch="s#{r.salle.id}">
+                                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+                                <span class="tb-deg">°</span>
+                            </span>
+                            <span class="tb-box-meta">
+                                <span class="tb-state">#{r.etat.label}</span>
+                                <span title="#{r.consigneTitre}">
+                                    <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
+                                    <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
+                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                    </h:outputText>
+                                    <h:outputText value="—" rendered="#{r.consigne eq null}"/> °C
+                                </span>
+                            </span>
+                        </h:link>
+                    </ui:repeat>
+                </div>
+            </h:panelGroup>
 
             <!-- Historique -->
-            <p:panel id="historique" header="Historique" styleClass="tb-panel">
-                <div class="tb-row">
-                    <div class="tb-field tb-inline">
+            <h:panelGroup id="historique" layout="block" styleClass="tb-card tb-history">
+                <div class="tb-card-head">
+                    <span class="tb-section-icon"><i class="pi pi-chart-line"/></span>
+                    <h2>Historique</h2>
+                    <span class="tb-spacer"/>
+                    <div class="tb-segmented" role="group" aria-label="Période">
+                        <p:commandButton value="24 h" action="#{salleDetailBean.periode(24)}" process="@this"
+                                         update="historique"
+                                         styleClass="#{salleDetailBean.periodeHeures eq 24 ? 'tb-seg-on' : ''}"/>
+                        <p:commandButton value="7 j" action="#{salleDetailBean.periode(168)}" process="@this"
+                                         update="historique"
+                                         styleClass="#{salleDetailBean.periodeHeures eq 168 ? 'tb-seg-on' : ''}"/>
+                        <p:commandButton value="30 j" action="#{salleDetailBean.periode(720)}" process="@this"
+                                         update="historique"
+                                         styleClass="#{salleDetailBean.periodeHeures eq 720 ? 'tb-seg-on' : ''}"/>
+                    </div>
+                </div>
+
+                <div class="tb-range">
+                    <div class="tb-field">
                         <p:outputLabel for="start" value="Du"/>
                         <p:datePicker id="start" value="#{salleDetailBean.start}" showTime="true"
                                       pattern="dd/MM/yyyy HH:mm" required="true" locale="fr"/>
                     </div>
-                    <div class="tb-field tb-inline">
+                    <div class="tb-field">
                         <p:outputLabel for="end" value="Au"/>
                         <p:datePicker id="end" value="#{salleDetailBean.end}" showTime="true"
                                       pattern="dd/MM/yyyy HH:mm" required="true" locale="fr"/>
                     </div>
-                    <p:commandButton value="Afficher" icon="pi pi-search" action="#{salleDetailBean.loadHistory}"
-                                     process="@this start end" update="historique"/>
-                    <span class="tb-spacer"/>
-                    <p:commandButton value="24 h" action="#{salleDetailBean.periode(24)}" process="@this"
-                                     update="historique" styleClass="ui-button-outlined"/>
-                    <p:commandButton value="7 j" action="#{salleDetailBean.periode(168)}" process="@this"
-                                     update="historique" styleClass="ui-button-outlined"/>
-                    <p:commandButton value="30 j" action="#{salleDetailBean.periode(720)}" process="@this"
-                                     update="historique" styleClass="ui-button-outlined"/>
+                    <p:commandButton value="Afficher" icon="pi pi-search" action="#{salleDetailBean.afficher}"
+                                     process="@this start end" update="historique" styleClass="tb-tonal"/>
                 </div>
 
-                <p:lineChart model="#{salleDetailBean.chartModel}" style="height:360px"/>
+                <div class="tb-chart">
+                    <p:lineChart model="#{salleDetailBean.chartModel}" style="height:100%"/>
+                </div>
 
-                <h3>Consignes de la période</h3>
+                <h3 class="tb-subtitle">Consignes de la période</h3>
                 <p:dataTable value="#{salleDetailBean.historiqueConsignes}" var="c" rows="10" paginator="true"
                              paginatorAlwaysVisible="false" emptyMessage="Aucune consigne sur la période"
-                             stripedRows="true" size="small">
+                             size="small" styleClass="tb-table">
                     <p:column headerText="Date">
                         <h:outputText value="#{c.date}">
                             <f:convertDateTime type="localDateTime" pattern="dd/MM/yyyy HH:mm"/>
@@ -189,7 +325,7 @@
                         </h:outputText> °C
                     </p:column>
                 </p:dataTable>
-            </p:panel>
+            </h:panelGroup>
         </h:form>
     </ui:define>
 </ui:composition>

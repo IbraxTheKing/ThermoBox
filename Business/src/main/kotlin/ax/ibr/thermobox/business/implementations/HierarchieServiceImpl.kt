@@ -3,6 +3,7 @@ package ax.ibr.thermobox.business.implementations
 import ax.ibr.thermobox.business.rules.HierarchieRules
 import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleKind
 import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.common.services.HierarchieService
@@ -37,18 +38,25 @@ class HierarchieServiceImpl(
         return chemin
     }
 
-    override fun getBoitiers(salle: Salle): List<Boitier> {
-        if (salle is Boitier) return listOf(salle)
-        val boitiers = ArrayList<Boitier>()
+    override fun getBoitiers(salle: Salle): List<Boitier> =
+        if (salle is Boitier) listOf(salle) else descendants(salle).filterIsInstance<Boitier>()
+
+    override fun getSalles(salle: Salle): List<Salle> =
+        descendants(salle).filter { it.kind == SalleKind.SALLE }.sortedBy { it.name?.lowercase() }
+
+    /** Everything under [salle], at any depth, parents before their children. */
+    private fun descendants(salle: Salle): List<Salle> {
+        val resultat = ArrayList<Salle>()
         val vus = HashSet<Long?>()
         fun parcourir(s: Salle, profondeur: Int) {
             if (profondeur > MAX_DEPTH || !vus.add(s.id)) return
             for (enfant in getChildren(s)) {
-                if (enfant is Boitier) boitiers.add(enfant) else parcourir(enfant, profondeur + 1)
+                resultat.add(enfant)
+                if (enfant !is Boitier) parcourir(enfant, profondeur + 1)
             }
         }
         parcourir(salle, 0)
-        return boitiers
+        return resultat
     }
 
     override fun setParent(child: Salle, parent: Salle?) {

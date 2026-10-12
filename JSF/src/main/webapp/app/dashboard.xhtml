@@ -3,19 +3,37 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
 
     <ui:define name="title">Aperçu</ui:define>
 
     <ui:define name="content">
         <h:form id="dashForm">
-            <div class="tb-header">
-                <h1>Aperçu</h1>
-                <p:commandButton value="Actualiser" icon="pi pi-refresh" action="#{dashboardBean.refresh}"
-                                 process="@this" update="grille" styleClass="ui-button-flat"/>
-            </div>
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">Bonjour #{loginBean.currentUser.username}</span>
+                    <h1>Aperçu</h1>
+                </div>
+                <p:commandButton icon="pi pi-refresh" title="Actualiser" action="#{dashboardBean.actualiser}"
+                                 process="@this" update="grille resume" styleClass="tb-tonal" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
+            </header>
 
-            <p:poll interval="30" listener="#{dashboardBean.refresh}" update="grille"/>
+            <h:panelGroup id="resume" layout="block" styleClass="tb-summary">
+                <!-- Filter chips: one click shows only the salles in that state, a second click shows them all -->
+                <ui:repeat value="#{dashboardBean.compteurs}" var="c">
+                    <p:commandLink action="#{dashboardBean.basculerEtat(c.etat)}" process="@this" update=":dashForm:grille :dashForm:resume" onstart="tbFlip.first()" oncomplete="tbFlip.play()"
+                                   styleClass="tb-summary-chip tb-ton-#{c.etat.ton} #{dashboardBean.etatFiltre eq c.etat ? 'tb-chip-on' : ''}"
+                                   pt:aria-pressed="#{dashboardBean.etatFiltre eq c.etat}"
+                                   title="#{dashboardBean.etatFiltre eq c.etat ? 'Afficher toutes les salles' : 'Afficher seulement ces salles'}">
+                        <i class="pi pi-check tb-chip-check"/>#{c.texte}
+                    </p:commandLink>
+                </ui:repeat>
+            </h:panelGroup>
+
+            <!-- tbWatch: the temperatures that changed since the last refresh pulse once -->
+            <p:poll interval="30" listener="#{dashboardBean.refresh}" process="@this" update="grille resume"
+                    onstart="tbWatch.before()" oncomplete="tbWatch.after()"/>
 
             <!-- Filtres : en dehors de "grille" pour garder le focus pendant la saisie -->
             <div class="tb-toolbar">
@@ -24,7 +42,7 @@
                     <p:inputText id="recherche" value="#{dashboardBean.recherche}"
                                  placeholder="Rechercher une salle, un étage, un bâtiment…"
                                  autocomplete="off">
-                        <p:ajax event="keyup" delay="250" listener="#{dashboardBean.filtrer}" update="grille"/>
+                        <p:ajax event="keyup" delay="250" listener="#{dashboardBean.filtrer}" update="grille" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
                     </p:inputText>
                 </span>
                 <p:selectOneMenu id="batiment" value="#{dashboardBean.batimentId}" styleClass="tb-filter">
@@ -32,34 +50,41 @@
                     <f:selectItems value="#{dashboardBean.batiments}" var="b" itemLabel="#{b.name}"
                                    itemValue="#{b.id}"/>
                     <f:selectItem itemLabel="Sans bâtiment" itemValue="#{-1}"/>
-                    <p:ajax listener="#{dashboardBean.filtrer}" update="grille"/>
+                    <p:ajax listener="#{dashboardBean.filtrer}" update="grille" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
                 </p:selectOneMenu>
             </div>
 
             <h:panelGroup id="grille" layout="block">
-                <h:panelGroup layout="block" styleClass="tb-alert" rendered="#{dashboardBean.boitiersNonRattaches gt 0}">
-                    <p:staticMessage severity="warn" style="width:100%"
-                                     summary="#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)"
-                                     detail="Leurs mesures ne comptent dans aucune salle tant qu'ils ne sont pas rattachés."/>
+                <h:panelGroup layout="block" styleClass="tb-banner" rendered="#{dashboardBean.boitiersNonRattaches gt 0}">
+                    <span class="tb-banner-icon"><i class="pi pi-exclamation-triangle"/></span>
+                    <div class="tb-banner-text">
+                        <strong>#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)</strong>
+                        <span>Leurs mesures ne comptent dans aucune salle tant qu'ils ne sont pas rattachés.</span>
+                    </div>
                     <p:linkButton value="Les ranger" icon="pi pi-arrow-right" iconPos="right" outcome="/app/salles"
                                   rendered="#{loginBean.admin}" styleClass="ui-button-flat"/>
                 </h:panelGroup>
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.vide}">
-                    Aucune salle n'est enregistrée pour le moment.
+                    <span class="tb-empty-icon"><i class="pi pi-building"/></span>
+                    <strong>Aucune salle pour le moment</strong>
                     <p:linkButton value="Gérer les bâtiments et salles" outcome="/app/salles"
-                                  styleClass="ui-button-flat"/>
+                                  styleClass="tb-tonal"/>
                 </h:panelGroup>
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.aucunResultat}">
-                    Aucune salle ne correspond à ta recherche.
+                    <span class="tb-empty-icon"><i class="pi pi-search"/></span>
+                    <strong>Aucune salle ne correspond à ta recherche</strong>
                     <p:commandButton value="Effacer les filtres" icon="pi pi-times" action="#{dashboardBean.effacerFiltres}"
-                                     process="@this" update="@form" styleClass="ui-button-flat"/>
+                                     process="@this" update="@form" styleClass="tb-tonal" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
                 </h:panelGroup>
 
                 <h:panelGroup layout="block" styleClass="tb-section" rendered="#{not empty dashboardBean.favoris}">
-                    <h2 class="tb-section-title"><i class="pi pi-star-fill tb-fav-on"/> Favoris</h2>
-                    <div class="tb-grid">
+                    <h2 class="tb-section-title" data-flip="groupe-favoris">
+                        <span class="tb-section-icon tb-section-icon-fav"><i class="pi pi-star-fill"/></span>
+                        Favoris
+                    </h2>
+                    <div class="tb-cards">
                         <ui:repeat value="#{dashboardBean.favoris}" var="r">
                             <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
                         </ui:repeat>
@@ -68,18 +93,19 @@
 
                 <ui:repeat value="#{dashboardBean.groupes}" var="g">
                     <section class="tb-section">
-                        <h2 class="tb-section-title">
-                            <i class="pi #{g.batiment ne null ? 'pi-building' : 'pi-inbox'}"/> #{g.nom}
-                            <span class="tb-muted">
+                        <h2 class="tb-section-title" data-flip="groupe-#{g.batiment ne null ? g.batiment.id : 'aucun'}">
+                            <span class="tb-section-icon"><i class="pi #{g.batiment ne null ? 'pi-building' : 'pi-inbox'}"/></span>
+                            #{g.nom}
+                            <span class="tb-section-meta">
                                 #{g.salles.size()} salle(s)
-                                <h:outputText value=" · moyenne " rendered="#{g.moyenne ne null}"/>
+                                <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
                                 <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>
-                                <h:outputText value=" °C" rendered="#{g.moyenne ne null}"/>
+                                <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
                             </span>
                         </h2>
-                        <div class="tb-grid">
+                        <div class="tb-cards">
                             <ui:repeat value="#{g.salles}" var="r">
                                 <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
                             </ui:repeat>
@@ -87,6 +113,9 @@
                     </section>
                 </ui:repeat>
             </h:panelGroup>
+
+            <!-- Back from a salle: the dashboard reopens where its card was, so the card glides back into place -->
+            <script>tbScroll.restore();</script>
         </h:form>
     </ui:define>
 </ui:composition>

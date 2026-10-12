@@ -21,6 +21,7 @@
         <class>ax.ibr.thermobox.common.entities.Boitier</class>
         <class>ax.ibr.thermobox.common.entities.SalleSalleAttr</class>
         <class>ax.ibr.thermobox.common.entities.Favori</class>
+        <class>ax.ibr.thermobox.common.entities.SalleImage</class>
         <class>ax.ibr.thermobox.common.entities.SalleTempAttr</class>
         <class>ax.ibr.thermobox.common.entities.Consigne</class>
         <class>ax.ibr.thermobox.common.entities.Mesurer</class>

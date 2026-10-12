@@ -50,6 +50,9 @@ class SalleBean : Serializable {
     var formParentId: Long? = null
     var parentsPossibles: List<Salle> = emptyList()
 
+    /** Element whose actions are open in the bottom sheet (phones). */
+    var selection: Noeud? = null
+
     val kinds: List<SalleKind> = SalleKind.entries.toList()
     val isEditMode: Boolean get() = editingId != null
 
@@ -92,6 +95,10 @@ class SalleBean : Serializable {
             Faces.error("Déplacement impossible", e.message)
             false
         }
+    }
+
+    fun choisir(noeud: Noeud) {
+        selection = noeud
     }
 
     /** Nouvel élément, éventuellement déjà rattaché à [parent]. */

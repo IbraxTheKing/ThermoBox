@@ -33,6 +33,7 @@ class SimulatedProtocolDriver(
     private var running = false
 
     private val hierarchie by lazy { BusinessFactory.getHierarchieService() }
+    private val climat by lazy { BusinessFactory.getClimatService() }
 
     /** Last simulated value per box id, so readings drift smoothly instead of jumping. */
     private val dernieres = ConcurrentHashMap<Long, Float>()
@@ -87,12 +88,12 @@ class SimulatedProtocolDriver(
         salleTempAttrService.add(SalleTempAttr(boitier, Mesurer(valeur, date)))
     }
 
-    /** Latest consigne the box knows: its own (sent by sendConsigne) or its salle's. */
+    /** Latest consigne the box knows: its own (sent by sendConsigne) or the one its salle follows. */
     private fun consigne(boitier: Boitier): Float {
         val salle = hierarchie.getParent(boitier)
         return listOfNotNull(
             salleTempAttrService.getConsigneFromSalle(boitier),
-            salle?.let { salleTempAttrService.getConsigneFromSalle(it) }
+            salle?.let { climat.getConsigne(it) }
         ).maxByOrNull { it.date ?: LocalDateTime.MIN }?.value ?: ClimatSimule.CONSIGNE_PAR_DEFAUT
     }
 
