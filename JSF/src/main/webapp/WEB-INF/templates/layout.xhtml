@@ -13,7 +13,7 @@
 <h:head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-    <meta name="theme-color" content="#{themeBean.dark ? '#111318' : '#f9f9ff'}"/>
+    <meta name="theme-color" content="#{themeBean.dark ? '#0f141c' : '#bccde2'}"/>
     <title>Thermobox – <ui:insert name="title"/></title>
     <h:outputStylesheet name="css/thermobox.css"/>
     <h:outputScript name="js/thermobox.js" target="head"/>
@@ -24,7 +24,7 @@
         <!-- Top app bar: phones only (the rail holds these actions on wider screens) -->
         <header class="tb-topbar">
             <h:link outcome="/app/dashboard" styleClass="tb-brand">
-                <span class="tb-logo"><i class="pi pi-sun"/></span>Thermobox
+                <span class="tb-logo" aria-hidden="true"/>Thermobox
             </h:link>
             <span class="tb-spacer"/>
             <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
@@ -41,7 +41,7 @@
         <!-- Navigation rail (desktop), bottom navigation bar (phones) -->
         <nav class="tb-rail" aria-label="Navigation principale">
             <h:link outcome="/app/dashboard" styleClass="tb-rail-brand" title="Thermobox">
-                <span class="tb-logo"><i class="pi pi-sun"/></span>
+                <span class="tb-logo" aria-hidden="true"/>
             </h:link>
 
             <div class="tb-dests">

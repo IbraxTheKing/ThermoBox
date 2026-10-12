@@ -183,10 +183,14 @@
                             <strong>#{salleDetailBean.consignesPropres.size()} élément(s) ont leur propre consigne</strong>
                             <span>#{salleDetailBean.consignesPropresLabel}</span>
                         </div>
-                        <label class="tb-switch-row">
-                            <p:toggleSwitch id="forcer" value="#{salleDetailBean.forcer}" styleClass="tb-switch"/>
-                            <span>Forcer la consigne pour toutes les salles</span>
-                        </label>
+                        <!-- Not a <label>: a click would reach the switch twice (slider + label) and undo itself. -->
+                        <div class="tb-switch-row">
+                            <p:toggleSwitch id="forcer" widgetVar="forcerSwitch" value="#{salleDetailBean.forcer}"
+                                            styleClass="tb-switch"/>
+                            <span class="tb-switch-text" onclick="PF('forcerSwitch').toggle()">
+                                Forcer la consigne pour toutes les salles
+                            </span>
+                        </div>
                     </h:panelGroup>
                 </h:panelGroup>
             </h:panelGroup>

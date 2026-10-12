@@ -27,7 +27,7 @@ var tbCharts = (function () {
         var mobile = matchMedia('(max-width: 640px)').matches;
         var text = css('--md-on-surface-variant');
         var grid = css('--md-outline-variant');
-        var font = { family: '"Roboto Flex", Roboto, system-ui, sans-serif', size: mobile ? 11 : 13 };
+        var font = { family: 'Manrope, "Segoe UI", system-ui, sans-serif', size: mobile ? 11 : 13 };
 
         o.responsive = true;
         o.maintainAspectRatio = false;
@@ -122,7 +122,7 @@ var tbTheme = (function () {
     function apply(mode) {
         root.setAttribute('data-theme', mode);
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.content = mode === 'dark' ? '#111318' : '#f9f9ff';
+        if (meta) meta.content = mode === 'dark' ? '#0f141c' : '#bccde2';
         tbCharts.refresh();
         return swapPrimeFaces(mode === 'dark');
     }
