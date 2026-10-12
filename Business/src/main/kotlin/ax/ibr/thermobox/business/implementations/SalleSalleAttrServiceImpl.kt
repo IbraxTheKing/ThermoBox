@@ -1,7 +1,6 @@
 package ax.ibr.thermobox.business.implementations
 
-import ax.ibr.thermobox.common.entities.Batiment
-import ax.ibr.thermobox.common.entities.Etage
+import ax.ibr.thermobox.business.rules.HierarchieRules
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.services.SalleSalleAttrService
@@ -16,30 +15,24 @@ class SalleSalleAttrServiceImpl(
         return salleSalleAttrService.getBySalle(s)
     }
 
-    override fun add(t: SalleSalleAttr) {
-        try {
-            if (verification(t))
-                salleSalleAttrService.add(t)
-            else {
-                throw Exception("Error")
-            }
-        }
-        catch (e: Exception) {
-            throw e
-        }
+    override fun getChildren(parent: Salle): List<Salle> {
+        return salleSalleAttrService.getChildren(parent)
     }
 
+    override fun getParent(child: Salle): Salle? {
+        return salleSalleAttrService.getParent(child)
+    }
+
+    /** @throws IllegalArgumentException if the link breaks the hierarchy rules. */
+    override fun add(t: SalleSalleAttr) {
+        verification(t)
+        salleSalleAttrService.add(t)
+    }
+
+    /** @throws IllegalArgumentException if the link breaks the hierarchy rules. */
     override fun update(t: SalleSalleAttr) {
-        try {
-            if (verification(t))
-                salleSalleAttrService.update(t)
-            else {
-                throw Exception("Error")
-            }
-        }
-        catch (e: Exception) {
-            throw e
-        }
+        verification(t)
+        salleSalleAttrService.update(t)
     }
 
     override fun remove(t: SalleSalleAttr) {
@@ -54,28 +47,15 @@ class SalleSalleAttrServiceImpl(
         return salleSalleAttrService.getById(id)
     }
 
-    private fun verification(t: SalleSalleAttr) : Boolean {
-        val a = t.salleA
-        val b = t.salleB
-        if (a is Etage && b is Etage) {
-            throw Exception("Un etage ne peux pas avoir un etage.")
-        }
-        if (a is Batiment && b is Batiment) {
-            throw Exception("Un batiment ne peux pas avoir un batiment.")
-        }
-        // TODO: Verifier si un etage est deja present dans un batiment, si oui interdire le fait de le mettre dans plusieurs batiments.
-        if ((a is Batiment && b is Etage)) {
-            return etageBatimentVerification(b)
-        }
-        if (a is Etage && b is Batiment)
-            return etageBatimentVerification(a)
+    private fun verification(t: SalleSalleAttr) {
+        HierarchieRules.checkLink(t.salleA, t.salleB)
 
-        return true
-    }
-
-    private fun etageBatimentVerification(b: Etage): Boolean {
-        return getBySalle(b).none {
-            it.salleA is Batiment || it.salleB is Batiment
+        // A child has a single parent (e.g. an étage belongs to one bâtiment only).
+        val otherParent = getBySalle(t.salleB)
+            .firstOrNull { it.salleB.id == t.salleB.id && it.id != t.id }
+            ?.salleA
+        require(otherParent == null) {
+            "« ${t.salleB.name} » est déjà rattaché à « ${otherParent?.name} »."
         }
     }
 }

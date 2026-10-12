@@ -5,60 +5,118 @@
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:p="http://primefaces.org/ui">
 
-    <ui:define name="title">Salles</ui:define>
+    <ui:define name="title">Bâtiments et salles</ui:define>
 
     <ui:define name="content">
         <h:form id="sallesForm">
             <div class="tb-header">
-                <h1>Salles</h1>
-                <p:commandButton value="Nouvelle salle" icon="pi pi-plus" rendered="#{loginBean.admin}"
-                                 action="#{salleBean.create}" process="@this"
+                <h1>Bâtiments et salles</h1>
+                <p:commandButton value="Nouveau bâtiment" icon="pi pi-plus" rendered="#{loginBean.admin}"
+                                 action="#{salleBean.create('BATIMENT', null)}" process="@this"
                                  update=":salleDlgForm" oncomplete="PF('salleDlg').show()"/>
             </div>
 
-            <p:dataTable id="table" value="#{salleBean.salles}" var="s" emptyMessage="Aucune salle"
-                         rows="15" paginator="true" paginatorAlwaysVisible="false" stripedRows="true">
-                <p:column headerText="Nom" sortBy="#{s.name}" filterBy="#{s.name}" filterMatchMode="contains">
-                    <h:outputText value="#{s.name}"/>
-                </p:column>
+            <p class="tb-muted">
+                Un bâtiment contient des étages ou directement des salles, une salle contient des boîtiers.
+                La température d'une salle est la moyenne de ses boîtiers.
+                Les boîtiers apparaissent ici d'eux-mêmes dès qu'ils se connectent.
+                <h:outputText rendered="#{loginBean.admin}"
+                              value="Glisse un élément sur un autre pour l'y ranger, ou entre deux éléments du premier niveau pour le détacher."/>
+            </p>
 
-                <p:column headerText="Actions" styleClass="tb-col-actions">
-                    <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle" styleClass="ui-button-flat">
-                        <f:param name="id" value="#{s.id}"/>
-                    </p:linkButton>
-                    <p:commandButton icon="pi pi-pencil" title="Modifier" rendered="#{loginBean.admin}"
-                                     action="#{salleBean.edit(s)}" process="@this"
-                                     update=":salleDlgForm" oncomplete="PF('salleDlg').show()"
-                                     styleClass="ui-button-flat"/>
-                    <p:commandButton icon="pi pi-trash" title="Supprimer" rendered="#{loginBean.admin}"
-                                     action="#{salleBean.delete(s)}" process="@this" update="table"
-                                     styleClass="ui-button-flat ui-button-danger">
-                        <p:confirm header="Supprimer la salle"
-                                   message="Supprimer « #{s.name} » et son historique ?"
-                                   icon="pi pi-exclamation-triangle"/>
-                    </p:commandButton>
-                </p:column>
-            </p:dataTable>
+            <!-- onDrop: the server validates and saves the move first; a refused move never shows. -->
+            <p:tree id="arbre" value="#{salleBean.arbre}" var="n" styleClass="tb-tree"
+                    draggable="#{loginBean.admin}" droppable="#{loginBean.admin}"
+                    onDrop="#{salleBean.onDrop}">
+                <!-- Averages and "non rattaché" tags change with the move: redraw from the database. -->
+                <p:ajax event="dragdrop" listener="#{salleBean.load}" update="arbre"/>
+
+                <p:treeNode>
+                    <span class="tb-node">
+                        <i class="pi #{n.icon} tb-tree-icon"/>
+                        <span class="tb-node-name">#{n.salle.name}</span>
+                        <span class="tb-muted">#{n.kind.label}</span>
+                        <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
+
+                        <span class="tb-node-temp">
+                            <h:outputText value="#{n.temperature}" rendered="#{n.temperature ne null}">
+                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                            </h:outputText>
+                            <h:outputText value=" °C" rendered="#{n.temperature ne null}"/>
+                            <h:outputText value="—" rendered="#{n.temperature eq null}"/>
+                            <h:outputText styleClass="tb-muted" value=" · #{n.boitiers} boîtier(s)"
+                                          rendered="#{n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
+                        </span>
+
+                        <span class="tb-node-actions">
+                            <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle"
+                                          styleClass="ui-button-flat">
+                                <f:param name="id" value="#{n.salle.id}"/>
+                            </p:linkButton>
+                            <p:commandButton icon="pi pi-plus" title="Ajouter dans « #{n.salle.name} »"
+                                             rendered="#{loginBean.admin and not empty n.kind.childKinds}"
+                                             action="#{salleBean.create(n.kind.childKinds[0], n.salle)}"
+                                             process="@this" update=":salleDlgForm"
+                                             oncomplete="PF('salleDlg').show()" styleClass="ui-button-flat"/>
+                            <p:commandButton icon="pi pi-pencil" title="Modifier / déplacer"
+                                             rendered="#{loginBean.admin}"
+                                             action="#{salleBean.edit(n.salle)}" process="@this"
+                                             update=":salleDlgForm" oncomplete="PF('salleDlg').show()"
+                                             styleClass="ui-button-flat"/>
+                            <p:commandButton icon="pi pi-link" title="Détacher"
+                                             rendered="#{loginBean.admin and n.rattache and n.kind ne 'BATIMENT'}"
+                                             action="#{salleBean.detacher(n.salle)}" process="@this"
+                                             update=":sallesForm:arbre" styleClass="ui-button-flat"/>
+                            <p:commandButton icon="pi pi-trash" title="Supprimer" rendered="#{loginBean.admin}"
+                                             action="#{salleBean.delete(n.salle)}" process="@this"
+                                             update=":sallesForm:arbre"
+                                             styleClass="ui-button-flat ui-button-danger">
+                                <p:confirm header="Supprimer « #{n.salle.name} »"
+                                           message="Son historique est supprimé ; ce qu'il contient est gardé mais n'est plus rattaché."
+                                           icon="pi pi-exclamation-triangle"/>
+                            </p:commandButton>
+                        </span>
+                    </span>
+                </p:treeNode>
+            </p:tree>
         </h:form>
 
-        <p:dialog header="Salle" widgetVar="salleDlg" modal="true" resizable="false" responsive="true"
-                  width="420">
+        <p:dialog header="#{salleBean.editMode ? 'Modifier' : 'Ajouter'}" widgetVar="salleDlg" modal="true"
+                  resizable="false" responsive="true" width="440">
             <h:form id="salleDlgForm">
-                <h:panelGroup rendered="#{salleBean.selected ne null}">
-                    <div class="tb-field">
-                        <p:outputLabel for="nom" value="Nom"/>
-                        <p:inputText id="nom" value="#{salleBean.selected.name}" required="true"
-                                     requiredMessage="Le nom est obligatoire"/>
-                        <p:message for="nom"/>
-                    </div>
-                    <div class="tb-actions">
-                        <p:commandButton value="Annuler" type="button" onclick="PF('salleDlg').hide()"
-                                         styleClass="ui-button-flat"/>
-                        <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{salleBean.save}"
-                                         update="@form :sallesForm:table"
-                                         oncomplete="if (args &amp;&amp; args.saved) PF('salleDlg').hide()"/>
-                    </div>
+                <div class="tb-field">
+                    <p:outputLabel for="kind" value="Type"/>
+                    <!-- The type of an existing element can't change (it decides where it fits). -->
+                    <p:selectOneMenu id="kind" value="#{salleBean.formKind}" disabled="#{salleBean.editMode}">
+                        <f:selectItems value="#{salleBean.kinds}" var="k" itemLabel="#{k.label}" itemValue="#{k}"/>
+                        <p:ajax listener="#{salleBean.refreshParents}" update="parentField"/>
+                    </p:selectOneMenu>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="nom" value="Nom"/>
+                    <p:inputText id="nom" value="#{salleBean.formName}" required="true"
+                                 requiredMessage="Le nom est obligatoire"/>
+                    <p:message for="nom"/>
+                </div>
+                <h:panelGroup id="parentField" layout="block" styleClass="tb-field">
+                    <h:panelGroup rendered="#{not empty salleBean.formKind.parentKinds}">
+                        <p:outputLabel for="parent" value="Dans (#{salleBean.parentsLabel})"/>
+                        <p:selectOneMenu id="parent" value="#{salleBean.formParentId}" filter="true"
+                                         filterMatchMode="contains">
+                            <f:selectItem itemLabel="— Non rattaché —" itemValue="#{null}"
+                                          noSelectionOption="true"/>
+                            <f:selectItems value="#{salleBean.parentsPossibles}" var="p"
+                                           itemLabel="#{salleBean.libelle(p)}" itemValue="#{p.id}"/>
+                        </p:selectOneMenu>
+                    </h:panelGroup>
                 </h:panelGroup>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('salleDlg').hide()"
+                                     styleClass="ui-button-flat"/>
+                    <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{salleBean.save}"
+                                     update="@form :sallesForm:arbre"
+                                     oncomplete="if (args &amp;&amp; args.saved) PF('salleDlg').hide()"/>
+                </div>
             </h:form>
         </p:dialog>
     </ui:define>

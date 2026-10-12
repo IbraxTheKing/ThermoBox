@@ -18,8 +18,15 @@
             <p:poll interval="30" listener="#{dashboardBean.refresh}" update="grille"/>
 
             <h:panelGroup id="grille" layout="block">
+                <p:staticMessage severity="warn" style="width:100%"
+                                 summary="#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)"
+                                 detail="Leurs mesures ne comptent dans aucune salle tant qu'ils ne sont pas rattachés."
+                                 rendered="#{dashboardBean.boitiersNonRattaches gt 0}"/>
+
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty dashboardBean.resumes}">
                     Aucune salle n'est enregistrée pour le moment.
+                    <p:linkButton value="Gérer les bâtiments et salles" outcome="/app/salles"
+                                  styleClass="ui-button-flat"/>
                 </h:panelGroup>
 
                 <div class="tb-grid">
@@ -29,14 +36,18 @@
                             <!-- Transition : le nom glisse vers le titre de la page détail -->
                             <div class="tb-room-name"
                                  style="view-transition-name: salle-nom-#{r.salle.id}">#{r.salle.name}</div>
+                            <div class="tb-muted">
+                                <h:outputText value="#{r.chemin}" rendered="#{not empty r.chemin}"/>
+                                <h:outputText value="Non rattachée" rendered="#{empty r.chemin}"/>
+                            </div>
 
-                            <!-- Transition : la température glisse vers la carte "Température mesurée" -->
+                            <!-- Transition : la moyenne glisse vers la carte "Moyenne" de la page détail -->
                             <div class="tb-hero-temp"
                                  style="view-transition-name: salle-temp-#{r.salle.id}">
-                                <h:outputText value="#{r.mesure.value}" rendered="#{r.mesure ne null}">
+                                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>
-                                <h:outputText value="—" rendered="#{r.mesure eq null}"/>
+                                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
                                 <span class="tb-unit">°</span>
                             </div>
 
@@ -56,8 +67,9 @@
 
                             <div class="tb-row">
                                 <span class="tb-muted">
-                                    <h:outputText value="#{r.mesure.date}" rendered="#{r.mesure ne null}">
-                                        <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
+                                    <i class="pi pi-wifi"/>#{r.boitiers}
+                                    <h:outputText value="#{r.derniereMesure}" rendered="#{r.derniereMesure ne null}">
+                                        <f:convertDateTime type="localDateTime" pattern="' · 'dd/MM HH:mm"/>
                                     </h:outputText>
                                 </span>
                                 <p:linkButton value="Détail" icon="pi pi-chart-line" outcome="/app/salle"

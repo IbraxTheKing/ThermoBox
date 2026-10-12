@@ -2,7 +2,7 @@ package ax.ibr.thermobox.restserver
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
-import ax.ibr.thermobox.restserver.security.JwtService
+import ax.ibr.thermobox.business.security.JwtService
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import java.net.URI

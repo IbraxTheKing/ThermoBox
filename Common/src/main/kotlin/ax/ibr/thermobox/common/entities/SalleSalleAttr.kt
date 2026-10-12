@@ -9,6 +9,12 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 
+/**
+ * Containment link between two [Salle]s: [salleA] (the parent) contains [salleB] (the child).
+ *
+ * Allowed links: Batiment → Etage, Etage or Batiment → Salle, Salle → Boitier; a child has a
+ * single parent. These rules are enforced by the business layer.
+ */
 @Entity
 @Table(name = "salle_attr")
 class SalleSalleAttr(

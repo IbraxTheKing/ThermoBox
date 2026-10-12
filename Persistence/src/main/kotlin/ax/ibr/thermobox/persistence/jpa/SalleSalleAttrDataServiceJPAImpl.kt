@@ -19,4 +19,28 @@ class SalleSalleAttrDataServiceJPAImpl(
         ).setParameter("salle", s)
             .resultList
     }
+
+    override fun getChildren(parent: Salle): List<Salle> {
+        val id = parent.id ?: return emptyList()
+        return read { em ->
+            em.createQuery(
+                "SELECT ssa.salleB FROM SalleSalleAttr ssa WHERE ssa.salleA.id = :id",
+                Salle::class.java
+            ).setParameter("id", id)
+                .resultList
+        }
+    }
+
+    override fun getParent(child: Salle): Salle? {
+        val id = child.id ?: return null
+        return read { em ->
+            em.createQuery(
+                "SELECT ssa.salleA FROM SalleSalleAttr ssa WHERE ssa.salleB.id = :id",
+                Salle::class.java
+            ).setParameter("id", id)
+                .setMaxResults(1)
+                .resultList
+                .firstOrNull()
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.business.io.mqtt
 
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
@@ -40,10 +41,7 @@ class MqttDriver(
 
     override fun listenToRooms() {
         client.subscribe(TOPIC_SALLES) { _, message ->
-            val name = String(message.payload).trim()
-            if (name.isNotEmpty() && salleService.getByName(name) == null) {
-                salleService.update(Salle(name))
-            }
+            registerBoitier(String(message.payload).trim())
         }
     }
 
@@ -52,10 +50,11 @@ class MqttDriver(
             val salleId = topic.substringAfterLast("/").toLongOrNull() ?: return@subscribe
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
 
-            val salle = salleService.getById(salleId) ?: return@subscribe
+            // Only boxes measure; anything else (salle, étage…) is ignored.
+            val salle = salleService.getById(salleId) as? Boitier ?: return@subscribe
             val temperature = Mesurer(value, LocalDateTime.now())
-            temperatureService.update(temperature)
-            salleTempAttrService.update(SalleTempAttr(salle, temperature))
+            // The link cascades to the temperature: saving it separately would insert it twice.
+            salleTempAttrService.add(SalleTempAttr(salle, temperature))
         }
     }
 

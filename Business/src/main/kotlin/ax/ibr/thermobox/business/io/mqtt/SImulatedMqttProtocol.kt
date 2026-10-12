@@ -1,37 +1,41 @@
 package ax.ibr.thermobox.business.io.mqtt
 
+import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.business.io.simulation.ClimatSimule
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import java.time.LocalDateTime
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 /**
- * Implémentation factice de ProtocolDriver, utilisée pour tester la couche
- * persistence sans avoir besoin d'un vrai broker MQTT.
+ * Implémentation factice de ProtocolDriver, pour travailler sans broker MQTT ni vrais boîtiers.
  *
- * Elle simule périodiquement :
- * - l'apparition de nouvelles salles (comme si un device s'annonçait sur TOPIC_SALLES)
- * - l'arrivée de mesures de température pour des salles existantes
- *
- * Utilisation : instancier à la place de MqttSendReceiver dans ton point d'entrée
- * (ou dans BusinessFactory) le temps de tester la BDD.
+ * - Elle mesure **tous** les boîtiers en base (ceux du DatabaseSeeder compris). Chaque boîtier
+ *   tend vers la consigne de sa salle (voir [ClimatSimule]) : une consigne changée dans JSF se
+ *   voit sur les courbes au fil des mesures.
+ * - Elle annonce un à un les boîtiers de [nouveauxBoitiers], comme des appareils qu'on vient de
+ *   brancher : ils arrivent non rattachés, à ranger dans leur salle.
  */
 class SimulatedProtocolDriver(
-    private val simulatedSalleNames: List<String> = listOf("Salle A", "Salle B", "Salle C"),
-    private val temperatureIntervalMs: Long = 300000L,
-    private val salleDiscoveryIntervalMs: Long = 10000L,
-    private val minTemp: Float = 10f,
-    private val maxTemp: Float = 26f
+    private val nouveauxBoitiers: List<String> = listOf("Boîtier neuf 3", "Boîtier neuf 4", "Boîtier neuf 5"),
+    private val temperatureIntervalMs: Long = 60_000L,
+    private val discoveryIntervalMs: Long = 120_000L,
 ) : ProtocolDriver() {
 
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
     private var running = false
+
+    private val hierarchie by lazy { BusinessFactory.getHierarchieService() }
+
+    /** Last simulated value per box id, so readings drift smoothly instead of jumping. */
+    private val dernieres = ConcurrentHashMap<Long, Float>()
 
     override fun listen() {
         if (running) return
@@ -42,48 +46,61 @@ class SimulatedProtocolDriver(
     }
 
     override fun listenToRooms() {
-        // Simule la découverte périodique de salles, comme si elles s'annonçaient sur TOPIC_SALLES
         scheduler.scheduleAtFixedRate({
             try {
-                val name = simulatedSalleNames.random()
-                if (salleService.getByName(name) == null) {
-                    salleService.update(Salle(name))
-                    println("[SimulatedProtocolDriver] Nouvelle salle simulée : $name")
+                // One new box per tick; registerBoitier skips names already in database.
+                val name = nouveauxBoitiers.firstOrNull { nom -> getBoitiers().none { it.name == nom } }
+                if (name != null && registerBoitier(name)) {
+                    println("[SimulatedProtocolDriver] Nouveau boîtier simulé : $name")
                 }
             } catch (e: Exception) {
                 println("[SimulatedProtocolDriver] Erreur listenToRooms : ${e.message}")
             }
-        }, 0, salleDiscoveryIntervalMs, TimeUnit.MILLISECONDS)
+        }, discoveryIntervalMs, discoveryIntervalMs, TimeUnit.MILLISECONDS)
     }
 
     override fun listenToTemperatures() {
-        // Simule l'arrivée régulière de mesures de température pour toutes les salles existantes
         scheduler.scheduleAtFixedRate({
             try {
-                val salles = salleService.getAll()
-                if (salles.isEmpty()) return@scheduleAtFixedRate
-
-                salles.forEach { salle ->
-                    val value = Random.nextFloat() * (maxTemp - minTemp) + minTemp
-                    val temperature = Mesurer(value, LocalDateTime.now())
-
-                    temperatureService.update(temperature)
-                    salleTempAttrService.update(SalleTempAttr(salle, temperature))
-
-                    println("[SimulatedProtocolDriver] Température simulée pour ${salle.name} : %.2f°C".format(value))
+                val boitiers = getBoitiers()
+                val maintenant = LocalDateTime.now()
+                boitiers.forEach { boitier -> mesurer(boitier, maintenant) }
+                if (boitiers.isNotEmpty()) {
+                    println("[SimulatedProtocolDriver] ${boitiers.size} mesure(s) simulée(s)")
                 }
             } catch (e: Exception) {
                 println("[SimulatedProtocolDriver] Erreur listenToTemperatures : ${e.message}")
             }
-        }, salleDiscoveryIntervalMs / 2, temperatureIntervalMs, TimeUnit.MILLISECONDS)
+        }, 0, temperatureIntervalMs, TimeUnit.MILLISECONDS)
+    }
+
+    private fun mesurer(boitier: Boitier, date: LocalDateTime) {
+        val id = boitier.id ?: return
+        val nom = boitier.name.orEmpty()
+        val cible = ClimatSimule.cible(consigne(boitier), nom, date)
+        val actuelle = dernieres[id]
+            ?: salleTempAttrService.getCurrentTemperatureFromSalle(boitier, Mesurer(0f, date))?.value
+            ?: cible
+        val valeur = ClimatSimule.suivante(actuelle, cible)
+        dernieres[id] = valeur
+        // The link cascades to the temperature: saving it separately would insert it twice.
+        salleTempAttrService.add(SalleTempAttr(boitier, Mesurer(valeur, date)))
+    }
+
+    /** Latest consigne the box knows: its own (sent by sendConsigne) or its salle's. */
+    private fun consigne(boitier: Boitier): Float {
+        val salle = hierarchie.getParent(boitier)
+        return listOfNotNull(
+            salleTempAttrService.getConsigneFromSalle(boitier),
+            salle?.let { salleTempAttrService.getConsigneFromSalle(it) }
+        ).maxByOrNull { it.date ?: LocalDateTime.MIN }?.value ?: ClimatSimule.CONSIGNE_PAR_DEFAUT
     }
 
     override fun sendConsigne(s: Salle, c: Consigne) {
         super.sendConsigne(s, c)
-        println("[SimulatedProtocolDriver] Consigne simulée envoyée à ${s?.name ?: "salle inconnue"} : ${c.value}")
-        temperatureService.add(c)
-        salleTempAttrService.add(SalleTempAttr(s,c))
-
+        println("[SimulatedProtocolDriver] Consigne simulée envoyée à ${s.name} : ${c.value}")
+        // A real box would apply it; here we keep it on the box so the simulation follows it.
+        salleTempAttrService.add(SalleTempAttr(s, c))
     }
 
     /** Arrête proprement les tâches planifiées. */
