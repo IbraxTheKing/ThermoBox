@@ -38,6 +38,10 @@ class RegisterBean {
         } catch (e: AlreadyExistsException) {
             Faces.error("Ce nom d'utilisateur est déjà pris")
             null
+        } catch (e: IllegalArgumentException) {
+            // Password over 72 bytes (accented characters count double), refused before hashing.
+            Faces.error("Mot de passe refusé", e.message)
+            null
         }
     }
 }

@@ -120,6 +120,8 @@ Un jeton JWT doit être transmis dans l'en-tête `Authorization` avec le préfix
 
 L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et relit l'utilisateur associé.
 
+Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire par mot de passe), jamais en clair, et sont limités à 72 octets, la limite de BCrypt. Un compte créé avant le hachage est migré à sa connexion suivante. Pour tout migrer d'un coup, lancer `HashExistingPasswords` (`Business/src/test/kotlin`) avec les variables d'environnement de la base.
+
 ## Bâtiments, étages, salles et boîtiers
 
 Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.

@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.common.services.UserService
@@ -21,10 +22,12 @@ class UserServiceImpl(
     }
 
     override fun add(t: User) {
+        hashPassword(t)
         userService.add(t)
     }
 
     override fun update(t: User) {
+        hashPassword(t)
         userService.update(t)
     }
 
@@ -40,4 +43,15 @@ class UserServiceImpl(
         return userService.getById(id)
     }
 
+    /**
+     * Only BCrypt hashes reach the database. Every write goes through here (JSF, REST, seeder),
+     * so a password that is not a hash yet (new account or changed password) is hashed, and one
+     * that already is (user re-saved unchanged) is kept as is.
+     *
+     * @throws IllegalArgumentException if the password is longer than BCrypt allows.
+     */
+    private fun hashPassword(user: User) {
+        val password = user.password ?: return
+        if (!PasswordHasher.isHash(password)) user.password = PasswordHasher.hash(password)
+    }
 }

@@ -28,7 +28,7 @@
                         <p:outputLabel for="pwd" value="Nouveau mot de passe (laisser vide pour ne pas changer)"/>
                         <p:password id="pwd" value="#{profilBean.newPassword}" toggleMask="true"
                                     autocomplete="new-password">
-                            <f:validateLength minimum="8"/>
+                            <f:validateLength minimum="8" maximum="72"/>
                         </p:password>
                         <p:message for="pwd"/>
                     </div>

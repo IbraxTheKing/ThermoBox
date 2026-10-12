@@ -2,6 +2,7 @@ package ax.ibr.thermobox.restserver.resources
 
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.restserver.dto.UserDto
 import ax.ibr.utils.exceptions.AlreadyExistsException
@@ -53,6 +54,7 @@ class UserResource {
         if (username.isEmpty() || password.isEmpty()) {
             return error(Response.Status.BAD_REQUEST, "username and password are required")
         }
+        if (PasswordHasher.isTooLong(password)) return passwordTooLong()
         if (service.getByUsername(username) != null) {
             return error(Response.Status.CONFLICT, "Username already taken")
         }
@@ -93,7 +95,10 @@ class UserResource {
             }
             existing.username = newUsername
         }
-        if (!changes.password.isNullOrEmpty()) existing.password = changes.password
+        if (!changes.password.isNullOrEmpty()) {
+            if (PasswordHasher.isTooLong(changes.password!!)) return passwordTooLong()
+            existing.password = changes.password // hashed by the UserService
+        }
         if (changes.type != null) existing.type = changes.type
 
         service.update(existing)
@@ -120,6 +125,10 @@ class UserResource {
         val user = service.getByUsername(username) ?: return notFound()
         return Response.ok(UserDto.from(user)).build()
     }
+
+    /** BCrypt only uses the first 72 bytes: refuse rather than silently ignore the rest. */
+    private fun passwordTooLong(): Response =
+        error(Response.Status.BAD_REQUEST, "password must be at most ${PasswordHasher.MAX_BYTES} bytes")
 
     private fun notFound(): Response = Response.status(Response.Status.NOT_FOUND).build()
 

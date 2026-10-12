@@ -33,7 +33,7 @@
                                     requiredMessage="Mot de passe obligatoire" feedback="true" toggleMask="true"
                                     promptLabel="Choisis un mot de passe" weakLabel="Faible"
                                     goodLabel="Moyen" strongLabel="Fort" autocomplete="new-password">
-                            <f:validateLength minimum="8"/>
+                            <f:validateLength minimum="8" maximum="72"/>
                         </p:password>
                         <p:message for="password"/>
                     </div>
