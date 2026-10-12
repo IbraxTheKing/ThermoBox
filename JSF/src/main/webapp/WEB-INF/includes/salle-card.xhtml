@@ -66,8 +66,8 @@
         </h:panelGroup>
 
         <div class="tb-room-foot">
-            <span class="tb-consigne-pill">
-                <i class="pi pi-sliders-h"/>
+            <span class="tb-consigne-pill" title="#{r.consigneTitre}">
+                <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
                 <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                 </h:outputText>

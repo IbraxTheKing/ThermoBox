@@ -3,7 +3,8 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
 
     <ui:define name="title">Aperçu</ui:define>
 
@@ -19,8 +20,14 @@
             </header>
 
             <h:panelGroup id="resume" layout="block" styleClass="tb-summary">
+                <!-- Filter chips: one click shows only the salles in that state, a second click shows them all -->
                 <ui:repeat value="#{dashboardBean.compteurs}" var="c">
-                    <span class="tb-summary-chip tb-ton-#{c.etat.ton}">#{c.texte}</span>
+                    <p:commandLink action="#{dashboardBean.basculerEtat(c.etat)}" process="@this" update=":dashForm:grille :dashForm:resume"
+                                   styleClass="tb-summary-chip tb-ton-#{c.etat.ton} #{dashboardBean.etatFiltre eq c.etat ? 'tb-chip-on' : ''}"
+                                   pt:aria-pressed="#{dashboardBean.etatFiltre eq c.etat}"
+                                   title="#{dashboardBean.etatFiltre eq c.etat ? 'Afficher toutes les salles' : 'Afficher seulement ces salles'}">
+                        <i class="pi pi-check tb-chip-check"/>#{c.texte}
+                    </p:commandLink>
                 </ui:repeat>
             </h:panelGroup>
 

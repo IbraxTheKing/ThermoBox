@@ -155,3 +155,14 @@ var tbTheme = (function () {
 function tbChartExtender() {
     tbCharts.extend(this.cfg);
 }
+
+// Touch screens: PrimeFaces marks a tapped button as hovered / focused until something else is
+// tapped, so several buttons (24 h and 7 j, two destinations…) would look selected at once.
+if (window.matchMedia && matchMedia('(hover: none)').matches) {
+    document.addEventListener('touchend', function () {
+        setTimeout(function () {
+            document.querySelectorAll('.ui-state-hover:not(.ui-treenode-content), .ui-button.ui-state-focus')
+                .forEach(function (el) { el.classList.remove('ui-state-hover', 'ui-state-focus'); });
+        }, 250);
+    }, { passive: true });
+}

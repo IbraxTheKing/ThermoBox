@@ -5,6 +5,8 @@ import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleImage
 import ax.ibr.thermobox.common.entities.SalleKind
 import ax.ibr.thermobox.common.entities.kind
+import ax.ibr.thermobox.business.implementations.ClimatServiceImpl
+import ax.ibr.thermobox.common.services.ConsigneEffective
 import ax.ibr.thermobox.common.services.MesureBoitier
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
@@ -25,8 +27,8 @@ import java.time.ZoneId
 import java.util.Locale
 
 /**
- * Page détail d'un élément (en pratique une salle) : moyenne de ses boîtiers, température de
- * chaque boîtier, envoi de consigne à tous les boîtiers, historique.
+ * Page détail d'un élément : moyenne de ses boîtiers, consigne, historique. Une salle montre
+ * ses boîtiers ; un étage ou un bâtiment montre ses salles (tuiles et courbes).
  */
 @Named
 @ViewScoped
@@ -47,8 +49,15 @@ class SalleDetailBean : Serializable {
     var enfants: List<Salle> = emptyList()
     var moyenne: Float? = null
     var mesures: List<MesureBoitier> = emptyList()
-    var consigne: Consigne? = null
+    var consigneEffective: ConsigneEffective? = null
     var nouvelleConsigne: Float? = null
+
+    /** Étages / salles below with their own consigne: the new one leaves them alone unless [forcer]. */
+    var consignesPropres: List<ConsigneEffective> = emptyList()
+    var forcer: Boolean = false
+
+    /** Étage or bâtiment: the salles it contains, at any depth. */
+    var salles: List<SalleResume> = emptyList()
 
     /** Shortcut in use (24, 168 or 720 h), null once dates were picked by hand. */
     var periodeHeures: Long? = 24
@@ -58,7 +67,11 @@ class SalleDetailBean : Serializable {
     var historiqueConsignes: List<Consigne> = emptyList()
     var chartModel: LineChartModel = ChartBuilder.build(emptyList())
 
+    val consigne: Consigne? get() = consigneEffective?.consigne
+
     val etat: EtatSalle get() = EtatSalle.of(moyenne, consigne?.value)
+
+    val isConteneur: Boolean get() = salle?.kind == SalleKind.ETAGE || salle?.kind == SalleKind.BATIMENT
 
     val kindLabel: String get() = salle?.kind?.label.orEmpty()
     val isBoitier: Boolean get() = salle?.kind == SalleKind.BOITIER
@@ -86,7 +99,9 @@ class SalleDetailBean : Serializable {
         val s = salle ?: return
         mesures = Services.climat.getMesures(s)
         moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
-        consigne = Services.climat.getConsigne(s)
+        consigneEffective = Services.climat.getConsigneEffective(s)
+        consignesPropres = if (isBoitier) emptyList() else Services.climat.getConsignesPropres(s)
+        if (isConteneur) salles = Services.hierarchie.getSalles(s).map { resumer(it) }
         // The spinner starts from the current consigne rather than from its minimum.
         if (nouvelleConsigne == null) nouvelleConsigne = consigne?.value ?: CONSIGNE_PAR_DEFAUT
     }
@@ -134,6 +149,25 @@ class SalleDetailBean : Serializable {
         image = Services.images.getDates()[s.id]?.let { SalleImageServlet.url(s.id!!, it) }
     }
 
+    private fun resumer(salle: Salle): SalleResume {
+        val mesuresSalle = Services.climat.getMesures(salle)
+        val effective = Services.climat.getConsigneEffective(salle)
+        return SalleResume(
+            salle = salle,
+            chemin = "",
+            batiment = null,
+            moyenne = mesuresSalle.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+            derniereMesure = mesuresSalle.mapNotNull { it.mesure?.date }.maxOrNull(),
+            boitiers = mesuresSalle.size,
+            consigne = effective?.consigne,
+            consigneSource = effective?.takeIf { it.heritee }?.source,
+        )
+    }
+
+    /** « Étage 1 (19,0 °C), Everest (22,5 °C) » */
+    val consignesPropresLabel: String
+        get() = consignesPropres.joinToString { String.format(Locale.FRANCE, "%s (%.1f °C)", it.source.name, it.consigne.value) }
+
     /** Écart d'un boîtier à la moyenne de la salle, ex. « +0,4° ». */
     fun ecart(m: MesureBoitier): String {
         val valeur = m.mesure?.value ?: return ""
@@ -141,27 +175,32 @@ class SalleDetailBean : Serializable {
         return String.format(Locale.FRANCE, "%+.1f°", valeur - moy)
     }
 
-    /** Enregistre la consigne sur la salle et l'envoie à chacun de ses boîtiers. */
+    /**
+     * Saves the consigne on the element; what it contains follows it, except the étages / salles
+     * that have their own consigne, unless [forcer] is on.
+     */
     fun envoyerConsigne() {
         val s = salle ?: return
         val value = nouvelleConsigne ?: return
         if (!login.require(login.canSetConsigne)) return
 
-        val echecs = try {
-            Services.climat.envoyerConsigne(s, value)
+        val envoi = try {
+            Services.climat.envoyerConsigne(s, value, forcer)
         } catch (e: Exception) {
             Faces.error("Consigne refusée", e.message)
             return
         }
-        when {
-            mesures.isEmpty() -> Faces.warn("Consigne enregistrée", "Aucun boîtier dans cette salle pour l'appliquer.")
-            echecs.isEmpty() -> Faces.info("Consigne de %.1f °C envoyée à %d boîtier(s)".format(value, mesures.size))
-            else -> Faces.warn(
-                "Consigne enregistrée mais non transmise à certains boîtiers",
-                echecs.joinToString { it.name.orEmpty() }
-            )
-        }
+        val titre = String.format(Locale.FRANCE, "Consigne de %.1f °C enregistrée", value)
+        val details = buildList {
+            add(if (envoi.boitiers.isEmpty()) "aucun boîtier à prévenir" else "envoyée à ${envoi.boitiers.size} boîtier(s)")
+            if (envoi.remplacees.isNotEmpty()) add("remplace celle de ${envoi.remplacees.joinToString { it.name.orEmpty() }}")
+            if (envoi.conservees.isNotEmpty()) add("${envoi.conservees.joinToString { it.source.name.orEmpty() }} garde(nt) sa consigne")
+        }.joinToString(" ; ").replaceFirstChar { it.uppercase() }
+        if (envoi.echecs.isEmpty()) Faces.info(titre, details)
+        else Faces.warn(titre, "$details. Non transmise à : ${envoi.echecs.joinToString { it.name.orEmpty() }}")
+
         nouvelleConsigne = null
+        forcer = false
         refresh()
         loadHistory()
     }
@@ -196,12 +235,26 @@ class SalleDetailBean : Serializable {
             historiqueConsignes = consignes.sortedByDescending { it.date }
 
             val series = ArrayList<Serie>()
-            historiques.forEachIndexed { i, h ->
-                series.add(Serie(h.boitier.name.orEmpty(), h.mesures, PALETTE[i % PALETTE.size]))
-            }
-            // A single box is its own average: no need for a duplicate curve.
-            if (historiques.size > 1) {
-                series.add(Serie("Moyenne de la salle", Services.climat.getMoyenneHistorique(s, from, to), "--tb-serie-moyenne"))
+            if (isConteneur) {
+                // One curve per salle (average of its boxes) rather than one per box.
+                val parSalle = Services.hierarchie.getSalles(s).map { salle ->
+                    val boitiers = Services.hierarchie.getBoitiers(salle).map { it.id }.toSet()
+                    salle to historiques.filter { it.boitier.id in boitiers }
+                }.filter { (_, h) -> h.isNotEmpty() }
+                parSalle.forEachIndexed { i, (salle, h) ->
+                    series.add(Serie(salle.name.orEmpty(), ClimatServiceImpl.moyenneGlissante(h), PALETTE[i % PALETTE.size]))
+                }
+                if (parSalle.size > 1) {
+                    series.add(Serie(if (s.kind == SalleKind.ETAGE) "Moyenne de l'étage" else "Moyenne du bâtiment", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                }
+            } else {
+                historiques.forEachIndexed { i, h ->
+                    series.add(Serie(h.boitier.name.orEmpty(), h.mesures, PALETTE[i % PALETTE.size]))
+                }
+                // A single box is its own average: no need for a duplicate curve.
+                if (historiques.size > 1) {
+                    series.add(Serie("Moyenne de la salle", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                }
             }
             series.add(Serie("Consigne", consignes, "--tb-serie-consigne"))
             chartModel = ChartBuilder.build(series)

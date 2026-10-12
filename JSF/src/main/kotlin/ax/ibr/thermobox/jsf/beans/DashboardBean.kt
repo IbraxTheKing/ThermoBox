@@ -55,6 +55,8 @@ data class SalleResume(
     val derniereMesure: LocalDateTime?,
     val boitiers: Int,
     val consigne: Consigne?,
+    /** Where the consigne comes from when the salle has none of its own (étage, bâtiment). */
+    val consigneSource: Salle? = null,
     val favori: Boolean = false,
     /** Photo URL, relative to the application; null when the salle has none. */
     val image: String? = null,
@@ -63,6 +65,9 @@ data class SalleResume(
     private val ecart: Float? get() = consigne?.value?.let { c -> moyenne?.minus(c) }
 
     val etat: EtatSalle get() = EtatSalle.of(moyenne, consigne?.value)
+
+    val consigneTitre: String
+        get() = consigneSource?.let { "Consigne héritée de « ${it.name} »" } ?: "Consigne de la salle"
 
     /** Écart à la consigne, ex. « +0,8° » (vide si pas de données). */
     val ecartLabel: String
@@ -88,6 +93,8 @@ class DashboardBean : Serializable {
 
     // Filtres
     var recherche: String = ""
+    /** Summary chip picked: only salles in that state are shown. */
+    var etatFiltre: EtatSalle? = null
     var batimentId: Long? = null
     var batiments: List<Salle> = emptyList()
 
@@ -118,8 +125,8 @@ class DashboardBean : Serializable {
         val images = Services.images.getDates()
         // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
         val salles = Services.salles.getAllByType(Salle(null))
-        val consignes = salles.associate { it.id to Services.climat.getConsigne(it) }
-        chargerTendances(salles, consignes)
+        val consignes = salles.associate { it.id to Services.climat.getConsigneEffective(it) }
+        chargerTendances(salles, consignes.mapValues { it.value?.consigne })
         toutes = salles.map { salle ->
             val chemin = Services.hierarchie.getChemin(salle)
             val mesures = Services.climat.getMesures(salle)
@@ -130,7 +137,8 @@ class DashboardBean : Serializable {
                 moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
                 derniereMesure = mesures.mapNotNull { it.mesure?.date }.maxOrNull(),
                 boitiers = mesures.size,
-                consigne = consignes[salle.id],
+                consigne = consignes[salle.id]?.consigne,
+                consigneSource = consignes[salle.id]?.takeIf { it.heritee }?.source,
                 favori = salle.id in favorisIds,
                 image = images[salle.id]?.let { SalleImageServlet.url(salle.id!!, it) },
                 tendance = tendances[salle.id],
@@ -174,6 +182,7 @@ class DashboardBean : Serializable {
         val visibles = toutes
             .filter { r -> batimentId == null || (if (batimentId == SANS_BATIMENT) r.batiment == null else r.batiment?.id == batimentId) }
             .filter { r -> normaliser("${r.salle.name} ${r.chemin}").let { texte -> mots.all { it in texte } } }
+            .filter { r -> etatFiltre == null || r.etat == etatFiltre }
             .sortedBy { it.salle.name?.lowercase() }
 
         favoris = visibles.filter { it.favori }
@@ -196,9 +205,16 @@ class DashboardBean : Serializable {
         }
     }
 
+    /** Summary chip: shows only the salles in [etat]; a second click shows them all again. */
+    fun basculerEtat(etat: EtatSalle) {
+        etatFiltre = if (etatFiltre == etat) null else etat
+        filtrer()
+    }
+
     fun effacerFiltres() {
         recherche = ""
         batimentId = null
+        etatFiltre = null
         filtrer()
     }
 

@@ -65,7 +65,7 @@
                 </ui:repeat>
             </h:panelGroup>
 
-            <p:poll interval="30" listener="#{salleDetailBean.refresh}" process="@this" update="etat boitiers"/>
+            <p:poll interval="30" listener="#{salleDetailBean.refresh}" process="@this" update="etat boitiers salles"/>
 
             <div class="tb-hero">
                 <!-- État courant (rafraîchi par le poll) -->
@@ -106,6 +106,12 @@
                                       rendered="#{salleDetailBean.consigne ne null}">
                             <f:convertDateTime type="localDateTime" pattern="'depuis le' dd/MM 'à' HH:mm"/>
                         </h:outputText>
+                        <!-- No consigne of its own: it follows its étage or bâtiment -->
+                        <h:link outcome="/app/salle" styleClass="tb-hero-source"
+                                rendered="#{salleDetailBean.consigneEffective.heritee}">
+                            <f:param name="id" value="#{salleDetailBean.consigneEffective.source.id}"/>
+                            <i class="pi pi-sitemap"/> héritée de #{salleDetailBean.consigneEffective.source.name}
+                        </h:link>
                     </div>
                 </h:panelGroup>
 
@@ -148,7 +154,11 @@
                     <span class="tb-section-icon"><i class="pi pi-sliders-h"/></span>
                     <div>
                         <h2>Nouvelle consigne</h2>
-                        <span class="tb-muted">Enregistrée sur la salle et envoyée à chacun de ses boîtiers.</span>
+                        <span class="tb-muted">
+                            #{salleDetailBean.conteneur
+                              ? 'Les salles sans consigne propre la suivent, et leurs boîtiers la reçoivent.'
+                              : 'Enregistrée sur la salle et envoyée à chacun de ses boîtiers.'}
+                        </span>
                     </div>
                 </div>
                 <div class="tb-consigne-form">
@@ -158,15 +168,32 @@
                                styleClass="tb-stepper"/>
                     <p:commandButton value="Envoyer" icon="pi pi-send"
                                      action="#{salleDetailBean.envoyerConsigne}"
-                                     process="@this consigneInput"
-                                     update="etat boitiers consigneInput historique"
+                                     process="@this consigneInput consigneOptions"
+                                     update="etat boitiers salles consigneInput consigneOptions historique"
                                      styleClass="tb-btn-lg"/>
                 </div>
                 <p:message for="consigneInput"/>
+
+                <!-- Some étages / salles below have their own consigne: keep it, or force the new one? -->
+                <h:panelGroup id="consigneOptions" layout="block">
+                    <h:panelGroup layout="block" styleClass="tb-consigne-options"
+                                  rendered="#{not empty salleDetailBean.consignesPropres}">
+                        <span class="tb-consigne-options-icon"><i class="pi pi-info-circle"/></span>
+                        <div class="tb-consigne-options-text">
+                            <strong>#{salleDetailBean.consignesPropres.size()} élément(s) ont leur propre consigne</strong>
+                            <span>#{salleDetailBean.consignesPropresLabel}</span>
+                        </div>
+                        <label class="tb-switch-row">
+                            <p:toggleSwitch id="forcer" value="#{salleDetailBean.forcer}" styleClass="tb-switch"/>
+                            <span>Forcer la consigne pour toutes les salles</span>
+                        </label>
+                    </h:panelGroup>
+                </h:panelGroup>
             </h:panelGroup>
 
             <!-- Température de chaque boîtier, à côté de la moyenne -->
-            <h:panelGroup id="boitiers" layout="block" styleClass="tb-section" rendered="#{not salleDetailBean.boitier}">
+            <h:panelGroup id="boitiers" layout="block" styleClass="tb-section"
+                          rendered="#{not salleDetailBean.boitier and not salleDetailBean.conteneur}">
                 <h2 class="tb-section-title">
                     <span class="tb-section-icon"><i class="pi pi-wifi"/></span>
                     Boîtiers
@@ -195,6 +222,43 @@
                                     <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
                                 </h:outputText>
                                 <h:outputText value="Pas encore de mesure" rendered="#{m.mesure eq null}"/>
+                            </span>
+                        </h:link>
+                    </ui:repeat>
+                </div>
+            </h:panelGroup>
+
+            <!-- Étage / bâtiment : ses salles, avec leur moyenne et leur consigne -->
+            <h:panelGroup id="salles" layout="block" styleClass="tb-section" rendered="#{salleDetailBean.conteneur}">
+                <h2 class="tb-section-title">
+                    <span class="tb-section-icon"><i class="pi pi-home"/></span>
+                    Salles
+                    <span class="tb-section-meta">#{salleDetailBean.salles.size()}</span>
+                </h2>
+                <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty salleDetailBean.salles}">
+                    Aucune salle ici pour le moment.
+                </h:panelGroup>
+                <div class="tb-boxes">
+                    <ui:repeat value="#{salleDetailBean.salles}" var="r">
+                        <h:link outcome="/app/salle" styleClass="tb-box tb-room-mini tb-ton-#{r.etat.ton}">
+                            <f:param name="id" value="#{r.salle.id}"/>
+                            <span class="tb-box-name"><i class="pi pi-home"/>#{r.salle.name}</span>
+                            <span class="tb-temp-l">
+                                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+                                <span class="tb-deg">°</span>
+                            </span>
+                            <span class="tb-box-meta">
+                                <span class="tb-state">#{r.etat.label}</span>
+                                <span title="#{r.consigneTitre}">
+                                    <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
+                                    <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
+                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                    </h:outputText>
+                                    <h:outputText value="—" rendered="#{r.consigne eq null}"/> °C
+                                </span>
                             </span>
                         </h:link>
                     </ui:repeat>

@@ -146,12 +146,19 @@ Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire pa
 Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.
 
 Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les éléments par glisser-déposer : le serveur vérifie ces règles avant que l'arbre ne bouge à l'écran.
+Sur téléphone, le bouton ⋮ de chaque élément ouvre ses actions (ajouter dedans, modifier ou déplacer, détacher, supprimer).
+
+### Consignes
+
+Une consigne donnée à un bâtiment ou à un étage vaut pour tout ce qu'il contient : une salle sans consigne propre suit celle de son étage, sinon celle de son bâtiment, et ses boîtiers la reçoivent. Les étages et salles qui ont leur propre consigne la gardent, avec leurs boîtiers, sauf si l'option « Forcer la consigne pour toutes les salles » est cochée : la nouvelle consigne remplace alors aussi la leur.
+
+La page d'un étage ou d'un bâtiment montre ses salles, et son graphique trace une courbe par salle (moyenne de ses boîtiers) plutôt qu'une par boîtier.
 
 ## Tableau de bord
 
 Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle.
 
-Chaque carte montre la moyenne de la salle, son écart à la consigne et la courbe des dernières 24 h (recalculée toutes les 5 minutes, ou avec « Actualiser »).
+Les pastilles du haut (stables, en chauffe, trop chaudes…) filtrent les salles ; un second clic les affiche toutes. Chaque carte montre la moyenne de la salle, son écart à la consigne et la courbe des dernières 24 h (recalculée toutes les 5 minutes, ou avec « Actualiser »).
 
 ## Interface
 

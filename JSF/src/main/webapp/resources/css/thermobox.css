@@ -341,9 +341,8 @@ a:hover > .tb-logo::before, .tb-logo:hover::before { transform: rotate(60deg) sc
     font-weight: 600;
     font-size: 1.05rem;
     text-decoration: none;
-    transition: border-radius var(--tb-medium) var(--tb-spring), transform var(--tb-medium) var(--tb-spring);
+    flex: none;
 }
-a.tb-avatar:hover { border-radius: var(--tb-shape-md); }
 .tb-avatar-on { box-shadow: 0 0 0 3px var(--md-surface), 0 0 0 5px var(--md-primary); }
 .tb-avatar-xl { width: 72px; height: 72px; font-size: 2rem; border-radius: var(--tb-shape-xl); }
 
@@ -448,6 +447,19 @@ a.tb-avatar:hover { border-radius: var(--tb-shape-md); }
     border-radius: 50%;
     background: var(--tone);
 }
+/* They filter the dashboard: a click keeps only the salles in that state */
+a.tb-summary-chip {
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-radius var(--tb-medium) var(--tb-spring), opacity var(--tb-fast) linear, box-shadow var(--tb-fast) linear;
+}
+a.tb-summary-chip:hover { box-shadow: var(--tb-elev-1); border-radius: var(--tb-shape-xl); }
+a.tb-summary-chip:active { transform: scale(.97); }
+.tb-chip-check { display: none; font-size: .8rem; }
+.tb-summary-chip.tb-chip-on { border-radius: var(--tb-shape-full); box-shadow: inset 0 0 0 2px var(--tone); padding-left: 14px; }
+.tb-summary-chip.tb-chip-on::before { display: none; }
+.tb-summary-chip.tb-chip-on .tb-chip-check { display: inline; }
+.tb-summary:has(.tb-chip-on) .tb-summary-chip:not(.tb-chip-on) { opacity: .55; }
 
 /* Chips (links) */
 .tb-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 24px; }
@@ -811,6 +823,68 @@ a.tb-crumb:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, trans
     border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
 .tb-hero-consigne strong { font-size: 1.6rem; font-weight: 500; letter-spacing: -.02em; }
+.tb-hero-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: var(--tb-shape-full);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    color: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.tb-hero-source .pi { font-size: .8rem; }
+
+/* "Some salles have their own consigne" + the switch that forces it on them */
+.tb-consigne-options {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-top: 20px;
+    padding: 16px 20px;
+    border-radius: var(--tb-shape-xl);
+    background: var(--md-surface-container-high);
+}
+.tb-consigne-options-icon { color: var(--md-primary); font-size: 1.2rem; }
+.tb-consigne-options-text { display: flex; flex-direction: column; flex: 1 1 260px; min-width: 0; }
+.tb-consigne-options-text span { color: var(--md-on-surface-variant); font-size: .9rem; }
+.tb-switch-row { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; }
+
+/* M3 switch (p:toggleSwitch) */
+:root body .ui-toggleswitch.tb-switch { width: 52px; height: 32px; flex: none; }
+:root body .ui-toggleswitch.tb-switch .ui-toggleswitch-slider {
+    border-radius: var(--tb-shape-full);
+    background: var(--md-surface-container-highest);
+    box-shadow: inset 0 0 0 2px var(--md-outline);
+}
+:root body .ui-toggleswitch.tb-switch .ui-toggleswitch-slider .ui-toggleswitch-handler,
+:root body .ui-toggleswitch.tb-switch .ui-toggleswitch-slider::before {
+    width: 16px;
+    height: 16px;
+    left: 6px;
+    margin-top: -8px;
+    background: var(--md-outline);
+    transition: transform var(--tb-medium) var(--tb-spring), width var(--tb-fast), height var(--tb-fast), margin var(--tb-fast), left var(--tb-fast);
+}
+:root body .ui-toggleswitch.tb-switch.ui-toggleswitch-checked .ui-toggleswitch-slider { background: var(--md-primary); box-shadow: none; }
+:root body .ui-toggleswitch.tb-switch.ui-toggleswitch-checked .ui-toggleswitch-slider .ui-toggleswitch-handler,
+:root body .ui-toggleswitch.tb-switch.ui-toggleswitch-checked .ui-toggleswitch-slider::before {
+    width: 24px;
+    height: 24px;
+    margin-top: -12px;
+    left: 2px;
+    background: var(--md-on-primary);
+    transform: translateX(20px);
+}
+:root body .ui-toggleswitch.tb-switch.ui-toggleswitch-focus .ui-toggleswitch-slider { box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 40%, transparent); }
+
+/* Salles of an étage / bâtiment */
+.tb-room-mini .tb-box-meta .tb-state { height: 26px; font-size: .78rem; padding: 0 10px 0 8px; }
+.tb-room-mini .tb-box-name .pi { color: var(--tone); }
+.tb-room-mini .tb-deg { color: var(--tone); }
 
 .tb-photo {
     position: relative;
@@ -1019,9 +1093,39 @@ a.tb-crumb:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, trans
 .ui-treenode-content:hover .tb-node-actions, .tb-node-actions:focus-within { opacity: 1; }
 :root body .tb-node-actions .ui-button.ui-button-icon-only { width: 40px; height: 40px; min-width: 40px; }
 :root body .tb-node-actions .ui-linkbutton > a { min-height: 0; }
+:root body .tb-node-actions .ui-button.tb-node-more { display: none; }
+
+/* Bottom sheet with the actions of a tree element (phones) */
+:root body .ui-dialog.tb-sheet {
+    width: min(560px, 100vw) !important;
+    border-radius: var(--tb-shape-xl) var(--tb-shape-xl) 0 0;
+    background: var(--md-surface-container-low);
+}
+:root body .ui-dialog.tb-sheet .ui-dialog-content { padding: 8px 0 calc(16px + env(safe-area-inset-bottom)); color: var(--md-on-surface); }
+.tb-sheet-handle { width: 32px; height: 4px; margin: 8px auto 16px; border-radius: 2px; background: var(--md-outline); opacity: .6; }
+.tb-sheet-head { display: flex; align-items: center; gap: 14px; padding: 0 24px 16px; border-bottom: 1px solid var(--md-outline-variant); }
+.tb-sheet-head > div { display: flex; flex-direction: column; min-width: 0; }
+.tb-sheet-head strong { font-size: 1.15rem; font-weight: 600; }
+.tb-sheet-list { display: flex; flex-direction: column; padding: 8px 0; }
+.tb-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 56px;
+    padding: 0 24px;
+    color: var(--md-on-surface);
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+.tb-sheet-item .pi { width: 24px; color: var(--md-on-surface-variant); font-size: 1.15rem; text-align: center; }
+.tb-sheet-item:active { background: color-mix(in srgb, var(--md-on-surface) 10%, transparent); }
+.tb-sheet-danger, .tb-sheet-danger .pi { color: var(--md-error); }
 @media (hover: none) { .tb-node-actions { opacity: 1; } }
 
 /* ============================== Login / registration ============================== */
+
+.tb-show-sm { display: none; }
 
 .tb-public .tb-main { max-width: 1100px; min-height: 100vh; display: flex; align-items: center; }
 .tb-auth {
@@ -1390,7 +1494,10 @@ a.tb-crumb:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, trans
 
 /* Shared elements (card → detail): spring */
 ::view-transition-group(*) { animation-duration: .55s; animation-timing-function: cubic-bezier(.3, 1.25, .5, 1); }
-::view-transition-group(tb-rail) { animation: none; }
+/* Navigation: swapped at once, otherwise the old and new active destinations show together */
+::view-transition-group(tb-rail), ::view-transition-group(tb-topbar) { animation: none; }
+::view-transition-old(tb-rail), ::view-transition-old(tb-topbar) { display: none; }
+::view-transition-new(tb-rail), ::view-transition-new(tb-topbar) { animation: none; }
 ::view-transition-image-pair(*.tb-card) { border-radius: var(--tb-shape-xl); overflow: hidden; }
 ::view-transition-old(*.tb-card), ::view-transition-new(*.tb-card) {
     width: 100%;
@@ -1439,7 +1546,6 @@ a.tb-crumb:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, trans
         view-transition-name: tb-topbar;
     }
     .tb-topbar .tb-avatar { width: 36px; height: 36px; margin: 0 4px; font-size: .95rem; }
-    ::view-transition-group(tb-topbar) { animation: none; }
 
     .tb-rail {
         inset: auto 0 0 0;
@@ -1489,13 +1595,65 @@ a.tb-crumb:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, trans
     .tb-auth > *:not(.tb-auth-brand) { grid-column: 1; }
     .tb-logo-xl { width: 80px; height: 80px; font-size: 2.2rem; }
 
-    /* Tree: name on its own line, temperature and actions below */
-    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content { align-items: flex-start; padding: 4px; }
-    :root body .ui-tree.tb-tree .ui-tree-toggler, .ui-tree.tb-tree .ui-treenode-leaf-icon { margin-top: 14px; }
-    .ui-tree.tb-tree .ui-treenode-children { padding-left: 12px; }
-    .tb-node { flex-wrap: wrap; row-gap: 4px; padding: 6px 0; }
-    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content .tb-node-main { flex: 1 1 100%; }
-    .tb-node-temp { width: auto; text-align: left; margin-left: 48px; }
-    .tb-node-temp .tb-muted { display: inline; margin-left: 6px; }
-    .tb-node-actions { width: auto; margin-left: auto; }
+    .tb-show-sm { display: inline; }
+
+    /* Main action as an extended FAB above the navigation bar */
+    :root body .ui-button.tb-fab {
+        position: fixed;
+        right: 16px;
+        bottom: calc(96px + env(safe-area-inset-bottom));
+        z-index: 45;
+        box-shadow: var(--tb-elev-3);
+    }
+
+    /* Tree: a list. Name, then kind and temperature below; actions behind ⋮ (bottom sheet). */
+    :root body .ui-tree.tb-tree { padding: 6px 4px; border-radius: var(--tb-shape-xl); }
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content { min-height: 64px; padding: 4px 0; border-radius: var(--tb-shape-lg); }
+    :root body .ui-tree.tb-tree .ui-tree-toggler { width: 28px; height: 28px; margin: 0 2px 0 0; }
+    .ui-tree.tb-tree .ui-treenode-leaf-icon { width: 30px; flex: none; }
+    .ui-tree.tb-tree .ui-treenode-children { margin-left: 14px; padding-left: 6px; border-left: 2px solid var(--md-outline-variant); }
+    .ui-tree.tb-tree .ui-tree-droppoint { height: 0; }
+    .tb-node {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "main actions" "temp actions";
+        column-gap: 4px;
+        row-gap: 0;
+    }
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content .tb-node-main { grid-area: main; flex-wrap: nowrap; }
+    .tb-node-main .tb-node-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .tb-node-main > .tb-muted { display: none; }
+    .tb-tree-icon { width: 32px; height: 32px; }
+    .tb-node-temp {
+        grid-area: temp;
+        width: auto;
+        margin-left: 42px;
+        text-align: left;
+        font-size: .9rem;
+        font-weight: 500;
+        color: var(--md-on-surface-variant);
+    }
+    .tb-node-temp .tb-muted { display: inline; margin-left: 6px; font-size: .8rem; }
+    .tb-node-actions { grid-area: actions; width: auto; align-self: center; opacity: 1; gap: 0; }
+    :root body .tb-node-actions > .ui-button:not(.tb-node-keep),
+    :root body .tb-node-actions > .ui-linkbutton:not(.tb-node-keep) { display: none; }
+    :root body .tb-node-actions .ui-button.tb-node-more { display: inline-flex; }
+    :root body .tb-node-actions .ui-button.ui-button-icon-only { width: 44px; height: 44px; min-width: 44px; }
+
+    :root body .ui-dialog.tb-sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0 !important; position: fixed !important; width: 100% !important; }
+}
+
+/* Touch screens: nothing stays "hovered" after a tap (see also thermobox.js for PrimeFaces buttons) */
+@media (hover: none) {
+    .tb-room:hover { border-radius: var(--tb-shape-xl); background: var(--md-surface-container-low); }
+    .tb-room:hover .tb-room-media { border-radius: 20px; }
+    .tb-room:hover .tb-room-media img { transform: none; }
+    .tb-room:hover .tb-spark-dot { box-shadow: 0 0 0 3px var(--md-surface-container-low); }
+    .tb-box:hover { border-radius: var(--tb-shape-xl); background: var(--md-surface-container-low); }
+    .tb-dest:hover .tb-dest-icon, .tb-icon-btn:hover, .tb-chip:hover, a.tb-crumb:hover { background: transparent; }
+    .tb-dest.tb-dest-on:hover .tb-dest-icon { background: var(--md-secondary-container); }
+    a.tb-summary-chip:hover { box-shadow: none; border-radius: var(--tb-shape-md); }
+    .tb-summary-chip.tb-chip-on:hover { border-radius: var(--tb-shape-full); box-shadow: inset 0 0 0 2px var(--tone); }
+    .tb-theme-btn:hover i { transform: none; }
+    .ui-tree.tb-tree .ui-treenode-content:hover { background: transparent; }
 }

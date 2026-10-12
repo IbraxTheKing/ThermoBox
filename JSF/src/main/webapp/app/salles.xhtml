@@ -16,15 +16,17 @@
                 </div>
                 <p:commandButton value="Nouveau bâtiment" icon="pi pi-plus" rendered="#{loginBean.admin}"
                                  action="#{salleBean.create('BATIMENT', null)}" process="@this"
-                                 update=":salleDlgForm" oncomplete="PF('salleDlg').show()" styleClass="tb-btn-lg"/>
+                                 update=":salleDlgForm" oncomplete="PF('salleDlg').show()" styleClass="tb-btn-lg tb-fab"/>
             </header>
 
             <p class="tb-lead">
                 Un bâtiment contient des étages ou directement des salles, une salle contient des boîtiers.
                 La température d'une salle est la moyenne de ses boîtiers.
                 Les boîtiers apparaissent ici d'eux-mêmes dès qu'ils se connectent.
-                <h:outputText rendered="#{loginBean.admin}"
+                <h:outputText rendered="#{loginBean.admin}" styleClass="tb-hide-sm"
                               value="Glisse un élément sur un autre pour l'y ranger, ou entre deux éléments du premier niveau pour le détacher."/>
+                <h:outputText rendered="#{loginBean.admin}" styleClass="tb-show-sm"
+                              value="Touche ⋮ sur un élément pour y ajouter, le modifier, le déplacer ou le supprimer."/>
             </p>
 
             <!-- onDrop: the server validates and saves the move first; a refused move never shows. -->
@@ -55,7 +57,7 @@
 
                         <span class="tb-node-actions">
                             <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle"
-                                          styleClass="ui-button-flat">
+                                          styleClass="ui-button-flat tb-node-keep">
                                 <f:param name="id" value="#{n.salle.id}"/>
                             </p:linkButton>
                             <p:commandButton icon="pi pi-plus" title="Ajouter dans « #{n.salle.name} »"
@@ -80,11 +82,71 @@
                                            message="Son historique est supprimé ; ce qu'il contient est gardé mais n'est plus rattaché."
                                            icon="pi pi-exclamation-triangle"/>
                             </p:commandButton>
+                            <!-- Phones: every action in a bottom sheet -->
+                            <p:commandButton icon="pi pi-ellipsis-v" title="Actions" rendered="#{loginBean.admin}"
+                                             action="#{salleBean.choisir(n)}" process="@this" update=":actionsForm"
+                                             oncomplete="PF('actionsDlg').show()"
+                                             styleClass="ui-button-flat tb-node-keep tb-node-more"/>
                         </span>
                     </span>
                 </p:treeNode>
             </p:tree>
         </h:form>
+
+        <!-- Bottom sheet (phones): actions on the element picked with ⋮ -->
+        <p:dialog widgetVar="actionsDlg" modal="true" resizable="false" draggable="false" showHeader="false"
+                  position="bottom" styleClass="tb-sheet" dismissibleMask="true" closeOnEscape="true">
+            <h:form id="actionsForm">
+                <h:panelGroup rendered="#{salleBean.selection ne null}">
+                    <div class="tb-sheet-handle"/>
+                    <div class="tb-sheet-head">
+                        <i class="pi #{salleBean.selection.icon} tb-tree-icon"/>
+                        <div>
+                            <strong>#{salleBean.selection.salle.name}</strong>
+                            <span class="tb-muted">
+                                #{salleBean.selection.kind.label}
+                                <h:outputText value=" · " rendered="#{salleBean.selection.temperature ne null}"/>
+                                <h:outputText value="#{salleBean.selection.temperature}"
+                                              rendered="#{salleBean.selection.temperature ne null}">
+                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                </h:outputText>
+                                <h:outputText value=" °C" rendered="#{salleBean.selection.temperature ne null}"/>
+                            </span>
+                        </div>
+                    </div>
+                    <nav class="tb-sheet-list">
+                        <h:link outcome="/app/salle" styleClass="tb-sheet-item">
+                            <f:param name="id" value="#{salleBean.selection.salle.id}"/>
+                            <i class="pi pi-eye"/>Voir le détail
+                        </h:link>
+                        <p:commandLink rendered="#{not empty salleBean.selection.kind.childKinds}" styleClass="tb-sheet-item"
+                                       action="#{salleBean.create(salleBean.selection.kind.childKinds[0], salleBean.selection.salle)}"
+                                       process="@this" update=":salleDlgForm"
+                                       oncomplete="PF('actionsDlg').hide(); PF('salleDlg').show()">
+                            <i class="pi pi-plus"/>Ajouter dedans
+                        </p:commandLink>
+                        <p:commandLink styleClass="tb-sheet-item" action="#{salleBean.edit(salleBean.selection.salle)}"
+                                       process="@this" update=":salleDlgForm"
+                                       oncomplete="PF('actionsDlg').hide(); PF('salleDlg').show()">
+                            <i class="pi pi-pencil"/>Modifier ou déplacer
+                        </p:commandLink>
+                        <p:commandLink rendered="#{salleBean.selection.rattache and salleBean.selection.kind ne 'BATIMENT'}"
+                                       styleClass="tb-sheet-item" action="#{salleBean.detacher(salleBean.selection.salle)}"
+                                       process="@this" update=":sallesForm:arbre" oncomplete="PF('actionsDlg').hide()">
+                            <i class="pi pi-link"/>Détacher
+                        </p:commandLink>
+                        <p:commandLink styleClass="tb-sheet-item tb-sheet-danger"
+                                       action="#{salleBean.delete(salleBean.selection.salle)}"
+                                       process="@this" update=":sallesForm:arbre" oncomplete="PF('actionsDlg').hide()">
+                            <i class="pi pi-trash"/>Supprimer
+                            <p:confirm header="Supprimer « #{salleBean.selection.salle.name} »"
+                                       message="Son historique est supprimé ; ce qu'il contient est gardé mais n'est plus rattaché."
+                                       icon="pi pi-exclamation-triangle"/>
+                        </p:commandLink>
+                    </nav>
+                </h:panelGroup>
+            </h:form>
+        </p:dialog>
 
         <p:dialog header="#{salleBean.editMode ? 'Modifier' : 'Ajouter'}" widgetVar="salleDlg" modal="true"
                   resizable="false" responsive="true" width="440">
