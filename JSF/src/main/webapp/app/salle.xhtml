@@ -26,15 +26,30 @@
         <h:form id="detail" rendered="#{salleDetailBean.salle ne null}">
             <div class="tb-header">
                 <!-- Transition : reçoit le nom de la carte du dashboard -->
-                <div>
+                <div class="tb-title">
                     <h1 style="view-transition-name: salle-nom-#{salleDetailBean.salle.id}">#{salleDetailBean.salle.name}</h1>
-                    <div class="tb-muted">
+                    <!-- Fil d'Ariane : chaque bâtiment / étage ouvre sa propre page -->
+                    <div class="tb-muted tb-breadcrumb">
                         #{salleDetailBean.kindLabel}
-                        <h:outputText value=" · #{salleDetailBean.chemin}" rendered="#{not empty salleDetailBean.chemin}"/>
+                        <ui:repeat value="#{salleDetailBean.ancetres}" var="a" varStatus="st">
+                            <span>#{st.first ? '·' : '›'}</span>
+                            <h:link outcome="/app/salle" value="#{a.name}">
+                                <f:param name="id" value="#{a.id}"/>
+                            </h:link>
+                        </ui:repeat>
                     </div>
                 </div>
-                <p:linkButton value="Bâtiments et salles" icon="pi pi-arrow-left" outcome="/app/salles"
-                              styleClass="ui-button-flat"/>
+                <div class="tb-nav">
+                    <p:commandButton id="favori" icon="pi #{salleDetailBean.favori ? 'pi-star-fill' : 'pi-star'}"
+                                     title="#{salleDetailBean.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
+                                     styleClass="ui-button-flat #{salleDetailBean.favori ? 'tb-fav-on' : ''}"
+                                     action="#{salleDetailBean.basculerFavori}" process="@this" update="@this"
+                                     rendered="#{salleDetailBean.salleSimple}"/>
+                    <p:linkButton value="Tableau de bord" icon="pi pi-home" outcome="/app/dashboard"
+                                  styleClass="ui-button-flat"/>
+                    <p:linkButton value="Bâtiments et salles" icon="pi pi-sitemap" outcome="/app/salles"
+                                  styleClass="ui-button-flat"/>
+                </div>
             </div>
 
             <!-- Étage / bâtiment : accès direct à ce qu'il contient -->

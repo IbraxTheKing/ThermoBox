@@ -33,10 +33,12 @@
 
                 <p:treeNode>
                     <span class="tb-node">
-                        <i class="pi #{n.icon} tb-tree-icon"/>
-                        <span class="tb-node-name">#{n.salle.name}</span>
-                        <span class="tb-muted">#{n.kind.label}</span>
-                        <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
+                        <span class="tb-node-main">
+                            <i class="pi #{n.icon} tb-tree-icon"/>
+                            <span class="tb-node-name">#{n.salle.name}</span>
+                            <span class="tb-muted">#{n.kind.label}</span>
+                            <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
+                        </span>
 
                         <span class="tb-node-temp">
                             <h:outputText value="#{n.temperature}" rendered="#{n.temperature ne null}">
@@ -44,7 +46,7 @@
                             </h:outputText>
                             <h:outputText value=" °C" rendered="#{n.temperature ne null}"/>
                             <h:outputText value="—" rendered="#{n.temperature eq null}"/>
-                            <h:outputText styleClass="tb-muted" value=" · #{n.boitiers} boîtier(s)"
+                            <h:outputText styleClass="tb-muted" value="#{n.boitiers} boîtier(s)"
                                           rendered="#{n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
                         </span>
 

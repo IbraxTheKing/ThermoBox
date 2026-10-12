@@ -1,0 +1,63 @@
+<!-- Carte d'une salle du tableau de bord. Attend la variable "r" (SalleResume). -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+    <p:card styleClass="tb-room tb-room-link"
+            style="view-transition-name: salle-card-#{r.salle.id}; view-transition-class: tb-card">
+        <!-- Stretched over the whole card (see .tb-stretched): click anywhere to open the detail. -->
+        <h:link outcome="/app/salle" styleClass="tb-stretched" title="Voir le détail de #{r.salle.name}">
+            <f:param name="id" value="#{r.salle.id}"/>
+            <span class="tb-sr-only">Voir le détail de #{r.salle.name}</span>
+        </h:link>
+
+        <p:commandButton icon="pi #{r.favori ? 'pi-star-fill' : 'pi-star'}"
+                         title="#{r.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
+                         styleClass="ui-button-flat tb-fav #{r.favori ? 'tb-fav-on' : ''}"
+                         action="#{dashboardBean.basculerFavori(r.salle.id)}" process="@this"
+                         update=":dashForm:grille"/>
+
+        <!-- Transition : le nom glisse vers le titre de la page détail -->
+        <div class="tb-room-name"
+             style="view-transition-name: salle-nom-#{r.salle.id}">#{r.salle.name}</div>
+        <div class="tb-muted">
+            <h:outputText value="#{r.chemin}" rendered="#{not empty r.chemin}"/>
+            <h:outputText value="Non rattachée" rendered="#{empty r.chemin}"/>
+        </div>
+
+        <!-- Transition : la moyenne glisse vers la carte "Moyenne" de la page détail -->
+        <div class="tb-hero-temp"
+             style="view-transition-name: salle-temp-#{r.salle.id}">
+            <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
+                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+            </h:outputText>
+            <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+            <span class="tb-unit">°</span>
+        </div>
+
+        <div class="tb-state">
+            <p:tag value="#{r.etat}" severity="#{r.etatSeverity}"/>
+        </div>
+
+        <div class="tb-pill">
+            Consigne
+            <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
+                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+            </h:outputText>
+            <h:outputText value="—" rendered="#{r.consigne eq null}"/>
+            °C
+            <span class="tb-delta">#{r.ecartLabel}</span>
+        </div>
+
+        <div class="tb-row">
+            <span class="tb-muted">
+                <i class="pi pi-wifi"/>#{r.boitiers}
+                <h:outputText value="#{r.derniereMesure}" rendered="#{r.derniereMesure ne null}">
+                    <f:convertDateTime type="localDateTime" pattern="' · 'dd/MM HH:mm"/>
+                </h:outputText>
+            </span>
+            <span class="tb-room-go">Détail <i class="pi pi-angle-right"/></span>
+        </div>
+    </p:card>
+</ui:composition>
