@@ -1,0 +1,72 @@
+name: Nightly pre-release
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # chaque jour à 02:00 UTC (04:00 à Paris en été, 03:00 en hiver)
+  workflow_dispatch:       # lancement manuel possible depuis l'onglet Actions
+
+permissions:
+  contents: write          # nécessaire pour créer le tag et la release
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0   # historique complet + tags, pour comparer avec la dernière nightly
+
+      - name: Nouveaux commits depuis la dernière nightly ?
+        id: check
+        run: |
+          last_tag=$(git tag --list 'nightly-*' --sort=-creatordate | head -n1)
+          if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$(git rev-parse HEAD)" ]; then
+            echo "Aucun nouveau commit depuis $last_tag, rien à publier."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Installer le JDK 23
+        if: steps.check.outputs.build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
+      # on compile et on package sans les lancer.
+      - name: Compiler (Maven)
+        if: steps.check.outputs.build == 'true'
+        run: mvn -B package -DskipTests
+
+      - name: Rassembler les livrables
+        if: steps.check.outputs.build == 'true'
+        run: |
+          mkdir -p dist
+          cp JSF/target/thermobox.war dist/
+          cp RestServer/target/RestServer-*.jar dist/
+          ls -l dist
+
+      - name: Créer la pre-release
+        if: steps.check.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="nightly-$(date -u +%Y%m%d)"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Relance manuelle le même jour : on remplace la release du jour
+            gh release delete "$tag" --yes --cleanup-tag
+            git push --delete origin "$tag" 2>/dev/null || true
+          fi
+          gh release create "$tag" dist/* \
+            --target "$(git rev-parse HEAD)" \
+            --prerelease \
+            --title "Nightly $(date -u +%Y-%m-%d)" \
+            --generate-notes
