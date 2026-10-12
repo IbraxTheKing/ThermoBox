@@ -48,18 +48,23 @@ jobs:
         if: steps.check.outputs.build == 'true'
         run: mvn -B -Pdeploy -DskipTests package
 
-      # Version : <dernière version stable>-nightly-<n>, ex. 26.10.1-nightly-3.
-      # La version stable est le plus grand tag de la forme X.Y.Z (ou vX.Y.Z) ; n repart à 1
-      # à chaque nouvelle version stable. Sans aucun tag stable : AA.M.0 du jour.
+      # Version : la version qui suivra la dernière stable, + -nightly-<n>.
+      # Dernière stable = plus grand tag X.Y.Z (ou vX.Y.Z) ; on prend X.Y.(Z+1) : en SemVer,
+      # 26.10.1-nightly-3 se classe après 26.10.0 et avant 26.10.1, ce qui est le cas réel.
+      # n repart à 1 à chaque nouvelle stable. Sans aucun tag stable : AA.M.0 du jour.
       - name: Version
         if: steps.check.outputs.build == 'true'
         id: version
         run: |
           stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
-          if [ -z "$stable" ]; then stable="$(date -u +%y).$(date -u +%-m).0"; fi
-          last=$(git tag --list "${stable}-nightly-*" | sed "s/^${stable}-nightly-//" | grep -E '^[0-9]+$' | sort -n | tail -n1 || true)
-          tag="${stable}-nightly-$(( ${last:-0} + 1 ))"
-          echo "Version stable : $stable -> $tag"
+          if [ -n "$stable" ]; then
+            base="${stable%.*}.$(( ${stable##*.} + 1 ))"
+          else
+            base="$(date -u +%y).$(date -u +%-m).0"
+          fi
+          last=$(git tag --list "${base}-nightly-*" | sed "s/^${base}-nightly-//" | grep -E '^[0-9]+$' | sort -n | tail -n1 || true)
+          tag="${base}-nightly-$(( ${last:-0} + 1 ))"
+          echo "Dernière stable : ${stable:-aucune} -> $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # Les trois fichiers de deploy/, plus le dossier entier dans une archive
