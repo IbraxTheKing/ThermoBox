@@ -151,6 +151,16 @@ Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les é
 
 Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle.
 
+Chaque carte montre la moyenne de la salle, son écart à la consigne et la courbe des dernières 24 h (recalculée toutes les 5 minutes, ou avec « Actualiser »).
+
+## Interface
+
+Le thème suit Material Design 3, en bleu, avec un mode clair et un mode sombre. Le bouton lune / soleil change de mode ; le choix est gardé dans un cookie `thermobox-theme`, et tant qu'il n'a pas servi, la page suit le réglage du système. PrimeFaces utilise `saga` en mode clair et `vela` en mode sombre. La police Roboto Flex est servie par l'application (`resources/fonts`, licence OFL).
+
+## Photos des salles
+
+Chaque élément (salle, étage, bâtiment) peut avoir une photo, ajoutée ou retirée par un administrateur depuis sa page. Elle est enregistrée dans la table `salle_image`, à part de `salle`, pour que charger les salles ne charge jamais les images. Le fichier envoyé (10 Mo au plus) est décodé, redressé selon son orientation EXIF, réduit à 1600 px et réenregistré en JPEG : un fichier qui n'est pas une image est refusé, et les métadonnées (position GPS d'une photo de téléphone…) disparaissent. Les photos sont servies sur `/media/salle/{id}`, aux seuls utilisateurs connectés.
+
 ## Données de démonstration
 
 - `DatabaseSeeder` (`Business/src/test/kotlin/DBPopulate.kt`) crée 3 bâtiments, leurs étages et salles, 27 boîtiers (dont 2 non rattachés), un utilisateur par rôle (`admin`, `gestionnaire`, `viewer`, mot de passe `password123`) et 3 jours d'historique. Il se lance avec les mêmes variables d'environnement que l'application, et peut être relancé sans doublon.

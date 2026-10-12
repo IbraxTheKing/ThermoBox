@@ -9,14 +9,17 @@
 
     <ui:define name="content">
         <h:form id="sallesForm">
-            <div class="tb-header">
-                <h1>Bâtiments et salles</h1>
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">Organisation</span>
+                    <h1>Bâtiments et salles</h1>
+                </div>
                 <p:commandButton value="Nouveau bâtiment" icon="pi pi-plus" rendered="#{loginBean.admin}"
                                  action="#{salleBean.create('BATIMENT', null)}" process="@this"
-                                 update=":salleDlgForm" oncomplete="PF('salleDlg').show()"/>
-            </div>
+                                 update=":salleDlgForm" oncomplete="PF('salleDlg').show()" styleClass="tb-btn-lg"/>
+            </header>
 
-            <p class="tb-muted">
+            <p class="tb-lead">
                 Un bâtiment contient des étages ou directement des salles, une salle contient des boîtiers.
                 La température d'une salle est la moyenne de ses boîtiers.
                 Les boîtiers apparaissent ici d'eux-mêmes dès qu'ils se connectent.

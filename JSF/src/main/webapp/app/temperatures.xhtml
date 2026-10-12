@@ -9,42 +9,45 @@
 
     <ui:define name="content">
         <h:form id="tempForm">
-            <div class="tb-header">
-                <h1>Températures</h1>
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">Historique brut</span>
+                    <h1>Mesures et consignes</h1>
+                </div>
                 <p:commandButton value="Ajouter" icon="pi pi-plus" rendered="#{loginBean.admin}"
                                  action="#{temperatureBean.create}" process="@this"
-                                 update=":tempDlgForm" oncomplete="PF('tempDlg').show()"/>
-            </div>
+                                 update=":tempDlgForm" oncomplete="PF('tempDlg').show()" styleClass="tb-btn-lg"/>
+            </header>
 
             <!-- Moyennes -->
-            <div class="tb-grid">
-                <p:card>
-                    <div class="tb-muted">Moyenne des mesures</div>
-                    <div class="tb-temp">
+            <div class="tb-stats">
+                <div class="tb-stat tb-stat-primary">
+                    <span class="tb-stat-label"><i class="pi pi-wifi"/> Moyenne des mesures</span>
+                    <span class="tb-temp-l">
                         <h:outputText value="#{temperatureBean.moyenneMesure.value}"
                                       rendered="#{temperatureBean.moyenneMesure ne null}">
                             <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                         </h:outputText>
                         <h:outputText value="—" rendered="#{temperatureBean.moyenneMesure eq null}"/>
-                        <span class="tb-unit">°C</span>
-                    </div>
-                </p:card>
-                <p:card>
-                    <div class="tb-muted">Moyenne des consignes</div>
-                    <div class="tb-temp tb-consigne">
+                        <span class="tb-deg">°C</span>
+                    </span>
+                </div>
+                <div class="tb-stat tb-stat-tertiary">
+                    <span class="tb-stat-label"><i class="pi pi-sliders-h"/> Moyenne des consignes</span>
+                    <span class="tb-temp-l">
                         <h:outputText value="#{temperatureBean.moyenneConsigne.value}"
                                       rendered="#{temperatureBean.moyenneConsigne ne null}">
                             <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                         </h:outputText>
                         <h:outputText value="—" rendered="#{temperatureBean.moyenneConsigne eq null}"/>
-                        <span class="tb-unit">°C</span>
-                    </div>
-                </p:card>
+                        <span class="tb-deg">°C</span>
+                    </span>
+                </div>
             </div>
 
             <!-- Filtre par type -->
             <div class="tb-row">
-                <p:selectOneButton value="#{temperatureBean.filtre}">
+                <p:selectOneButton value="#{temperatureBean.filtre}" styleClass="tb-segmented-select">
                     <f:selectItem itemLabel="Toutes" itemValue="tous"/>
                     <f:selectItem itemLabel="Mesures" itemValue="mesurer"/>
                     <f:selectItem itemLabel="Consignes" itemValue="consigne"/>
@@ -53,7 +56,7 @@
             </div>
 
             <p:dataTable id="table" value="#{temperatureBean.temperatures}" var="t" rows="20" paginator="true"
-                         paginatorAlwaysVisible="false" emptyMessage="Aucune température" stripedRows="true">
+                         paginatorAlwaysVisible="false" emptyMessage="Aucune température" styleClass="tb-table">
                 <p:column headerText="Type" styleClass="tb-col-type">
                     <p:tag value="#{temperatureBean.typeOf(t)}"
                            severity="#{temperatureBean.typeOf(t) eq 'Consigne' ? 'info' : 'warning'}"/>

@@ -9,14 +9,18 @@
 
     <ui:define name="content">
         <h:form id="usersForm">
-            <div class="tb-header">
-                <h1>Utilisateurs</h1>
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">Administration</span>
+                    <h1>Utilisateurs</h1>
+                </div>
                 <p:commandButton value="Nouvel utilisateur" icon="pi pi-user-plus" action="#{userBean.create}"
-                                 process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"/>
-            </div>
+                                 process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"
+                                 styleClass="tb-btn-lg"/>
+            </header>
 
             <p:dataTable id="table" value="#{userBean.users}" var="u" rows="20" paginator="true"
-                         paginatorAlwaysVisible="false" emptyMessage="Aucun utilisateur" stripedRows="true">
+                         paginatorAlwaysVisible="false" emptyMessage="Aucun utilisateur" styleClass="tb-table">
                 <p:column headerText="Nom d'utilisateur" sortBy="#{u.username}" filterBy="#{u.username}"
                           filterMatchMode="contains">
                     <h:outputText value="#{u.username}"/>

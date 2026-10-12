@@ -16,6 +16,7 @@ object Services {
     val hierarchie get() = BusinessFactory.getHierarchieService()
     val climat get() = BusinessFactory.getClimatService()
     val favoris get() = BusinessFactory.getFavoriService()
+    val images get() = BusinessFactory.getSalleImageService()
 
     val driver: ProtocolDriver get() = BusinessFactory.getDriver()
 }
