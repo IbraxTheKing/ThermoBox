@@ -5,6 +5,11 @@ import jakarta.persistence.*
 // Open because Etage, Batiment and Boitier extend it (single table, one row per kind).
 @Entity
 @Table(name = "salle")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(
+    name = "DTYPE",
+    discriminatorType = DiscriminatorType.STRING
+)
 open class Salle() {
 
     @Column(name = "name")
