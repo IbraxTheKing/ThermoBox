@@ -34,10 +34,10 @@
     --md-tertiary: #6553c4;
     --md-tertiary-container: #ded8fa;
     --md-on-tertiary-container: #241a5a;
-    --md-error: #c0312b;
+    --md-error: #d93a32;
     --md-on-error: #ffffff;
-    --md-error-container: #fbd9d5;
-    --md-on-error-container: #5c0b07;
+    --md-error-container: #fde1dd;
+    --md-on-error-container: #b3261e;
 
     --md-surface: #bccde2;
     --md-surface-container-lowest: #f4f8fd;
@@ -74,12 +74,13 @@
     --tb-brand: linear-gradient(140deg, #3d7cf0, #2bb3d1);
 
     /* Where a salle stands against its consigne */
-    --tb-stable: #17783b;
-    --tb-stable-container: #cdeed6;
-    --tb-on-stable-container: #06341a;
-    --tb-chauffe: #a35a00;
-    --tb-chauffe-container: #fde1c1;
-    --tb-on-chauffe-container: #3a1d00;
+    /* Light theme: lively tones, the text in the same hue rather than near-black */
+    --tb-stable: #1f9d55;
+    --tb-stable-container: #dbf5e4;
+    --tb-on-stable-container: #17773f;
+    --tb-chauffe: #e07b0b;
+    --tb-chauffe-container: #feeacf;
+    --tb-on-chauffe-container: #a85500;
     --tb-star: #b07a00;
     --tb-star-container: #ffe7a8;
     --tb-on-star-container: #3d2a00;
@@ -1535,6 +1536,7 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 
 /* Active destination of the navigation pops in on each page */
 .tb-dest.tb-dest-on .tb-dest-icon { animation: tb-dest-in .5s var(--tb-spring); }
+.tb-carte .tb-dest.tb-dest-on .tb-dest-icon { animation: none; } /* dashboard ↔ salle: only the card moves */
 @keyframes tb-dest-in { from { transform: scale(.55); opacity: .3; } }
 
 /* Dialogs rise in, the bottom sheet slides up, a new photo fades in */

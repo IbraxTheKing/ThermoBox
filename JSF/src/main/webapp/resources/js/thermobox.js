@@ -180,7 +180,17 @@ var tbAnim = (function () {
     var root = document.documentElement;
     var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (!reduced) {
+    // Dashboard ↔ salle: the card morphs into the page (view transition), nothing else pops in.
+    var carte = false;
+    try {
+        var ref = new URL(document.referrer);
+        var vers = location.pathname, depuis = ref.origin === location.origin ? ref.pathname : '';
+        carte = (/\/app\/salle\.xhtml$/.test(vers) && /\/app\/dashboard\.xhtml$/.test(depuis))
+             || (/\/app\/dashboard\.xhtml$/.test(vers) && /\/app\/salle\.xhtml$/.test(depuis));
+    } catch (e) { /* no referrer: first visit */ }
+
+    if (carte) root.classList.add('tb-carte');
+    if (!reduced && !carte) {
         root.classList.add('tb-entering');
         setTimeout(function () { root.classList.remove('tb-entering'); }, 1600);
     }
