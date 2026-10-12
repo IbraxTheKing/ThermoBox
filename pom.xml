@@ -103,4 +103,18 @@
   </build>
 
 
+  <!--
+      Deployment build: mvn -Pdeploy -DskipTests package
+      Produces deploy/base.jar, deploy/RestServer.jar and deploy/JsfServer.war.
+      Without -Pdeploy nothing changes (development, IDE and nightly builds).
+  -->
+  <profiles>
+    <profile>
+      <id>deploy</id>
+      <modules>
+        <module>Base</module>
+      </modules>
+    </profile>
+  </profiles>
+
 </project>

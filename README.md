@@ -108,6 +108,25 @@ Le module `JSF` produit une archive WAR nommée `thermobox.war`.
 
 Après compilation, déployez cette archive dans un conteneur compatible Jakarta Faces et Jakarta Servlet, par exemple Tomcat 10.1. Le point d'entrée de l'interface est `index.xhtml`.
 
+## Déploiement
+
+Le profil Maven `deploy` produit les trois livrables dans le dossier `deploy/` à la racine :
+
+```bash
+mvn -Pdeploy -DskipTests clean package
+```
+
+| Fichier | Contenu |
+|---|---|
+| `base.jar` | `ibr-utils`, `Common`, `Persistence` et `Business` réunis (module `Base`), avec `persistence.xml` |
+| `RestServer.jar` | Le serveur REST, exécutable, avec Jersey, Jetty et les bibliothèques tierces. Il charge `base.jar` posé à côté de lui |
+| `JsfServer.war` | L'interface JSF, avec `base.jar` dans `WEB-INF/lib` à la place des quatre modules séparés |
+
+- API REST : placer `RestServer.jar` et `base.jar` dans le même dossier, puis lancer `java -jar RestServer.jar` avec les variables d'environnement ci-dessus.
+- Interface JSF : copier `JsfServer.war` dans le dossier `webapps` de Tomcat. L'application répond alors sur `/JsfServer` (renommer le fichier pour changer ce chemin).
+
+Sans `-Pdeploy`, le build reste celui du développement (`thermobox.war`, jars par module).
+
 ## Rôles et sécurité
 
 Les autorisations sont vérifiées côté serveur, dans l'API comme dans l'interface JSF. Côté API, les annotations des ressources définissent les rôles autorisés pour les opérations protégées.

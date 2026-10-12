@@ -170,4 +170,57 @@
             </plugin>
         </plugins>
     </build>
+    <!--
+        Deployment build (mvn -Pdeploy, from the root): deploy/JsfServer.war, where base.jar
+        replaces the separate ibr-utils / Common / Persistence / Business jars in WEB-INF/lib.
+        Their third-party libraries (EclipseLink, MySQL, java-jwt, Paho…) stay in the war.
+        Deployed as-is, the app answers on /JsfServer; rename the war to change the context path.
+    -->
+    <profiles>
+        <profile>
+            <id>deploy</id>
+            <dependencies>
+                <dependency>
+                    <groupId>ax.ibr</groupId>
+                    <artifactId>base</artifactId>
+                    <version>1.0-SNAPSHOT</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <finalName>JsfServer</finalName>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <configuration>
+                            <!-- Already inside base.jar: keeping them would load every class
+                                 (and persistence.xml) twice. One line: the list is split on commas only. -->
+                            <packagingExcludes>WEB-INF/lib/ibr-utils-*.jar,WEB-INF/lib/Common-*.jar,WEB-INF/lib/Persistence-*.jar,WEB-INF/lib/Business-*.jar</packagingExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-to-deploy</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <copy file="${project.build.directory}/JsfServer.war"
+                                              tofile="${project.basedir}/../deploy/JsfServer.war"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
