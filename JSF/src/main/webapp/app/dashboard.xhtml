@@ -17,69 +17,75 @@
 
             <p:poll interval="30" listener="#{dashboardBean.refresh}" update="grille"/>
 
-            <h:panelGroup id="grille" layout="block">
-                <p:staticMessage severity="warn" style="width:100%"
-                                 summary="#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)"
-                                 detail="Leurs mesures ne comptent dans aucune salle tant qu'ils ne sont pas rattachés."
-                                 rendered="#{dashboardBean.boitiersNonRattaches gt 0}"/>
+            <!-- Filtres : en dehors de "grille" pour garder le focus pendant la saisie -->
+            <div class="tb-toolbar">
+                <span class="ui-input-icon-left tb-search">
+                    <i class="pi pi-search"/>
+                    <p:inputText id="recherche" value="#{dashboardBean.recherche}"
+                                 placeholder="Rechercher une salle, un étage, un bâtiment…"
+                                 autocomplete="off">
+                        <p:ajax event="keyup" delay="250" listener="#{dashboardBean.filtrer}" update="grille"/>
+                    </p:inputText>
+                </span>
+                <p:selectOneMenu id="batiment" value="#{dashboardBean.batimentId}" styleClass="tb-filter">
+                    <f:selectItem itemLabel="Tous les bâtiments" itemValue="#{null}" noSelectionOption="true"/>
+                    <f:selectItems value="#{dashboardBean.batiments}" var="b" itemLabel="#{b.name}"
+                                   itemValue="#{b.id}"/>
+                    <f:selectItem itemLabel="Sans bâtiment" itemValue="#{-1}"/>
+                    <p:ajax listener="#{dashboardBean.filtrer}" update="grille"/>
+                </p:selectOneMenu>
+            </div>
 
-                <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty dashboardBean.resumes}">
+            <h:panelGroup id="grille" layout="block">
+                <h:panelGroup layout="block" styleClass="tb-alert" rendered="#{dashboardBean.boitiersNonRattaches gt 0}">
+                    <p:staticMessage severity="warn" style="width:100%"
+                                     summary="#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)"
+                                     detail="Leurs mesures ne comptent dans aucune salle tant qu'ils ne sont pas rattachés."/>
+                    <p:linkButton value="Les ranger" icon="pi pi-arrow-right" iconPos="right" outcome="/app/salles"
+                                  rendered="#{loginBean.admin}" styleClass="ui-button-flat"/>
+                </h:panelGroup>
+
+                <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.vide}">
                     Aucune salle n'est enregistrée pour le moment.
                     <p:linkButton value="Gérer les bâtiments et salles" outcome="/app/salles"
                                   styleClass="ui-button-flat"/>
                 </h:panelGroup>
 
-                <div class="tb-grid">
-                    <ui:repeat value="#{dashboardBean.resumes}" var="r">
-                        <p:card styleClass="tb-room"
-                                style="view-transition-name: salle-card-#{r.salle.id}; view-transition-class: tb-card">
-                            <!-- Transition : le nom glisse vers le titre de la page détail -->
-                            <div class="tb-room-name"
-                                 style="view-transition-name: salle-nom-#{r.salle.id}">#{r.salle.name}</div>
-                            <div class="tb-muted">
-                                <h:outputText value="#{r.chemin}" rendered="#{not empty r.chemin}"/>
-                                <h:outputText value="Non rattachée" rendered="#{empty r.chemin}"/>
-                            </div>
+                <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.aucunResultat}">
+                    Aucune salle ne correspond à ta recherche.
+                    <p:commandButton value="Effacer les filtres" icon="pi pi-times" action="#{dashboardBean.effacerFiltres}"
+                                     process="@this" update="@form" styleClass="ui-button-flat"/>
+                </h:panelGroup>
 
-                            <!-- Transition : la moyenne glisse vers la carte "Moyenne" de la page détail -->
-                            <div class="tb-hero-temp"
-                                 style="view-transition-name: salle-temp-#{r.salle.id}">
-                                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
+                <h:panelGroup layout="block" styleClass="tb-section" rendered="#{not empty dashboardBean.favoris}">
+                    <h2 class="tb-section-title"><i class="pi pi-star-fill tb-fav-on"/> Favoris</h2>
+                    <div class="tb-grid">
+                        <ui:repeat value="#{dashboardBean.favoris}" var="r">
+                            <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
+                        </ui:repeat>
+                    </div>
+                </h:panelGroup>
+
+                <ui:repeat value="#{dashboardBean.groupes}" var="g">
+                    <section class="tb-section">
+                        <h2 class="tb-section-title">
+                            <i class="pi #{g.batiment ne null ? 'pi-building' : 'pi-inbox'}"/> #{g.nom}
+                            <span class="tb-muted">
+                                #{g.salles.size()} salle(s)
+                                <h:outputText value=" · moyenne " rendered="#{g.moyenne ne null}"/>
+                                <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>
-                                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
-                                <span class="tb-unit">°</span>
-                            </div>
-
-                            <div class="tb-state">
-                                <p:tag value="#{r.etat}" severity="#{r.etatSeverity}"/>
-                            </div>
-
-                            <div class="tb-pill">
-                                Consigne
-                                <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
-                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                </h:outputText>
-                                <h:outputText value="—" rendered="#{r.consigne eq null}"/>
-                                °C
-                                <span class="tb-delta">#{r.ecartLabel}</span>
-                            </div>
-
-                            <div class="tb-row">
-                                <span class="tb-muted">
-                                    <i class="pi pi-wifi"/>#{r.boitiers}
-                                    <h:outputText value="#{r.derniereMesure}" rendered="#{r.derniereMesure ne null}">
-                                        <f:convertDateTime type="localDateTime" pattern="' · 'dd/MM HH:mm"/>
-                                    </h:outputText>
-                                </span>
-                                <p:linkButton value="Détail" icon="pi pi-chart-line" outcome="/app/salle"
-                                              styleClass="ui-button-flat">
-                                    <f:param name="id" value="#{r.salle.id}"/>
-                                </p:linkButton>
-                            </div>
-                        </p:card>
-                    </ui:repeat>
-                </div>
+                                <h:outputText value=" °C" rendered="#{g.moyenne ne null}"/>
+                            </span>
+                        </h2>
+                        <div class="tb-grid">
+                            <ui:repeat value="#{g.salles}" var="r">
+                                <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
+                            </ui:repeat>
+                        </div>
+                    </section>
+                </ui:repeat>
             </h:panelGroup>
         </h:form>
     </ui:define>

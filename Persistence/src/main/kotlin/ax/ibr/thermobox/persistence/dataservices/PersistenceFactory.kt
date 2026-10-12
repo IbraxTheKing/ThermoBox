@@ -1,10 +1,12 @@
 package ax.ibr.thermobox.persistence.dataservices
 
+import ax.ibr.thermobox.common.entities.Favori
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleSalleAttr
 import ax.ibr.thermobox.common.entities.SalleTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.persistence.jpa.FavoriDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
@@ -42,6 +44,10 @@ object PersistenceFactory {
         if (JDBC) TODO("JDBC version") else SalleSalleAttrDataServiceJPAImpl(emf, SalleSalleAttr::class.java)
     }
 
+    private val favoriService: FavoriDataService by lazy {
+        if (JDBC) TODO("JDBC version") else FavoriDataServiceJPAImpl(emf, Favori::class.java)
+    }
+
     fun getUserDataService(): UserDataService = userService
 
     fun getSalleDataService(): SalleDataService = salleService
@@ -51,6 +57,8 @@ object PersistenceFactory {
     fun getTemperatureDataService(): TemperatureDataService = temperatureService
 
     fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
+
+    fun getFavoriDataService(): FavoriDataService = favoriService
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()

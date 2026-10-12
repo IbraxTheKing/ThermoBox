@@ -1268,7 +1268,7 @@ body .ui-selectonebutton .ui-button { min-height: 2.2rem; padding: 0 1.1rem !imp
 
 /* ---------- Arbre bâtiments → étages → salles → boîtiers (même verre que les tableaux) ---------- */
 .ui-tree.tb-tree {
-    width: 100%; box-sizing: border-box; padding: .6rem;
+    width: 100%; box-sizing: border-box; padding: .5rem .6rem;
     background: linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.045)) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius) !important;
@@ -1276,25 +1276,88 @@ body .ui-selectonebutton .ui-button { min-height: 2.2rem; padding: 0 1.1rem !imp
     -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur);
     color: var(--tb-text) !important;
 }
-.tb-tree .ui-treenode-content {
+/* PrimeFaces sets "flex: none" on everything inside a node: the selectors below must be as specific. */
+.ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content {
     display: flex !important; align-items: center; width: 100%; box-sizing: border-box;
-    border-radius: var(--tb-radius-sm); padding: .15rem .35rem;
+    border-radius: var(--tb-radius-sm); padding: 0 .35rem; min-height: 2.6rem;
 }
-.tb-tree .ui-treenode-content:hover { background: rgba(255, 255, 255, .06); }
-.tb-tree .ui-treenode-content.ui-state-hover { background: rgba(140, 236, 242, .16) !important; outline: 1px dashed var(--tb-cyan); }
-.tb-tree .ui-treenode-label { flex: 1; min-width: 0; color: var(--tb-text) !important; }
-.tb-tree .ui-tree-toggler { color: var(--tb-text-soft) !important; }
-.tb-tree .ui-tree-droppoint.ui-state-hover { height: .4rem; background: var(--tb-cyan) !important; border-radius: 4px; }
-.tb-tree .ui-treenode-content.ui-draggable { cursor: grab; }
+.ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content .ui-treenode-label {
+    flex: 1 1 auto; min-width: 0; padding: .2rem .3rem; color: var(--tb-text) !important; background: none !important;
+}
+.ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content .tb-node-main { flex: 1 1 auto; }
+.ui-tree.tb-tree .ui-treenode-content:hover { background: rgba(255, 255, 255, .06); }
+.ui-tree.tb-tree .ui-treenode-content.ui-state-hover { background: rgba(140, 236, 242, .16) !important; outline: 1px dashed var(--tb-cyan); }
+.ui-tree.tb-tree .ui-tree-toggler { color: var(--tb-text-soft) !important; }
+.ui-tree.tb-tree .ui-treenode-children { padding-left: 1.4rem; }
+.ui-tree.tb-tree .ui-tree-droppoint { height: 3px; }
+.ui-tree.tb-tree .ui-tree-droppoint.ui-state-hover { height: .4rem; background: var(--tb-cyan) !important; border-radius: 4px; }
+.ui-tree.tb-tree .ui-treenode-content.ui-draggable { cursor: grab; }
 
-.tb-node { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .6rem; width: 100%; }
+/* Name on the left; temperature and actions in fixed columns on the right, aligned on every row. */
+.tb-node { display: flex; align-items: center; gap: .6rem; width: 100%; }
+.tb-node-main { display: flex; align-items: center; flex-wrap: wrap; gap: .2rem .55rem; min-width: 0; }
 .tb-node-name { font-weight: 600; }
-.tb-node-temp { margin-left: auto; white-space: nowrap; }
-.tb-node-actions { display: inline-flex; gap: .15rem; }
-.tb-node-actions .ui-button.ui-button-icon-only { --tb-btn-h: 2.1rem; }
-.tb-tree-icon { color: var(--tb-cyan); vertical-align: -.1em; }
+.tb-node-main .tb-muted { font-size: .82rem; }
+.tb-node-temp { width: 9.5rem; flex: none; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tb-node-temp .tb-muted { display: block; font-size: .75rem; line-height: 1.1; }
+.tb-node-actions { width: 11.5rem; flex: none; display: inline-flex; justify-content: flex-end; gap: .1rem; opacity: .45; transition: opacity .15s ease; }
+.ui-treenode-content:hover .tb-node-actions, .tb-node-actions:focus-within { opacity: 1; }
+/* Smaller round buttons than elsewhere: 5 per row must fit the fixed column. */
+body .tb-node-actions .ui-button.ui-button-icon-only { width: 2.1rem; height: 2.1rem; min-width: 2.1rem; min-height: 2.1rem; }
+body .tb-node-actions .ui-linkbutton > a { min-height: 0; }
+.tb-tree-icon { color: var(--tb-cyan); flex: none; }
+
+@media (hover: none) { .tb-node-actions { opacity: 1; } }
+@media (max-width: 640px) {
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content { align-items: flex-start; }
+    .ui-tree.tb-tree .ui-tree-toggler, .ui-tree.tb-tree .ui-treenode-leaf-icon { margin-top: .55rem; }
+    .ui-tree.tb-tree .ui-treenode-children { padding-left: .7rem; }
+    .tb-node { flex-wrap: wrap; row-gap: .2rem; padding: .3rem 0; }
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content .tb-node-main { flex: 1 1 100%; }
+    .tb-node-temp { width: auto; text-align: left; }
+    .tb-node-temp .tb-muted { display: inline; margin-left: .4rem; }
+    .tb-node-actions { width: auto; margin-left: auto; }
+}
+
+/* ---------- Tableau de bord : filtres, sections, favoris, carte cliquable ---------- */
+.tb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 0 0 1.25rem; }
+.tb-search { flex: 1 1 18rem; }
+.tb-search > .ui-inputfield { width: 100%; }
+.tb-toolbar .tb-filter { flex: 0 1 16rem; min-width: 12rem; }
+
+/* The warning sat right on the cards: give it room, with the admin shortcut next to it. */
+.tb-alert { display: flex; align-items: center; gap: .75rem; margin: 0 0 1.75rem; }
+.tb-alert .ui-staticmessage { flex: 1; margin: 0 !important; }
+
+.tb-section { margin: 0 0 .5rem; }
+.tb-section-title {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: .3rem .6rem;
+    font-size: 1.15rem; font-weight: 650; letter-spacing: -.01em; margin: 0 0 .85rem;
+}
+.tb-section-title .pi { color: var(--tb-cyan); font-size: 1rem; }
+.tb-section-title .tb-muted { font-size: .85rem; font-weight: 400; }
+
+/* Whole card clickable: the link's ::after covers the card; the star sits above it. */
+.tb-room-link { cursor: pointer; }
+.tb-stretched::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.tb-stretched:focus-visible { outline: none; }
+.tb-stretched:focus-visible::after { box-shadow: inset 0 0 0 2px var(--tb-cyan); }
+.tb-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body .ui-button.tb-fav { position: absolute; top: .7rem; right: .7rem; z-index: 2; }
+.tb-fav-on, body .ui-button.tb-fav-on .ui-icon { color: var(--tb-orange) !important; }
+.tb-room-go { color: var(--tb-text-soft); font-weight: 600; font-size: .92rem; transition: transform .2s ease; }
+.tb-room-link:hover .tb-room-go { transform: translateX(3px); color: var(--tb-text); }
+
+/* Detail page: way back to the dashboard or the whole structure. */
+.tb-nav { display: flex; flex-wrap: wrap; gap: .4rem; }
+.tb-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .4rem; }
+.tb-breadcrumb a { color: var(--tb-text-soft); text-decoration: none; }
+.tb-breadcrumb a:hover { color: var(--tb-text); text-decoration: underline; }
 
 @media (max-width: 640px) {
-    .tb-node-temp { margin-left: 0; }
-    .tb-node-actions { width: 100%; }
+    .tb-toolbar .tb-filter { flex: 1 1 100%; }
+    .tb-alert { flex-direction: column; align-items: stretch; }
+    /* Same as the other headers on mobile: title and round buttons on one line. */
+    .tb-header .tb-title { flex: 1 1 auto; min-width: 0; }
+    .tb-nav { flex: none; flex-wrap: nowrap; }
 }

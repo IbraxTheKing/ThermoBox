@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.business.implementations
 
 import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.SalleSalleAttrService
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
@@ -15,6 +16,7 @@ class SalleServiceImpl(
     // Only needed by remove(); lazy so tests of the other methods don't open the database.
     private val links: SalleSalleAttrService by lazy { PersistenceFactory.getSalleSalleAttrDataService() }
     private val history: SalleTempAttrService by lazy { PersistenceFactory.getSalleTempAttrDataService() }
+    private val favoris: FavoriService by lazy { PersistenceFactory.getFavoriDataService() }
 
     override fun getAllByType(c: Salle) : List<Salle> {
         return salleService.getAllByType(c)
@@ -33,10 +35,11 @@ class SalleServiceImpl(
     }
 
     /**
-     * Deletes the element with its history. Its links go too: its children are kept but become
-     * unattached. Without this the foreign keys would block the delete.
+     * Deletes the element with its history and the favourites pointing to it. Its links go too:
+     * its children are kept but become unattached. Without this the foreign keys would block the delete.
      */
     override fun remove(t: Salle) {
+        favoris.getBySalle(t).forEach { favoris.remove(it) }
         links.getBySalle(t).forEach { links.remove(it) }
         history.getBySalle(t).orEmpty().forEach { history.remove(it) }
         salleService.remove(t)

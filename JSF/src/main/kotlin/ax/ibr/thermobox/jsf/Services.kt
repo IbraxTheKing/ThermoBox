@@ -2,6 +2,7 @@ package ax.ibr.thermobox.jsf
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.common.entities.Favori
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.User
 
@@ -14,6 +15,7 @@ object Services {
     val users get() = BusinessFactory.getUserService()
     val hierarchie get() = BusinessFactory.getHierarchieService()
     val climat get() = BusinessFactory.getClimatService()
+    val favoris get() = BusinessFactory.getFavoriService()
 
     val driver: ProtocolDriver get() = BusinessFactory.getDriver()
 }
@@ -28,6 +30,17 @@ fun usernameTaken(user: User): Boolean {
     return other.id != user.id
 }
 
-/** « Bâtiment A › Étage 2 », empty if the element is not attached. */
-fun cheminLabel(salle: Salle): String =
-    Services.hierarchie.getChemin(salle).joinToString(" › ") { it.name.orEmpty() }
+/** Ids of the salles [user] pinned. */
+fun favorisDe(user: User?): Set<Long> =
+    user?.let { u -> Services.favoris.getByUser(u).mapNotNull { it.salle.id }.toSet() }.orEmpty()
+
+/** Adds or removes [salle] from [user]'s favourites; returns whether it is now a favourite. */
+fun basculerFavori(user: User, salle: Salle): Boolean {
+    val existant = Services.favoris.getByUser(user).firstOrNull { it.salle.id == salle.id }
+    if (existant != null) {
+        Services.favoris.remove(existant)
+        return false
+    }
+    Services.favoris.add(Favori(user, salle))
+    return true
+}

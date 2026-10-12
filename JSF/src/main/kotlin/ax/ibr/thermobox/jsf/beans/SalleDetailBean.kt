@@ -7,7 +7,8 @@ import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.common.services.MesureBoitier
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
-import ax.ibr.thermobox.jsf.cheminLabel
+import ax.ibr.thermobox.jsf.basculerFavori as basculerFavoriEnBase
+import ax.ibr.thermobox.jsf.favorisDe
 import ax.ibr.thermobox.jsf.util.ChartBuilder
 import ax.ibr.thermobox.jsf.util.ChartBuilder.Serie
 import ax.ibr.thermobox.jsf.util.Faces
@@ -35,7 +36,9 @@ class SalleDetailBean : Serializable {
     var id: Long? = null
 
     var salle: Salle? = null
-    var chemin: String = ""
+    /** Ancestors, from the building down: clickable breadcrumb. */
+    var ancetres: List<Salle> = emptyList()
+    var favori: Boolean = false
     var enfants: List<Salle> = emptyList()
     var moyenne: Float? = null
     var mesures: List<MesureBoitier> = emptyList()
@@ -50,6 +53,9 @@ class SalleDetailBean : Serializable {
     val kindLabel: String get() = salle?.kind?.label.orEmpty()
     val isBoitier: Boolean get() = salle?.kind == SalleKind.BOITIER
 
+    /** Only salles go on the dashboard, so only they can be favourites. */
+    val isSalleSimple: Boolean get() = salle?.kind == SalleKind.SALLE
+
     /** Date of the most recent box reading, for the "Moyenne" card. */
     val derniereMesure: LocalDateTime? get() = mesures.mapNotNull { it.mesure?.date }.maxOrNull()
 
@@ -57,7 +63,8 @@ class SalleDetailBean : Serializable {
     fun load() {
         salle = id?.let { runCatching { Services.salles.getById(it) }.getOrNull() }
         val s = salle ?: return
-        chemin = cheminLabel(s)
+        ancetres = Services.hierarchie.getChemin(s)
+        favori = s.id in favorisDe(login.currentUser)
         enfants = if (isBoitier) emptyList() else Services.hierarchie.getChildren(s)
         refresh()
         loadHistory()
@@ -69,6 +76,16 @@ class SalleDetailBean : Serializable {
         mesures = Services.climat.getMesures(s)
         moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
         consigne = Services.climat.getConsigne(s)
+    }
+
+    fun basculerFavori() {
+        val s = salle ?: return
+        val user = login.currentUser ?: return
+        try {
+            favori = basculerFavoriEnBase(user, s)
+        } catch (e: Exception) {
+            Faces.error("Impossible de modifier les favoris", e.message)
+        }
     }
 
     /** Écart d'un boîtier à la moyenne de la salle, ex. « +0,4° ». */
