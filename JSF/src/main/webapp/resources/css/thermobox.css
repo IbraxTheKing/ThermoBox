@@ -1267,31 +1267,34 @@ body .ui-selectonebutton .ui-button { min-height: 2.2rem; padding: 0 1.1rem !imp
 }
 
 /* ---------- Arbre bâtiments → étages → salles → boîtiers (même verre que les tableaux) ---------- */
-.ui-treetable {
-    overflow: hidden;
+.ui-tree.tb-tree {
+    width: 100%; box-sizing: border-box; padding: .6rem;
     background: linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.045)) !important;
     border: 1px solid var(--tb-glass-border) !important;
     border-radius: var(--tb-radius) !important;
     box-shadow: var(--tb-edge), var(--tb-shadow) !important;
     -webkit-backdrop-filter: var(--tb-blur); backdrop-filter: var(--tb-blur);
+    color: var(--tb-text) !important;
 }
-.ui-treetable table { border-collapse: separate; border-spacing: 0; width: 100%; }
-.ui-treetable thead th {
-    background: rgba(255, 255, 255, .07) !important; color: var(--tb-text-muted) !important; border: none !important;
-    border-bottom: 1px solid var(--tb-glass-border) !important; font-size: .72rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .09em; padding: 1rem 1.1rem; text-align: left;
+.tb-tree .ui-treenode-content {
+    display: flex !important; align-items: center; width: 100%; box-sizing: border-box;
+    border-radius: var(--tb-radius-sm); padding: .15rem .35rem;
 }
-.ui-treetable thead th.tb-col-actions { text-align: right !important; }
-.ui-treetable tbody tr, .ui-treetable tbody td {
-    background: transparent !important; color: var(--tb-text) !important; border: none !important;
-    border-bottom: 1px solid rgba(255, 255, 255, .07) !important; padding: .7rem 1.1rem; vertical-align: middle;
-}
-.ui-treetable tbody tr:hover td { background: rgba(255, 255, 255, .085) !important; }
-.ui-treetable .ui-treetable-toggler { color: var(--tb-text-soft) !important; }
-.ui-treetable tbody .ui-button.ui-button-icon-only { --tb-btn-h: 2.25rem; }
-.tb-tree-icon { color: var(--tb-cyan); margin-right: .45rem; vertical-align: -.1em; }
+.tb-tree .ui-treenode-content:hover { background: rgba(255, 255, 255, .06); }
+.tb-tree .ui-treenode-content.ui-state-hover { background: rgba(140, 236, 242, .16) !important; outline: 1px dashed var(--tb-cyan); }
+.tb-tree .ui-treenode-label { flex: 1; min-width: 0; color: var(--tb-text) !important; }
+.tb-tree .ui-tree-toggler { color: var(--tb-text-soft) !important; }
+.tb-tree .ui-tree-droppoint.ui-state-hover { height: .4rem; background: var(--tb-cyan) !important; border-radius: 4px; }
+.tb-tree .ui-treenode-content.ui-draggable { cursor: grab; }
+
+.tb-node { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .6rem; width: 100%; }
+.tb-node-name { font-weight: 600; }
+.tb-node-temp { margin-left: auto; white-space: nowrap; }
+.tb-node-actions { display: inline-flex; gap: .15rem; }
+.tb-node-actions .ui-button.ui-button-icon-only { --tb-btn-h: 2.1rem; }
+.tb-tree-icon { color: var(--tb-cyan); vertical-align: -.1em; }
 
 @media (max-width: 640px) {
-    .ui-treetable { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .ui-treetable table { min-width: 620px; }
+    .tb-node-temp { margin-left: 0; }
+    .tb-node-actions { width: 100%; }
 }

@@ -3,7 +3,7 @@ package ax.ibr.thermobox.common.services
 import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Salle
 
-/** Business operations on the Batiment → Etage → Salle → Boitier tree. */
+/** Business operations on the Batiment → (Etage) → Salle → Boitier tree. */
 interface HierarchieService {
 
     /** Elements without parent (buildings, plus anything not attached yet), sorted by kind then name. */

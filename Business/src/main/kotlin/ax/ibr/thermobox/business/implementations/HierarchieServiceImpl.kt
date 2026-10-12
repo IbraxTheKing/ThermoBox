@@ -69,7 +69,7 @@ class HierarchieServiceImpl(
     }
 
     private companion object {
-        /** Batiment → Etage → Salle → Boitier. */
+        /** Deepest chain: Batiment → Etage → Salle → Boitier. */
         const val MAX_DEPTH = 4
     }
 }

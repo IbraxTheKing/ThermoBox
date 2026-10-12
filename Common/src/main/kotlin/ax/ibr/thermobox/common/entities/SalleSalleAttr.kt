@@ -12,8 +12,8 @@ import jakarta.persistence.Table
 /**
  * Containment link between two [Salle]s: [salleA] (the parent) contains [salleB] (the child).
  *
- * The allowed parent → child links are Batiment → Etage → Salle → Boitier, and a child has
- * a single parent. These rules are enforced by the business layer.
+ * Allowed links: Batiment → Etage, Etage or Batiment → Salle, Salle → Boitier; a child has a
+ * single parent. These rules are enforced by the business layer.
  */
 @Entity
 @Table(name = "salle_attr")

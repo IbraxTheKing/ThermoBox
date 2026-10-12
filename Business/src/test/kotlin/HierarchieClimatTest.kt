@@ -26,15 +26,16 @@ class HierarchieClimatTest {
     private val boitier = Boitier("X").avecId(4)
 
     @Test
-    fun `chaque niveau se rattache au niveau juste au-dessus`() {
+    fun `liens autorises, dont une salle directement dans un batiment`() {
         assertDoesNotThrow { HierarchieRules.checkLink(batiment, etage) }
         assertDoesNotThrow { HierarchieRules.checkLink(etage, salle) }
+        assertDoesNotThrow { HierarchieRules.checkLink(batiment, salle) }
         assertDoesNotThrow { HierarchieRules.checkLink(salle, boitier) }
     }
 
     @Test
     fun `les liens qui sautent ou inversent un niveau sont refuses`() {
-        listOf(batiment to salle, salle to etage, etage to batiment, batiment to boitier, salle to salle).forEach { (p, c) ->
+        listOf(salle to etage, etage to batiment, batiment to boitier, etage to boitier, salle to salle).forEach { (p, c) ->
             assertThrows(IllegalArgumentException::class.java) { HierarchieRules.checkLink(p, c) }
         }
     }

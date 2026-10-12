@@ -122,7 +122,14 @@ L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`),
 
 ## Bâtiments, étages, salles et boîtiers
 
-Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.
+Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.
+
+Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les éléments par glisser-déposer : le serveur vérifie ces règles avant que l'arbre ne bouge à l'écran.
+
+## Données de démonstration
+
+- `DatabaseSeeder` (`Business/src/test/kotlin/DBPopulate.kt`) crée 3 bâtiments, leurs étages et salles, 27 boîtiers (dont 2 non rattachés), un utilisateur par rôle (`admin`, `gestionnaire`, `viewer`, mot de passe `password123`) et 3 jours d'historique. Il se lance avec les mêmes variables d'environnement que l'application, et peut être relancé sans doublon.
+- `SimulatedProtocolDriver` mesure ensuite tous les boîtiers chaque minute : chaque boîtier suit la consigne de sa salle, et de nouveaux boîtiers non rattachés s'annoncent toutes les deux minutes.
 
 ## Développement
 

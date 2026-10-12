@@ -12,11 +12,12 @@ import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
 import org.primefaces.PrimeFaces
+import org.primefaces.component.tree.TreeDragDropInfo
 import org.primefaces.model.DefaultTreeNode
 import org.primefaces.model.TreeNode
 import java.io.Serializable
 
-/** One row of the structure tree. [temperature] is the box's last measure, or the average of the boxes below. */
+/** One node of the structure tree. [temperature] is the box's last measure, or the average of the boxes below. */
 data class Noeud(val salle: Salle, val temperature: Float?, val boitiers: Int, val rattache: Boolean) : Serializable {
     val kind: SalleKind get() = salle.kind
 
@@ -29,7 +30,10 @@ data class Noeud(val salle: Salle, val temperature: Float?, val boitiers: Int, v
         }
 }
 
-/** Bâtiments → étages → salles → boîtiers : arbre + CRUD (ADMIN). Les liens passent par SalleSalleAttr. */
+/**
+ * Bâtiments → étages → salles → boîtiers : arbre, glisser-déposer et CRUD (ADMIN).
+ * Les liens passent par SalleSalleAttr, via le HierarchieService qui en vérifie les règles.
+ */
 @Named
 @ViewScoped
 class SalleBean : Serializable {
@@ -68,6 +72,28 @@ class SalleBean : Serializable {
         return Noeud(salle, temperature, mesures.size, rattache)
     }
 
+    /**
+     * p:tree onDrop (controlled mode): moves the element in database before the tree moves it on
+     * screen. Returning false cancels the drop, so a refused move never shows up.
+     * Dropping between two top-level nodes targets the root, which detaches the element.
+     */
+    fun onDrop(info: TreeDragDropInfo): Boolean {
+        if (!login.require(login.isAdmin)) return false
+        val element = (info.dragNode?.data as? Noeud)?.salle ?: return false
+        val cible = (info.dropNode?.data as? Noeud)?.salle
+        return try {
+            Services.hierarchie.setParent(element, cible)
+            Faces.info(
+                if (cible == null) "« ${element.name} » n'est plus rattaché(e)"
+                else "« ${element.name} » déplacé(e) dans « ${cible.name} »"
+            )
+            true
+        } catch (e: Exception) {
+            Faces.error("Déplacement impossible", e.message)
+            false
+        }
+    }
+
     /** Nouvel élément, éventuellement déjà rattaché à [parent]. */
     fun create(kind: SalleKind, parent: Salle?) {
         editingId = null
@@ -87,12 +113,17 @@ class SalleBean : Serializable {
 
     /** Changement de type dans le dialogue : les parents possibles changent aussi. */
     fun refreshParents() {
-        parentsPossibles = formKind.parentKind
-            ?.let { Services.salles.getAllByType(it.create(null)) }
-            ?.sortedBy { it.name?.lowercase() }
-            .orEmpty()
+        parentsPossibles = formKind.parentKinds
+            .flatMap { Services.salles.getAllByType(it.create(null)) }
+            .sortedWith(compareBy<Salle>({ it.kind }, { it.name?.lowercase() }))
         if (parentsPossibles.none { it.id == formParentId }) formParentId = null
     }
+
+    /** Option of the parent list, which can mix étages and bâtiments. */
+    fun libelle(salle: Salle): String = "${salle.name} (${salle.kind.label})"
+
+    /** « étage ou bâtiment » : libellé du champ parent du dialogue. */
+    val parentsLabel: String get() = formKind.parentKinds.joinToString(" ou ") { it.label.lowercase() }
 
     fun save() {
         if (!login.require(login.isAdmin)) return
