@@ -180,7 +180,7 @@ var tbAnim = (function () {
     var root = document.documentElement;
     var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Dashboard ↔ salle: the card morphs into the page (view transition), nothing else pops in.
+    // Dashboard ↔ salle: the card morphs into the page, nothing else should pop in.
     var carte = false;
     try {
         var ref = new URL(document.referrer);
@@ -189,16 +189,20 @@ var tbAnim = (function () {
              || (/\/app\/dashboard\.xhtml$/.test(vers) && /\/app\/salle\.xhtml$/.test(depuis));
     } catch (e) { /* no referrer: first visit */ }
 
-    if (carte) root.classList.add('tb-carte');
-    if (!reduced && !carte) {
+    if (!reduced) {
         root.classList.add('tb-entering');
         setTimeout(function () { root.classList.remove('tb-entering'); }, 1600);
     }
 
-    // Arrival through a view transition: the shared elements morph, they must not also slide in.
+    // Fired before the first paint, only by browsers with transitions between pages: Firefox
+    // (no card morph) keeps the entrance.
     window.addEventListener('pagereveal', function (e) {
         if (!e.viewTransition) return;
         root.classList.add('tb-vt-in');
+        if (carte) {
+            root.classList.remove('tb-entering');
+            root.classList.add('tb-carte');
+        }
         e.viewTransition.finished.finally(function () { root.classList.remove('tb-vt-in'); });
     });
 
