@@ -106,6 +106,8 @@ Les routes publiques, notamment celles d'authentification, font exception. Consu
 
 Thème « verre bleu » : surfaces translucides et teintées sur un fond bleu brumeux, en mode clair et en mode sombre. Le bouton lune / soleil change de mode ; le choix est gardé dans un cookie `thermobox-theme`, et tant qu'il n'a pas servi, la page suit le réglage du système. PrimeFaces utilise `saga` en mode clair et `vela` en mode sombre. La police Manrope est servie par l'application (`resources/fonts`, licence OFL).
 
+Revenir au tableau de bord depuis une salle le rouvre à l'endroit où était sa carte, qui reprend sa place en animation. Les pages entrent en animation (cartes l'une après l'autre, courbes qui se dessinent), les cartes glissent vers leur nouvelle place quand on filtre ou épingle une salle, et une température qui change au rafraîchissement l'indique d'un petit mouvement. Tout cela est coupé si le système demande de réduire les animations.
+
 ## Photos des salles
 
 Chaque élément (salle, étage, bâtiment) peut avoir une photo, ajoutée ou retirée par un administrateur depuis sa page. Elle est enregistrée dans la table `salle_image`, à part de `salle`, pour que charger les salles ne charge jamais les images. Le fichier envoyé (10 Mo au plus) est décodé, redressé selon son orientation EXIF, réduit à 1600 px et réenregistré en JPEG : un fichier qui n'est pas une image est refusé, et les métadonnées (position GPS d'une photo de téléphone…) disparaissent. Les photos sont servies sur `/media/salle/{id}`, aux seuls utilisateurs connectés.

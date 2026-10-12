@@ -15,6 +15,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <meta name="theme-color" content="#{themeBean.dark ? '#0f141c' : '#bccde2'}"/>
     <title>Thermobox – <ui:insert name="title"/></title>
+    <!-- Loaded early: text measured before it arrives (scroll back to a card) would move -->
+    <link rel="preload" href="#{resource['fonts/manrope-latin.woff2']}" as="font" type="font/woff2" crossorigin="anonymous"/>
     <h:outputStylesheet name="css/thermobox.css"/>
     <h:outputScript name="js/thermobox.js" target="head"/>
 </h:head>

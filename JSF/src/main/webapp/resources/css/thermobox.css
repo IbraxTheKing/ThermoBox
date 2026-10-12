@@ -666,7 +666,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     box-shadow: var(--tb-elev-1);
 }
 :root body .ui-button.tb-fav-on, :root body .ui-button.tb-fav-on .ui-icon { color: var(--tb-star); }
-.tb-fav-on .ui-icon { animation: tb-pop .45s var(--tb-spring); }
+/* Detail page; on the dashboard the poll redraws the stars, tbFlip animates the one just added */
+.tb-head-actions .tb-fav-on .ui-icon { animation: tb-pop .45s var(--tb-spring); }
 @keyframes tb-pop { 0% { transform: scale(.5); } }
 
 .tb-room-head { padding-right: 44px; min-width: 0; }
@@ -1484,6 +1485,64 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 ::view-transition-new(*.tb-card) { animation: tb-fade-in .3s .06s ease both; }
 @keyframes tb-fade-out { to { opacity: 0; } }
 @keyframes tb-fade-in { from { opacity: 0; } }
+
+/* ---------- Entrance of a page (first paint only: tbAnim sets html.tb-entering for 1.6 s) ---------- */
+@keyframes tb-rise { from { opacity: 0; transform: translateY(16px); } }
+@keyframes tb-rise-scale { from { opacity: 0; transform: translateY(20px) scale(.96); } }
+@keyframes tb-draw { from { clip-path: inset(0 100% 0 0); } }
+@keyframes tb-pop-in { from { opacity: 0; transform: scale(.2); } }
+
+.tb-entering .tb-page-head { animation: tb-rise .5s var(--tb-ease) both; }
+.tb-entering :is(.tb-summary, .tb-chips, .tb-lead) { animation: tb-rise .5s var(--tb-ease) .06s both; }
+.tb-entering :is(.tb-toolbar, .tb-banner, .tb-stats, .tb-consigne-card) { animation: tb-rise .5s var(--tb-ease) .1s both; }
+.tb-entering .tb-hero-reading { animation: tb-rise-scale .6s var(--tb-ease) .08s both; }
+.tb-entering .tb-photo { animation: tb-rise-scale .6s var(--tb-ease) .16s both; }
+.tb-entering .tb-section-title { animation: tb-rise .5s var(--tb-ease) .12s both; }
+.tb-entering :is(.tb-history, .ui-tree.tb-tree, .ui-datatable.tb-table, .tb-auth > *, .tb-narrow .ui-card) { animation: tb-rise .55s var(--tb-ease) .14s both; }
+
+/* Cards and tiles one after the other; their curve draws itself, then its last point appears */
+:is(.tb-cards, .tb-boxes) > :nth-child(n + 13) { --i: 12; }
+:is(.tb-cards, .tb-boxes) > :nth-child(2) { --i: 1; }
+:is(.tb-cards, .tb-boxes) > :nth-child(3) { --i: 2; }
+:is(.tb-cards, .tb-boxes) > :nth-child(4) { --i: 3; }
+:is(.tb-cards, .tb-boxes) > :nth-child(5) { --i: 4; }
+:is(.tb-cards, .tb-boxes) > :nth-child(6) { --i: 5; }
+:is(.tb-cards, .tb-boxes) > :nth-child(7) { --i: 6; }
+:is(.tb-cards, .tb-boxes) > :nth-child(8) { --i: 7; }
+:is(.tb-cards, .tb-boxes) > :nth-child(9) { --i: 8; }
+:is(.tb-cards, .tb-boxes) > :nth-child(10) { --i: 9; }
+:is(.tb-cards, .tb-boxes) > :nth-child(11) { --i: 10; }
+:is(.tb-cards, .tb-boxes) > :nth-child(12) { --i: 11; }
+.tb-entering :is(.tb-cards, .tb-boxes) > * { animation: tb-rise-scale .55s var(--tb-ease) both; animation-delay: calc(.14s + var(--i, 0) * 45ms); }
+.tb-entering .tb-spark svg { animation: tb-draw 1s var(--tb-ease) both; animation-delay: calc(.4s + var(--i, 0) * 45ms); }
+.tb-entering .tb-spark-dot { animation: tb-pop-in .4s var(--tb-spring) both; animation-delay: calc(1.25s + var(--i, 0) * 45ms); }
+
+/* What morphs through a view transition must not also slide in: the card we come back to,
+   and the shared elements of a page reached through a transition */
+.tb-entering .tb-return, .tb-entering .tb-return *,
+.tb-vt-in :is(.tb-page-head, .tb-hero-reading, .tb-photo, .tb-photo > img) { animation: none !important; }
+
+/* Live point of the sparkline: a slow ripple */
+.tb-spark-dot::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 2px solid var(--tone);
+    animation: tb-ripple 3s var(--tb-ease) infinite;
+}
+@keyframes tb-ripple { from { transform: scale(.5); opacity: .8; } 70%, to { transform: scale(1.7); opacity: 0; } }
+
+/* Active destination of the navigation pops in on each page */
+.tb-dest.tb-dest-on .tb-dest-icon { animation: tb-dest-in .5s var(--tb-spring); }
+@keyframes tb-dest-in { from { transform: scale(.55); opacity: .3; } }
+
+/* Dialogs rise in, the bottom sheet slides up, a new photo fades in */
+:root body .ui-dialog:not(.tb-sheet) { animation: tb-dialog-in .32s var(--tb-ease); }
+@keyframes tb-dialog-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+:root body .ui-dialog.tb-sheet { animation: tb-sheet-in .4s var(--tb-ease); }
+@keyframes tb-sheet-in { from { transform: translateY(100%); } }
+.tb-photo > img { animation: tb-fade-in .6s ease; }
 
 /* Theme toggle: the new theme spreads in a circle from the button (see tbTheme.toggle) */
 .tb-theme-switch::view-transition-old(root) { animation: none; }

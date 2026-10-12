@@ -166,3 +166,141 @@ if (window.matchMedia && matchMedia('(hover: none)').matches) {
         }, 250);
     }, { passive: true });
 }
+
+/*
+ * Motion. Everything here is skipped when the system asks for reduced motion.
+ * - tbAnim: entrance of the page (CSS, under html.tb-entering), only on a real page load, so the
+ *   30-second polls don't replay it.
+ * - tbFlip: when an AJAX update reorders the dashboard (filter, search, favourite…), each card
+ *   glides from its old place to the new one, new ones fade in.
+ * - tbWatch: a value that changed during a refresh pulses once.
+ * - tbScroll: back on the dashboard from a salle, the page reopens where that card was.
+ */
+var tbAnim = (function () {
+    var root = document.documentElement;
+    var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!reduced) {
+        root.classList.add('tb-entering');
+        setTimeout(function () { root.classList.remove('tb-entering'); }, 1600);
+    }
+
+    // Arrival through a view transition: the shared elements morph, they must not also slide in.
+    window.addEventListener('pagereveal', function (e) {
+        if (!e.viewTransition) return;
+        root.classList.add('tb-vt-in');
+        e.viewTransition.finished.finally(function () { root.classList.remove('tb-vt-in'); });
+    });
+
+    return { reduced: reduced };
+})();
+
+var tbFlip = (function () {
+    var SELECTOR = '#dashForm\\:grille [data-flip]';
+    var avant = null, favoris = null;
+
+    return {
+        /** onstart: where every card is before the update. */
+        first: function () {
+            if (tbAnim.reduced) return;
+            avant = {};
+            favoris = {};
+            document.querySelectorAll(SELECTOR).forEach(function (el) {
+                var id = el.getAttribute('data-flip');
+                avant[id] = el.getBoundingClientRect();
+                favoris[id] = !!el.querySelector('.tb-fav-on');
+            });
+        },
+        /** oncomplete: from there to where they are now. */
+        play: function () {
+            if (!avant) return;
+            var nouveaux = 0;
+            document.querySelectorAll(SELECTOR).forEach(function (el) {
+                var id = el.getAttribute('data-flip');
+                var old = avant[id];
+                var now = el.getBoundingClientRect();
+                // The star just turned on spins in
+                var etoile = el.querySelector('.tb-fav-on .ui-icon');
+                if (etoile && favoris[id] === false) {
+                    etoile.animate([{ transform: 'scale(.2) rotate(-90deg)' }, { transform: 'none' }],
+                        { duration: 550, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+                }
+                if (old) {
+                    var dx = old.left - now.left, dy = old.top - now.top;
+                    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+                        el.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }],
+                            { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+                    }
+                } else if (now.bottom > 0 && now.top < innerHeight) {
+                    el.animate([{ opacity: 0, transform: 'translateY(14px) scale(.97)' }, { opacity: 1, transform: 'none' }],
+                        { duration: 380, delay: Math.min(nouveaux++, 10) * 35, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
+                }
+            });
+            avant = null;
+        }
+    };
+})();
+
+var tbWatch = (function () {
+    var avant = null;
+    return {
+        before: function () {
+            avant = {};
+            document.querySelectorAll('[data-watch]').forEach(function (el) {
+                avant[el.getAttribute('data-watch')] = el.textContent.replace(/\s+/g, '');
+            });
+        },
+        after: function () {
+            if (!avant || tbAnim.reduced) return;
+            document.querySelectorAll('[data-watch]').forEach(function (el) {
+                var old = avant[el.getAttribute('data-watch')];
+                if (old !== undefined && old !== el.textContent.replace(/\s+/g, '')) {
+                    el.animate([
+                        { transform: 'translateY(6px)', opacity: .2, filter: 'blur(3px)' },
+                        { transform: 'none', opacity: 1, filter: 'none' }
+                    ], { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' });
+                }
+            });
+            avant = null;
+        }
+    };
+})();
+
+var tbScroll = (function () {
+    var KEY = 'thermobox-dashboard-card';
+
+    // Clicking a card: remember where it was on screen.
+    document.addEventListener('click', function (e) {
+        var lien = e.target.closest && e.target.closest('.tb-room .tb-stretched');
+        if (!lien) return;
+        var carte = lien.closest('.tb-room');
+        try {
+            sessionStorage.setItem(KEY, JSON.stringify({ id: carte.getAttribute('data-flip'), top: carte.getBoundingClientRect().top }));
+        } catch (err) { /* private browsing: the card is then centred */ }
+    }, true);
+
+    return {
+        /** Called at the end of the dashboard, before its first paint. */
+        restore: function () {
+            var id = null, top = null;
+            try {
+                var ref = new URL(document.referrer);
+                if (ref.origin === location.origin && /\/app\/salle\.xhtml$/.test(ref.pathname)) id = ref.searchParams.get('id');
+            } catch (err) { return; }
+            var carte = id && document.querySelector('.tb-room[data-flip="' + id.replace(/\D/g, '') + '"]');
+            if (!carte) return;
+            try {
+                var saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+                if (saved && saved.id === id) top = saved.top;
+            } catch (err) { /* centred */ }
+            if (top === null) top = (innerHeight - carte.offsetHeight) / 2;
+            var placer = function () {
+                window.scrollTo(0, Math.max(0, carte.getBoundingClientRect().top + window.scrollY - top));
+            };
+            placer();
+            carte.classList.add('tb-return');
+            // The text above may still change height when the web font arrives.
+            if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(placer);
+        }
+    };
+})();

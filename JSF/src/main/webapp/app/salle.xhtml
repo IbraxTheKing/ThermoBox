@@ -65,7 +65,8 @@
                 </ui:repeat>
             </h:panelGroup>
 
-            <p:poll interval="30" listener="#{salleDetailBean.refresh}" process="@this" update="etat boitiers salles"/>
+            <p:poll interval="30" listener="#{salleDetailBean.refresh}" process="@this" update="etat boitiers salles"
+                    onstart="tbWatch.before()" oncomplete="tbWatch.after()"/>
 
             <div class="tb-hero">
                 <!-- État courant (rafraîchi par le poll) -->
@@ -74,7 +75,8 @@
                     <span class="tb-hero-label">
                         #{salleDetailBean.boitier ? 'Température mesurée' : 'Moyenne des boîtiers'}
                     </span>
-                    <span class="tb-temp-hero" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}">
+                    <span class="tb-temp-hero" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}"
+                          data-watch="moyenne">
                         <h:outputText value="#{salleDetailBean.moyenne}" rendered="#{salleDetailBean.moyenne ne null}">
                             <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                         </h:outputText>
@@ -94,7 +96,7 @@
                     </div>
                     <div class="tb-hero-consigne">
                         <span>Consigne</span>
-                        <strong>
+                        <strong data-watch="consigne">
                             <h:outputText value="#{salleDetailBean.consigne.value}"
                                           rendered="#{salleDetailBean.consigne ne null}">
                                 <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
@@ -170,6 +172,7 @@
                                      action="#{salleDetailBean.envoyerConsigne}"
                                      process="@this consigneInput consigneOptions"
                                      update="etat boitiers salles consigneInput consigneOptions historique"
+                                     onstart="tbWatch.before()" oncomplete="tbWatch.after()"
                                      styleClass="tb-btn-lg"/>
                 </div>
                 <p:message for="consigneInput"/>
@@ -211,7 +214,7 @@
                         <h:link outcome="/app/salle" styleClass="tb-box">
                             <f:param name="id" value="#{m.boitier.id}"/>
                             <span class="tb-box-name"><i class="pi pi-wifi"/>#{m.boitier.name}</span>
-                            <span class="tb-temp-l">
+                            <span class="tb-temp-l" data-watch="b#{m.boitier.id}">
                                 <h:outputText value="#{m.mesure.value}" rendered="#{m.mesure ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>
@@ -247,7 +250,7 @@
                         <h:link outcome="/app/salle" styleClass="tb-box tb-room-mini tb-ton-#{r.etat.ton}">
                             <f:param name="id" value="#{r.salle.id}"/>
                             <span class="tb-box-name"><i class="pi pi-home"/>#{r.salle.name}</span>
-                            <span class="tb-temp-l">
+                            <span class="tb-temp-l" data-watch="s#{r.salle.id}">
                                 <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
                                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                                 </h:outputText>

@@ -5,7 +5,7 @@
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:p="http://primefaces.org/ui">
     <!-- view-transition-name: card, name, photo and temperature morph into the detail page -->
-    <article class="tb-room tb-ton-#{r.etat.ton} #{r.image ne null ? 'tb-room-photo' : ''}"
+    <article class="tb-room tb-ton-#{r.etat.ton} #{r.image ne null ? 'tb-room-photo' : ''}" data-flip="#{r.salle.id}"
              style="view-transition-name: salle-card-#{r.salle.id}; view-transition-class: tb-card">
         <!-- Stretched over the whole card (see .tb-stretched): click anywhere to open the detail. -->
         <h:link outcome="/app/salle" styleClass="tb-stretched" title="Voir le détail de #{r.salle.name}">
@@ -22,7 +22,7 @@
                          title="#{r.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
                          styleClass="ui-button-flat tb-fav #{r.favori ? 'tb-fav-on' : ''}"
                          action="#{dashboardBean.basculerFavori(r.salle.id)}" process="@this"
-                         update=":dashForm:grille"/>
+                         update=":dashForm:grille" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
 
         <div class="tb-room-head">
             <h3 class="tb-room-name" style="view-transition-name: salle-nom-#{r.salle.id}">#{r.salle.name}</h3>
@@ -33,7 +33,7 @@
         </div>
 
         <div class="tb-room-reading">
-            <span class="tb-temp-xl" style="view-transition-name: salle-temp-#{r.salle.id}">
+            <span class="tb-temp-xl" style="view-transition-name: salle-temp-#{r.salle.id}" data-watch="t#{r.salle.id}">
                 <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
                     <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                 </h:outputText>
