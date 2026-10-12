@@ -67,7 +67,7 @@
                         <p:password id="pwd" value="#{userBean.newPassword}" required="#{userBean.creating}"
                                     requiredMessage="Mot de passe obligatoire" toggleMask="true"
                                     autocomplete="new-password">
-                            <f:validateLength minimum="8"/>
+                            <f:validateLength minimum="8" maximum="72"/>
                         </p:password>
                         <p:message for="pwd"/>
                     </div>

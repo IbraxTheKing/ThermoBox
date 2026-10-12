@@ -13,6 +13,7 @@ class User {
     @Column(name="username")
     var username: String? = null
 
+    /** BCrypt hash once saved: UserService hashes any clear-text value on add/update. */
     @Column(name="password")
     var password: String? = null
         set(password) {
@@ -22,22 +23,15 @@ class User {
     @Column(name="type")
     var type: UserType? = null
 
-    fun isPasswordValid(password: String): Boolean {
-        return !(password.isEmpty() || this.password == password)
-        /// return (Cryptographic(key = TODO()).encrypt(password)
-        ///        ==
-        ///        Cryptographic(key = TODO()).decrypt(this.password))
-    }
-
     constructor(name: String, password: String) {
         this.username = name
-        this.password = password // TODO: ENCRYPT IT!!!!
+        this.password = password
         this.type = UserType.VIEWER
     }
 
     constructor(name: String, password: String, type: UserType) {
         this.username = name
-        this.password = password // TODO: ENCRYPT IT!!!!
+        this.password = password
         this.type = type
     }
 
