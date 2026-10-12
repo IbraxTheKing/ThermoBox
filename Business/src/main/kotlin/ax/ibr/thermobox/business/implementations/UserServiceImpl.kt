@@ -34,7 +34,8 @@ class UserServiceImpl(
 
     /** Deletes the user's favourites first, or the foreign key blocks the delete. */
     override fun remove(t: User) {
-        favoris.getByUser(t).forEach { favoris.remove(it) }
+        // A user never saved (no id) has no favourites: no need to reach the database for them.
+        if (t.id != null) favoris.getByUser(t).forEach { favoris.remove(it) }
         userService.remove(t)
     }
 

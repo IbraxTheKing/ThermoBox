@@ -39,7 +39,7 @@ class SalleServiceImpl(
      * its children are kept but become unattached. Without this the foreign keys would block the delete.
      */
     override fun remove(t: Salle) {
-        favoris.getBySalle(t).forEach { favoris.remove(it) }
+        if (t.id != null) favoris.getBySalle(t).forEach { favoris.remove(it) }
         links.getBySalle(t).forEach { links.remove(it) }
         history.getBySalle(t).orEmpty().forEach { history.remove(it) }
         salleService.remove(t)
