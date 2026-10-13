@@ -64,6 +64,7 @@ class SalleBean : Serializable {
     }
 
     private fun ajouter(salle: Salle, parent: TreeNode<Noeud>, rattache: Boolean) {
+        if (salle is Boitier && !login.canSeeBoitiers) return
         val noeud = DefaultTreeNode(noeud(salle, rattache), parent)
         noeud.isExpanded = salle.kind != SalleKind.SALLE
         Services.hierarchie.getChildren(salle).forEach { ajouter(it, noeud, rattache = true) }

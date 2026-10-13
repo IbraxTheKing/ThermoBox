@@ -55,7 +55,7 @@
             </div>
 
             <h:panelGroup id="grille" layout="block">
-                <h:panelGroup layout="block" styleClass="tb-banner" rendered="#{dashboardBean.boitiersNonRattaches gt 0}">
+                <h:panelGroup layout="block" styleClass="tb-banner" rendered="#{loginBean.canSeeBoitiers and dashboardBean.boitiersNonRattaches gt 0}">
                     <span class="tb-banner-icon"><i class="pi pi-exclamation-triangle"/></span>
                     <div class="tb-banner-text">
                         <strong>#{dashboardBean.boitiersNonRattaches} boîtier(s) non rattaché(s)</strong>
@@ -79,36 +79,52 @@
                                      process="@this" update="@form" styleClass="tb-tonal" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
                 </h:panelGroup>
 
-                <h:panelGroup layout="block" styleClass="tb-section" rendered="#{not empty dashboardBean.favoris}">
-                    <h2 class="tb-section-title" data-flip="groupe-favoris">
-                        <span class="tb-section-icon tb-section-icon-fav"><i class="pi pi-star-fill"/></span>
-                        Favoris
-                    </h2>
-                    <div class="tb-cards">
-                        <ui:repeat value="#{dashboardBean.favoris}" var="r">
-                            <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
-                        </ui:repeat>
-                    </div>
-                </h:panelGroup>
+                <!-- Each section folds and unfolds from its title; tbSections keeps that in a cookie (#27) -->
+                <ui:fragment rendered="#{not empty dashboardBean.favoris}">
+                    <section class="tb-section #{dashboardBean.replie('favoris') ? 'tb-collapsed' : ''}" data-section="favoris">
+                        <h2 class="tb-section-title" data-flip="groupe-favoris">
+                            <button type="button" class="tb-section-toggle" aria-expanded="#{not dashboardBean.replie('favoris')}"
+                                    onclick="tbSections.toggle(this)">
+                                <span class="tb-section-icon tb-section-icon-fav"><i class="pi pi-star-fill"/></span>
+                                Favoris
+                                <span class="tb-section-meta">#{dashboardBean.favoris.size()} salle(s)</span>
+                                <i class="pi pi-chevron-down tb-section-chevron"/>
+                            </button>
+                        </h2>
+                        <div class="tb-section-body">
+                            <div class="tb-cards">
+                                <ui:repeat value="#{dashboardBean.favoris}" var="r">
+                                    <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
+                                </ui:repeat>
+                            </div>
+                        </div>
+                    </section>
+                </ui:fragment>
 
                 <ui:repeat value="#{dashboardBean.groupes}" var="g">
-                    <section class="tb-section">
+                    <section class="tb-section #{dashboardBean.replie(g.cle) ? 'tb-collapsed' : ''}" data-section="#{g.cle}">
                         <h2 class="tb-section-title" data-flip="groupe-#{g.batiment ne null ? g.batiment.id : 'aucun'}">
-                            <span class="tb-section-icon"><i class="pi #{g.batiment ne null ? 'pi-building' : 'pi-inbox'}"/></span>
-                            #{g.nom}
-                            <span class="tb-section-meta">
-                                #{g.salles.size()} salle(s)
-                                <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
-                                <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
-                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                </h:outputText>
-                                <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
-                            </span>
+                            <button type="button" class="tb-section-toggle" aria-expanded="#{not dashboardBean.replie(g.cle)}"
+                                    onclick="tbSections.toggle(this)">
+                                <span class="tb-section-icon"><i class="pi #{g.batiment ne null ? 'pi-building' : 'pi-inbox'}"/></span>
+                                #{g.nom}
+                                <span class="tb-section-meta">
+                                    #{g.salles.size()} salle(s)
+                                    <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
+                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                                    </h:outputText>
+                                    <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
+                                </span>
+                                <i class="pi pi-chevron-down tb-section-chevron"/>
+                            </button>
                         </h2>
-                        <div class="tb-cards">
-                            <ui:repeat value="#{g.salles}" var="r">
-                                <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
-                            </ui:repeat>
+                        <div class="tb-section-body">
+                            <div class="tb-cards">
+                                <ui:repeat value="#{g.salles}" var="r">
+                                    <ui:include src="/WEB-INF/includes/salle-card.xhtml"/>
+                                </ui:repeat>
+                            </div>
                         </div>
                     </section>
                 </ui:repeat>

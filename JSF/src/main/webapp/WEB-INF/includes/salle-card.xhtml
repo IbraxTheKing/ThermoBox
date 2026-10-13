@@ -76,10 +76,19 @@
                 <b>#{r.ecartLabel}</b>
             </span>
             <span class="tb-room-meta">
-                <i class="pi pi-wifi"/>#{r.boitiers}
-                <h:outputText value="#{r.derniereMesure}" rendered="#{r.derniereMesure ne null}">
-                    <f:convertDateTime type="localDateTime" pattern="' · 'dd/MM HH:mm"/>
-                </h:outputText>
+                <ui:fragment rendered="#{loginBean.canSeeBoitiers}">
+                    <i class="pi pi-wifi"/>#{r.boitiers}
+                    <h:outputText value="#{r.derniereMesure}" rendered="#{r.derniereMesure ne null}">
+                        <f:convertDateTime type="localDateTime" pattern="' · 'dd/MM HH:mm"/>
+                    </h:outputText>
+                </ui:fragment>
+                <!-- VIEWER: no box count (#30), only the time of the last measure -->
+                <ui:fragment rendered="#{not loginBean.canSeeBoitiers and r.derniereMesure ne null}">
+                    <i class="pi pi-clock"/>
+                    <h:outputText value="#{r.derniereMesure}">
+                        <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
+                    </h:outputText>
+                </ui:fragment>
             </span>
         </div>
     </article>
