@@ -85,10 +85,13 @@ class SalleDetailBean : Serializable {
     /** f:viewAction (appelé une seule fois, pas sur les postbacks) */
     fun load() {
         salle = id?.let { runCatching { Services.salles.getById(it) }.getOrNull() }
+            // A VIEWER gets the same "not found" page as for an unknown id.
+            ?.takeUnless { it.kind == SalleKind.BOITIER && !login.canSeeBoitiers }
         val s = salle ?: return
         ancetres = Services.hierarchie.getChemin(s)
         favori = s.id in favorisDe(login.currentUser)
-        enfants = if (isBoitier) emptyList() else Services.hierarchie.getChildren(s)
+        enfants = if (isBoitier) emptyList()
+        else Services.hierarchie.getChildren(s).filter { login.canSeeBoitiers || it.kind != SalleKind.BOITIER }
         chargerImage()
         refresh()
         loadHistory()
@@ -246,6 +249,11 @@ class SalleDetailBean : Serializable {
                 }
                 if (parSalle.size > 1) {
                     series.add(Serie(if (s.kind == SalleKind.ETAGE) "Moyenne de l'étage" else "Moyenne du bâtiment", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                }
+            } else if (!login.canSeeBoitiers) {
+                // VIEWER: the salle's temperature only, not one curve per box.
+                if (historiques.isNotEmpty()) {
+                    series.add(Serie("Température", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
                 }
             } else {
                 historiques.forEachIndexed { i, h ->

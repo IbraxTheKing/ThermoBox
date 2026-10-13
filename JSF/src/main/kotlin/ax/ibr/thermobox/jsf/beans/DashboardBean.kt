@@ -12,9 +12,11 @@ import ax.ibr.thermobox.jsf.media.SalleImageServlet
 import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.thermobox.jsf.util.Sparkline
 import jakarta.annotation.PostConstruct
+import jakarta.faces.context.FacesContext
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
+import jakarta.servlet.http.HttpServletRequest
 import java.io.Serializable
 import java.text.Normalizer
 import java.time.Duration
@@ -82,6 +84,9 @@ data class Compteur(val etat: EtatSalle, val nombre: Int) : Serializable {
 /** Les salles d'un bâtiment (ou celles sans bâtiment quand [batiment] est null). */
 data class GroupeBatiment(val batiment: Salle?, val moyenne: Float?, val salles: List<SalleResume>) : Serializable {
     val nom: String get() = batiment?.name ?: "Sans bâtiment"
+
+    /** Key of the section in the folded-sections cookie (see [DashboardBean.replie]). */
+    val cle: String get() = batiment?.id?.let { "b$it" } ?: "sans"
 }
 
 @Named
@@ -117,6 +122,15 @@ class DashboardBean : Serializable {
 
     val isVide: Boolean get() = toutes.isEmpty()
     val isAucunResultat: Boolean get() = toutes.isNotEmpty() && favoris.isEmpty() && groupes.isEmpty()
+
+    /**
+     * Section folded by the user ("favoris", "b<id>" or "sans"), from the cookie written by
+     * tbSections: the page and the poll updates render it folded, so it stays so (#27).
+     */
+    fun replie(cle: String): Boolean {
+        val request = FacesContext.getCurrentInstance().externalContext.request as HttpServletRequest
+        return request.cookies?.firstOrNull { it.name == SECTIONS_COOKIE }?.value?.split('.')?.contains(cle) == true
+    }
 
     /** Reloads from the database (page load, "Actualiser", p:poll); the filters are kept. */
     @PostConstruct
@@ -225,6 +239,8 @@ class DashboardBean : Serializable {
     companion object {
         /** Value of the "Sans bâtiment" filter entry (no real id is negative). */
         const val SANS_BATIMENT = -1L
+        /** Folded section keys, separated by dots (commas are not allowed in a cookie value). */
+        const val SECTIONS_COOKIE = "thermobox-sections"
         private val PERIODE_TENDANCE: Duration = Duration.ofHours(24)
         private val VALIDITE_TENDANCES: Duration = Duration.ofMinutes(5)
         private val ACCENTS = Regex("\\p{M}+")

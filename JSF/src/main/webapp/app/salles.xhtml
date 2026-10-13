@@ -20,9 +20,11 @@
             </header>
 
             <p class="tb-lead">
-                Un bâtiment contient des étages ou directement des salles, une salle contient des boîtiers.
+                <h:outputText rendered="#{loginBean.canSeeBoitiers}" value="Un bâtiment contient des étages ou directement des salles, une salle contient des boîtiers.
                 La température d'une salle est la moyenne de ses boîtiers.
-                Les boîtiers apparaissent ici d'eux-mêmes dès qu'ils se connectent.
+                Les boîtiers apparaissent ici d'eux-mêmes dès qu'ils se connectent."/>
+                <h:outputText rendered="#{not loginBean.canSeeBoitiers}"
+                              value="Un bâtiment contient des étages ou directement des salles. Touche un élément pour voir sa température."/>
                 <h:outputText rendered="#{loginBean.admin}" styleClass="tb-hide-sm"
                               value="Glisse un élément sur un autre pour l'y ranger, ou entre deux éléments du premier niveau pour le détacher."/>
                 <h:outputText rendered="#{loginBean.admin}" styleClass="tb-show-sm"
@@ -52,7 +54,7 @@
                             <h:outputText value=" °C" rendered="#{n.temperature ne null}"/>
                             <h:outputText value="—" rendered="#{n.temperature eq null}"/>
                             <h:outputText styleClass="tb-muted" value="#{n.boitiers} boîtier(s)"
-                                          rendered="#{n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
+                                          rendered="#{loginBean.canSeeBoitiers and n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
                         </span>
 
                         <span class="tb-node-actions">

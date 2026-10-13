@@ -39,6 +39,9 @@ class LoginBean {
     /** PUT /api/salletemps/room/{id}/consigne : ADMIN or GESTIONNAIRE. */
     val canSetConsigne: Boolean get() = isGestionnaire
 
+    /** Boxes are hardware: VIEWERs only see bâtiments, étages, salles and their temperatures (#30). */
+    val canSeeBoitiers: Boolean get() = isGestionnaire
+
     fun isOwner(user: User?): Boolean =
         user?.id != null && user.id == currentUser?.id
 

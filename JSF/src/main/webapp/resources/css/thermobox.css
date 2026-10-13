@@ -467,6 +467,52 @@ a:hover > .tb-logo { transform: rotate(-6deg) scale(1.05); }
 .tb-section-icon { width: 40px; height: 40px; border-radius: var(--tb-shape-md); font-size: 1.05rem; }
 .tb-section-icon-fav { color: var(--tb-star); }
 .tb-section-meta { color: var(--md-on-surface-variant); font-size: .95rem; font-weight: 500; letter-spacing: 0; }
+
+/* Dashboard: a section folds from its title (#27). The 0fr → 1fr row animates the height. */
+.tb-section-toggle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: inherit;
+    width: calc(100% + 12px);
+    margin: -6px;
+    padding: 6px;
+    border: 0;
+    border-radius: var(--tb-shape-lg);
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tb-section-toggle:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+.tb-section-chevron {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    border-radius: 50%;
+    color: var(--md-on-surface-variant);
+    font-size: .95rem;
+    transition: transform var(--tb-medium) var(--tb-ease), background-color var(--tb-fast) linear;
+}
+.tb-section-toggle:hover .tb-section-chevron { background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+.tb-collapsed .tb-section-chevron { transform: rotate(-90deg); }
+.tb-section-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--tb-medium) var(--tb-ease);
+}
+.tb-section-body > * { min-height: 0; }
+.tb-collapsed .tb-section-body { grid-template-rows: 0fr; }
+/* Hidden (and out of the tab order) once folded; clipped only while it moves, for the hover shadows */
+.tb-collapsed .tb-section-body > *, .tb-section-anim .tb-section-body > * { overflow: hidden; }
+.tb-collapsed .tb-section-body > * { visibility: hidden; transition: visibility 0s var(--tb-medium); }
+.tb-collapsed .tb-section-title { margin-bottom: 0; }
+.tb-section-title { transition: margin-bottom var(--tb-medium) var(--tb-ease); }
 .tb-subtitle { margin: 28px 0 12px; font-size: 1.05rem; font-weight: 700; }
 
 /* Summary chips under the dashboard title: they filter the salles by state */
@@ -588,13 +634,18 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 
 /* Dashboard toolbar */
 .tb-toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
-.tb-search { position: relative; flex: 1 1 320px; display: block; }
-.tb-search > .pi {
+/* :root body: PrimeFaces' "body .ui-input-icon-left > i:first-of-type" would put the icon at .5rem */
+:root body .tb-search { position: relative; flex: 1 1 320px; display: block; }
+:root body .tb-search > i.pi {
     position: absolute;
     left: 20px;
     top: 50%;
-    margin-top: -.5rem;
+    margin: 0;
+    transform: translateY(-50%);
+    font-size: 1.05rem;
+    line-height: 1;
     z-index: 1;
+    pointer-events: none;
     color: var(--md-on-surface-variant);
 }
 :root body .tb-search .ui-inputfield { width: 100%; height: 52px; padding-left: 50px; border-radius: var(--tb-shape-lg); font-size: 1rem; }
@@ -607,6 +658,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    /* Each card keeps its own height: a card with a photo no longer stretches its row (#28) */
+    align-items: start;
     gap: 16px;
 }
 
@@ -720,7 +773,7 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-trend .pi { font-size: .72rem; color: var(--tone); }
 
 /* Sparkline: average of the boxes over 24 h */
-.tb-spark { position: relative; flex: 1 0 64px; min-height: 64px; max-height: 150px; margin: 18px -4px 0; }
+.tb-spark { position: relative; height: 96px; margin: 18px -4px 0; }
 .tb-spark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .tb-spark-fill { -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent); }
 .tb-spark-fill path { fill: var(--tone); opacity: .28; }
@@ -761,8 +814,7 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     color: var(--md-on-surface-variant);
     font-size: .8rem;
     margin: 2px 0 0;
-    flex: 1 0 64px;
-    max-height: 150px;
+    height: 96px;
 }
 
 .tb-room-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
@@ -1144,7 +1196,7 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-col-actions { width: 8rem; white-space: nowrap; }
 :root body .ui-outputlabel { color: var(--md-on-surface-variant); font-size: .85rem; font-weight: 700; }
 .tb-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-.tb-narrow { max-width: 720px; }
+.tb-narrow { max-width: 720px; margin-inline: auto; }
 .tb-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
 .tb-ml { margin-left: 8px; }
 .tb-danger { margin-top: 16px; }
@@ -1442,6 +1494,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 
 /* Dialogs and bottom sheet: glass with blur, over a dimmed page */
 :root body .ui-widget-overlay { background: var(--md-scrim); }
+/* iOS only sends clicks to elements that look clickable: needed to close the sheet by tapping outside */
+@media (hover: none) { :root body .ui-widget-overlay { cursor: pointer; } }
 :root body .ui-dialog {
     border: 1px solid var(--tb-glass-line);
     border-radius: var(--tb-shape-xl);

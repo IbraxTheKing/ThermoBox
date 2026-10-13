@@ -135,6 +135,8 @@ Les autorisations sont vérifiées côté serveur, dans l'API comme dans l'inter
 - `GESTIONNAIRE` : gestion des données et des consignes selon les routes.
 - `VIEWER` : consultation lorsque les droits de la route le permettent.
 
+Dans l'interface JSF, un `VIEWER` ne voit pas les boîtiers : seulement les bâtiments, étages et salles avec leur température.
+
 Un jeton JWT doit être transmis dans l'en-tête `Authorization` avec le préfixe `Bearer`. Une clé stable configurée via `THERMOBOX_JWT_SECRET` est nécessaire si les jetons doivent rester valides après redémarrage.
 
 L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et relit l'utilisateur associé.
@@ -149,7 +151,7 @@ Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les é
 
 ## Tableau de bord
 
-Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle.
+Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle. Chaque section (Favoris, chaque bâtiment) se replie depuis son titre ; une section repliée le reste d'une visite à l'autre sur ce navigateur (cookie `thermobox-sections`).
 
 ## Données de démonstration
 

@@ -115,6 +115,21 @@ class ConsigneHeriteeTest {
     }
 
     @Test
+    fun `apres une consigne forcee, les salles suivent de nouveau le batiment`() {
+        consigneDe(s2, 23f)
+        climat.envoyerConsigne(b, 21f, forcer = true)
+
+        assertTrue(climat.getConsignesPropres(b).isEmpty())
+        assertTrue(climat.getConsigneEffective(s2)!!.heritee)
+
+        // A later consigne, not forced, reaches them all.
+        val envoi = climat.envoyerConsigne(b, 19f)
+        assertTrue(envoi.conservees.isEmpty())
+        assertEquals(listOf(x1, x2, x3), envoi.boitiers)
+        listOf(e, s1, s2, s3).forEach { assertEquals(19f, climat.getConsigne(it)?.value) }
+    }
+
+    @Test
     fun `seules les salles et etages comptent comme consignes propres`() {
         consigneDe(x1, 25f) // last consigne a box received
         consigneDe(s2, 23f)

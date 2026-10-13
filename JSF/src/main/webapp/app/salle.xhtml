@@ -73,7 +73,7 @@
                 <h:panelGroup id="etat" layout="block" styleClass="tb-hero-reading tb-ton-#{salleDetailBean.etat.ton}"
                               style="view-transition-name: salle-card-#{salleDetailBean.salle.id}; view-transition-class: tb-card">
                     <span class="tb-hero-label">
-                        #{salleDetailBean.boitier ? 'Température mesurée' : 'Moyenne des boîtiers'}
+                        #{salleDetailBean.boitier ? 'Température mesurée' : (loginBean.canSeeBoitiers ? 'Moyenne des boîtiers' : 'Température')}
                     </span>
                     <span class="tb-temp-hero" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}"
                           data-watch="moyenne">
@@ -86,7 +86,8 @@
                     <div class="tb-hero-row">
                         <span class="tb-state">#{salleDetailBean.etat.label}</span>
                         <span class="tb-hero-meta">
-                            <h:outputText value="Aucun boîtier rattaché" rendered="#{empty salleDetailBean.mesures}"/>
+                            <h:outputText value="#{loginBean.canSeeBoitiers ? 'Aucun boîtier rattaché' : 'Pas encore de mesure'}"
+                                          rendered="#{empty salleDetailBean.mesures}"/>
                             <h:outputText value="Mesuré le " rendered="#{salleDetailBean.derniereMesure ne null}"/>
                             <h:outputText value="#{salleDetailBean.derniereMesure}"
                                           rendered="#{salleDetailBean.derniereMesure ne null}">
@@ -177,15 +178,22 @@
                 </div>
                 <p:message for="consigneInput"/>
 
-                <!-- Some étages / salles below have their own consigne: keep it, or force the new one? -->
+                <!-- Étage / bâtiment: which elements below keep their own consigne, and the switch that
+                     forces the new one on them. Always shown, so it is still there after a forced send. -->
                 <h:panelGroup id="consigneOptions" layout="block">
                     <h:panelGroup layout="block" styleClass="tb-consigne-options"
-                                  rendered="#{not empty salleDetailBean.consignesPropres}">
+                                  rendered="#{salleDetailBean.conteneur or not empty salleDetailBean.consignesPropres}">
                         <span class="tb-consigne-options-icon"><i class="pi pi-info-circle"/></span>
-                        <div class="tb-consigne-options-text">
+                        <h:panelGroup layout="block" styleClass="tb-consigne-options-text"
+                                      rendered="#{not empty salleDetailBean.consignesPropres}">
                             <strong>#{salleDetailBean.consignesPropres.size()} élément(s) ont leur propre consigne</strong>
                             <span>#{salleDetailBean.consignesPropresLabel}</span>
-                        </div>
+                        </h:panelGroup>
+                        <h:panelGroup layout="block" styleClass="tb-consigne-options-text"
+                                      rendered="#{empty salleDetailBean.consignesPropres}">
+                            <strong>Toutes les salles suivent cette consigne</strong>
+                            <span>Aucun étage ni aucune salle n'a de consigne propre ici.</span>
+                        </h:panelGroup>
                         <!-- Not a <label>: a click would reach the switch twice (slider + label) and undo itself. -->
                         <div class="tb-switch-row">
                             <p:toggleSwitch id="forcer" widgetVar="forcerSwitch" value="#{salleDetailBean.forcer}"
@@ -198,9 +206,9 @@
                 </h:panelGroup>
             </h:panelGroup>
 
-            <!-- Température de chaque boîtier, à côté de la moyenne -->
+            <!-- Température de chaque boîtier, à côté de la moyenne (pas pour les VIEWER) -->
             <h:panelGroup id="boitiers" layout="block" styleClass="tb-section"
-                          rendered="#{not salleDetailBean.boitier and not salleDetailBean.conteneur}">
+                          rendered="#{loginBean.canSeeBoitiers and not salleDetailBean.boitier and not salleDetailBean.conteneur}">
                 <h2 class="tb-section-title">
                     <span class="tb-section-icon"><i class="pi pi-wifi"/></span>
                     Boîtiers

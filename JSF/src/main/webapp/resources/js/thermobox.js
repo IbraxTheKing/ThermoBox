@@ -318,3 +318,97 @@ var tbScroll = (function () {
         }
     };
 })();
+
+/*
+ * Bottom sheets (p:dialog.tb-sheet): closed by a tap outside or by a swipe down (#28).
+ * PrimeFaces' dismissibleMask alone misses taps on iOS, and has no swipe.
+ */
+var tbSheet = (function () {
+    var CLOSE_AT = 80; // px dragged down
+
+    function opened() {
+        var widgets = (window.PrimeFaces && PrimeFaces.widgets) || {};
+        return Object.keys(widgets).map(function (k) { return widgets[k]; }).filter(function (w) {
+            return w && w.jq && w.jq.hasClass('tb-sheet') && w.isVisible && w.isVisible();
+        });
+    }
+
+    function close(sheet, widget) {
+        sheet.style.transition = 'transform .2s ease-in';
+        sheet.style.transform = 'translateY(100%)';
+        setTimeout(function () {
+            widget.hide();
+            sheet.style.transition = sheet.style.transform = '';
+        }, 200);
+    }
+
+    // Only the sheet's own mask ("<id>_modal"): a p:confirm opened over it keeps the sheet.
+    document.addEventListener('click', function (e) {
+        if (!e.target.classList || !e.target.classList.contains('ui-widget-overlay')) return;
+        opened().forEach(function (w) { if (e.target.id === w.id + '_modal') w.hide(); });
+    });
+
+    var drag = null;
+    document.addEventListener('touchstart', function (e) {
+        var sheet = e.target.closest && e.target.closest('.ui-dialog.tb-sheet');
+        var content = sheet && sheet.querySelector('.ui-dialog-content');
+        // A list scrolled down scrolls back first; the swipe only starts from its top.
+        if (!sheet || e.touches.length > 1 || (content && content.scrollTop > 0)) return;
+        drag = { sheet: sheet, y: e.touches[0].clientY, dy: 0, t: Date.now() };
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+        if (!drag) return;
+        drag.dy = Math.max(0, e.touches[0].clientY - drag.y);
+        if (drag.dy < 6) return;
+        e.preventDefault(); // the page behind must not scroll
+        drag.sheet.style.transition = 'none';
+        drag.sheet.style.transform = 'translateY(' + drag.dy + 'px)';
+    }, { passive: false });
+
+    document.addEventListener('touchend', function () {
+        if (!drag) return;
+        var d = drag;
+        drag = null;
+        var fast = d.dy > 30 && d.dy / (Date.now() - d.t) > .6; // a quick flick also closes
+        var widget = opened().filter(function (w) { return w.jq[0] === d.sheet; })[0];
+        if (widget && (d.dy > CLOSE_AT || fast)) {
+            close(d.sheet, widget);
+        } else {
+            d.sheet.style.transition = 'transform .25s ease-out';
+            d.sheet.style.transform = '';
+        }
+    });
+
+    return { opened: opened };
+})();
+
+/* Dashboard sections folded from their title (#27). DashboardBean.replie reads the same cookie. */
+var tbSections = (function () {
+    var COOKIE = 'thermobox-sections';
+    var root = document.documentElement;
+
+    function replies() {
+        var m = document.cookie.match(/(?:^|;\s*)thermobox-sections=([^;]*)/);
+        return m && m[1] ? m[1].split('.') : [];
+    }
+
+    function save(keys) {
+        document.cookie = COOKIE + '=' + keys.join('.') + '; path=' + (root.getAttribute('data-ctx') || '/')
+            + '; max-age=' + (keys.length ? 31536000 : 0) + '; SameSite=Lax';
+    }
+
+    return {
+        toggle: function (button) {
+            var section = button.closest('[data-section]');
+            var key = section.getAttribute('data-section');
+            var fold = !section.classList.contains('tb-collapsed');
+            section.classList.add('tb-section-anim');
+            section.classList.toggle('tb-collapsed', fold);
+            button.setAttribute('aria-expanded', String(!fold));
+            save(replies().filter(function (k) { return k && k !== key; }).concat(fold ? [key] : []));
+            clearTimeout(section.tbTimer);
+            section.tbTimer = setTimeout(function () { section.classList.remove('tb-section-anim'); }, 400);
+        }
+    };
+})();

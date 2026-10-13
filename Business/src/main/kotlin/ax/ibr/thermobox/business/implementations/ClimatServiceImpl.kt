@@ -34,26 +34,36 @@ class ClimatServiceImpl(
         getMesures(salle).mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
 
     override fun getConsigneEffective(salle: Salle): ConsigneEffective? {
-        salleTemps.getConsigneFromSalle(salle)?.let { return ConsigneEffective(it, salle, heritee = false) }
+        val propre = salleTemps.getConsigneFromSalle(salle)
         // Nearest ancestor first: an étage's consigne wins over its bâtiment's.
+        var heritee: ConsigneEffective? = null
         for (ancetre in hierarchie.getChemin(salle).asReversed()) {
-            salleTemps.getConsigneFromSalle(ancetre)?.let { return ConsigneEffective(it, ancetre, heritee = true) }
+            val c = salleTemps.getConsigneFromSalle(ancetre) ?: continue
+            heritee = ConsigneEffective(c, ancetre, heritee = true)
+            break
         }
-        return null
+        return when {
+            propre == null -> heritee
+            // Set by a forced consigne of the ancestor: the salle still follows it.
+            heritee != null && alignee(propre, heritee.consigne) -> heritee
+            else -> ConsigneEffective(propre, salle, heritee = false)
+        }
     }
 
     // A box's own consigne is only the last one it received: it never counts as a choice to keep.
     override fun getConsignesPropres(salle: Salle): List<ConsigneEffective> {
         val propres = ArrayList<ConsigneEffective>()
-        fun parcourir(s: Salle, profondeur: Int) {
+        fun parcourir(s: Salle, suivie: Consigne?, profondeur: Int) {
             if (profondeur > MAX_DEPTH) return
             for (enfant in hierarchie.getChildren(s)) {
                 if (enfant is Boitier) continue
-                salleTemps.getConsigneFromSalle(enfant)?.let { propres.add(ConsigneEffective(it, enfant, heritee = false)) }
-                parcourir(enfant, profondeur + 1)
+                val propre = salleTemps.getConsigneFromSalle(enfant)
+                val distincte = propre != null && !alignee(propre, suivie)
+                if (distincte) propres.add(ConsigneEffective(propre!!, enfant, heritee = false))
+                parcourir(enfant, if (distincte) propre else suivie, profondeur + 1)
             }
         }
-        parcourir(salle, 0)
+        parcourir(salle, getConsigne(salle), 0)
         return propres
     }
 
@@ -72,13 +82,15 @@ class ClimatServiceImpl(
 
     override fun envoyerConsigne(salle: Salle, valeur: Float, forcer: Boolean): EnvoiConsigne {
         ConsigneRules.check(valeur)
+        val precedente = getConsigne(salle)
         val date = LocalDateTime.now()
         salleTemps.add(SalleTempAttr(salle, Consigne(valeur, date)))
 
         val conservees = ArrayList<ConsigneEffective>()
         val remplacees = ArrayList<Salle>()
         val boitiers = ArrayList<Boitier>()
-        fun parcourir(s: Salle, profondeur: Int) {
+        // suivie: the consigne the current element followed before this one.
+        fun parcourir(s: Salle, suivie: Consigne?, profondeur: Int) {
             if (s is Boitier) {
                 boitiers.add(s)
                 return
@@ -87,18 +99,22 @@ class ClimatServiceImpl(
             for (enfant in hierarchie.getChildren(s)) {
                 val propre = if (enfant is Boitier) null else salleTemps.getConsigneFromSalle(enfant)
                 if (propre != null) {
-                    if (!forcer) {
+                    val distincte = !alignee(propre, suivie)
+                    if (distincte && !forcer) {
                         // It keeps its consigne, and so do its boxes.
                         conservees.add(ConsigneEffective(propre, enfant, heritee = false))
                         continue
                     }
+                    // Same consigne and date as the parent: it keeps following it from now on.
                     salleTemps.add(SalleTempAttr(enfant, Consigne(valeur, date)))
-                    remplacees.add(enfant)
+                    if (distincte) remplacees.add(enfant)
+                    parcourir(enfant, if (distincte) propre else suivie, profondeur + 1)
+                    continue
                 }
-                parcourir(enfant, profondeur + 1)
+                parcourir(enfant, suivie, profondeur + 1)
             }
         }
-        parcourir(salle, 0)
+        parcourir(salle, precedente, 0)
 
         // A box that fails must not prevent the others from receiving the consigne.
         val echecs = boitiers.filter { boitier ->
@@ -106,6 +122,13 @@ class ClimatServiceImpl(
         }
         return EnvoiConsigne(conservees, remplacees, boitiers, echecs)
     }
+
+    /**
+     * A consigne saved by a forced send carries the value and the date of its ancestor's: the
+     * element then still follows the ancestor rather than having a consigne of its own.
+     */
+    private fun alignee(propre: Consigne, suivie: Consigne?): Boolean =
+        suivie != null && propre.date == suivie.date && propre.value == suivie.value
 
     companion object {
         /** Deepest chain: Batiment → Etage → Salle → Boitier. */
