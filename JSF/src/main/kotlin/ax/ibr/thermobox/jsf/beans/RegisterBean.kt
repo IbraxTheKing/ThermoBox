@@ -6,6 +6,7 @@ import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.utils.exceptions.AlreadyExistsException
 import jakarta.enterprise.context.RequestScoped
 import jakarta.inject.Named
+import javax.naming.InvalidNameException
 
 /** Inscription publique (POST /api/users n'exige pas d'authentification). */
 @Named
@@ -42,6 +43,13 @@ class RegisterBean {
             // Password over 72 bytes (accented characters count double), refused before hashing.
             Faces.error("Mot de passe refusé", e.message)
             null
+        } catch (e: InvalidNameException) {
+            Faces.error("Nom d'utilisateur invalide", "Le nom d'utilisateur ne peux pas contenir d'espace.")
+            null
+        } catch (e: Exception) {
+            Faces.error("Erreur Inconnue", e.message)
+            null
         }
+
     }
 }

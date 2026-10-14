@@ -7,6 +7,7 @@ import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
+import javax.naming.InvalidNameException
 
 
 // The data service is a constructor parameter so tests can pass a mock.
@@ -27,11 +28,17 @@ class UserServiceImpl(
 
     override fun add(t: User) {
         hashPassword(t)
+        if (t.username?.contains(" ") == true) {
+            throw InvalidNameException("User name must not contain spaces")
+        }
         userService.add(t)
     }
 
     override fun update(t: User) {
         hashPassword(t)
+        if (t.username?.contains(" ") == true) {
+            throw InvalidNameException("User name must not contain spaces")
+        }
         userService.update(t)
     }
 
