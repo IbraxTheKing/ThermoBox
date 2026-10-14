@@ -1,0 +1,9 @@
+# wildfly-setup.cli
+# Script CLI optionnel pour ajouter le driver MySQL et une datasource nommée ThermoBoxDS.
+# Adaptez user/password/url selon votre environnement.
+
+embed-server --std-out=echo
+module add --name=com.mysql --resources=/opt/jboss/wildfly/modules/com/mysql/main/mysql-connector-java.jar --dependencies=javax.api,javax.transaction.api
+/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-class-name=com.mysql.cj.jdbc.Driver)
+/subsystem=datasources/data-source=ThermoBoxDS:add(jndi-name=java:/jdbc/ThermoBoxDS,driver-name=mysql,connection-url=jdbc:mysql://mysql:3306/thermobox,user-name=thermobox,password=changeit,max-pool-size=20,enabled=true)
+stop-embedded-server

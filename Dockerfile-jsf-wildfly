@@ -1,0 +1,35 @@
+# WildFly Dockerfile for deploying the JSF WAR
+# Expects deploy/thermobox.war (adjust WAR_NAME arg if needed)
+
+FROM quay.io/wildfly/wildfly:30.0.1.Final
+
+ARG MYSQL_CONNECTOR_VERSION=9.1.0
+ARG WAR_NAME=thermobox.war
+
+USER root
+
+# Install curl to download the JDBC driver
+RUN microdnf install -y curl && microdnf clean all
+
+# Create a WildFly module for the MySQL driver
+RUN mkdir -p /opt/jboss/wildfly/modules/com/mysql/main
+WORKDIR /opt/jboss/wildfly/modules/com/mysql/main
+
+# Download the MySQL connector from Maven Central
+RUN curl -L -o mysql-connector-java.jar \
+    https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/${MYSQL_CONNECTOR_VERSION}/mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar
+
+# Create a minimal module.xml for the JDBC driver
+RUN printf '%s' "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<module xmlns=\"urn:jboss:module:1.1\" name=\"com.mysql\">\n  <resources>\n    <resource-root path=\"mysql-connector-java.jar\"/>\n  </resources>\n  <dependencies>\n    <module name=\"javax.api\"/>\n    <module name=\"javax.transaction.api\"/>\n  </dependencies>\n</module>" > module.xml
+
+# Copy the WAR into deployments. Adjust WAR_NAME if your artifact name differs.
+WORKDIR /opt/jboss/wildfly/standalone/deployments
+COPY deploy/${WAR_NAME} /opt/jboss/wildfly/standalone/deployments/${WAR_NAME}
+
+# Copy and run an optional CLI script to register the driver and create a datasource
+COPY wildfly-setup.cli /opt/jboss/wildfly/wildfly-setup.cli
+RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/wildfly/wildfly-setup.cli || true
+
+USER jboss
+EXPOSE 8080
+ENTRYPOINT ["/opt/jboss/wildfly/bin/standalone.sh","-b","0.0.0.0"]
