@@ -1,6 +1,6 @@
 # ThermoBox
 
-ThermoBox est un projet de supervision thermique permettant d'organiser des salles, de consulter leurs températures et de gérer des consignes. Il comprend une API REST sécurisée par JWT, un backend métier en Kotlin, une persistance JPA et une interface web JSF/PrimeFaces.
+ThermoBox est un projet de supervision thermique permettant d'organiser des salles, de consulter leurs températures et de gérer des consignes. Il comprend une API REST sécurisée par JWT, un backend Kotlin/JPA, une persistance JPA et une interface web JSF/PrimeFaces.
 
 État du projet : projet en cours de développement. Certaines parties, notamment les associations entre salles, étages, bâtiments et leurs services de persistance, évoluent encore.
 
@@ -127,6 +127,8 @@ mvn -Pdeploy -DskipTests clean package
 
 Sans `-Pdeploy`, le build reste celui du développement (`thermobox.war`, jars par module).
 
+Option Docker : si vous préférez déployer avec Docker (images, docker-compose, Tomcat ou WildFly pour la partie JSF), consultez la documentation Docker du projet : `DOCKER.md` (branche docker-deployment) qui décrit les Dockerfile, docker-compose et les étapes pour Tomcat et WildFly.
+
 ## Rôles et sécurité
 
 Les autorisations sont vérifiées côté serveur, dans l'API comme dans l'interface JSF. Côté API, les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
@@ -139,23 +141,23 @@ Dans l'interface JSF, un `VIEWER` ne voit pas les boîtiers : seulement les bât
 
 Un jeton JWT doit être transmis dans l'en-tête `Authorization` avec le préfixe `Bearer`. Une clé stable configurée via `THERMOBOX_JWT_SECRET` est nécessaire si les jetons doivent rester valides après redémarrage.
 
-L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et relit l'utilisateur associé.
+L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et redirige si l'utilisateur n'est pas autorisé.
 
-Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire par mot de passe), jamais en clair, et sont limités à 72 octets, la limite de BCrypt. Un compte créé avant le hachage est migré à sa connexion suivante. Pour tout migrer d'un coup, lancer `HashExistingPasswords` (`Business/src/test/kotlin`) avec les variables d'environnement de la base.
+Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire par mot de passe), jamais en clair, et sont limités à 72 octets, la limite de BCrypt. Un compte créé avant le hashage renforcé pourra nécessiter une réinitialisation.
 
 ## Bâtiments, étages, salles et boîtiers
 
-Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers, et chaque élément n'a qu'un parent direct.
+Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers.
 
 Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les éléments par glisser-déposer : le serveur vérifie ces règles avant que l'arbre ne bouge à l'écran.
 
 ## Tableau de bord
 
-Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris : ils sont enregistrés en base (table `favori`) et le suivent donc d'un appareil à l'autre. Un clic n'importe où sur une carte ouvre le détail de la salle. Chaque section (Favoris, chaque bâtiment) se replie depuis son titre ; une section repliée le reste d'une visite à l'autre sur ce navigateur (cookie `thermobox-sections`).
+Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris.
 
 ## Données de démonstration
 
-- `DatabaseSeeder` (`Business/src/test/kotlin/DBPopulate.kt`) crée 3 bâtiments, leurs étages et salles, 27 boîtiers (dont 2 non rattachés), un utilisateur par rôle (`admin`, `gestionnaire`, `viewer`, mot de passe `password123`) et 3 jours d'historique. Il se lance avec les mêmes variables d'environnement que l'application, et peut être relancé sans doublon.
+- `DatabaseSeeder` (`Business/src/test/kotlin/DBPopulate.kt`) crée 3 bâtiments, leurs étages et salles, 27 boîtiers (dont 2 non rattachés), un utilisateur par rôle (`admin`, `gestionnaire`, `viewer`) et des mesures factices.
 - `SimulatedProtocolDriver` mesure ensuite tous les boîtiers chaque minute : chaque boîtier suit la consigne de sa salle, et de nouveaux boîtiers non rattachés s'annoncent toutes les deux minutes.
 
 ## Développement
