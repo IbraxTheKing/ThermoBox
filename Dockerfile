@@ -5,14 +5,20 @@ WORKDIR /workspace
 
 COPY . /workspace
 
-# Build the deploy artifacts required by the project (RestServer.jar + base.jar)
+# Construire les artefacts de déploiement du projet (RestServer.jar + base.jar)
 RUN mvn -B -Pdeploy -DskipTests clean package
 
 FROM eclipse-temurin:23-jre-jammy
 WORKDIR /app
 
+# Copie des artefacts de production
 COPY --from=build /workspace/deploy/RestServer.jar /app/RestServer.jar
 COPY --from=build /workspace/deploy/base.jar /app/base.jar
+
+RUN useradd --system --create-home --home-dir /home/thermobox thermobox \
+    && chown -R thermobox:thermobox /app
+
+USER thermobox
 
 EXPOSE 8080
 
