@@ -87,3 +87,4 @@ jobs:
             --prerelease \
             --title "$tag ($(date -u +%Y-%m-%d))" \
             --generate-notes
+
