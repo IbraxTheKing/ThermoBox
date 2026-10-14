@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.1
+    container_name: thermobox-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: thermobox
+      MYSQL_USER: thermobox
+      MYSQL_PASSWORD: changeit
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: thermobox-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  restserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thermobox-restserver
+    restart: unless-stopped
+    environment:
+      THERMOBOX_DB_URL: jdbc:mysql://mysql:3306/thermobox
+      THERMOBOX_DB_USER: thermobox
+      THERMOBOX_DB_PASSWORD: changeit
+      THERMOBOX_JWT_SECRET: replace-with-a-strong-secret
+      THERMOBOX_JWT_TTL_MINUTES: "60"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - mosquitto
+
+  jsf:
+    build:
+      context: .
+      dockerfile: Dockerfile-jsf
+    container_name: thermobox-jsf
+    restart: unless-stopped
+    environment:
+      THERMOBOX_DB_URL: jdbc:mysql://mysql:3306/thermobox
+      THERMOBOX_DB_USER: thermobox
+      THERMOBOX_DB_PASSWORD: changeit
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mysql
+      - restserver
+
+volumes:
+  mysql_data:
+  mosquitto_data:
+  mosquitto_log:

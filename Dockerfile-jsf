@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1.7
+
+FROM tomcat:10.1-jdk17
+
+WORKDIR /usr/local/tomcat
+RUN rm -rf webapps/*
+
+# Exemple de WAR attendu : thermobox.war ou JsfClient.war
+# Ajustez le nom selon le build réel de votre module JSF.
+COPY deploy/thermobox.war /usr/local/tomcat/webapps/ROOT.war
+
+EXPOSE 8080
+
+ENV THERMOBOX_DB_URL='jdbc:mysql://mysql:3306/thermobox' \
+    THERMOBOX_DB_USER='thermobox' \
+    THERMOBOX_DB_PASSWORD='changeit'
+
+CMD ["catalina.sh", "run"]
