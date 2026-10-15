@@ -43,11 +43,11 @@ services:
       - mysql
       - mosquitto
 
-  jsf:
+  jsf-tomcat:
     build:
       context: .
       dockerfile: Dockerfile-jsf
-    container_name: thermobox-jsf
+    container_name: thermobox-jsf-tomcat
     restart: unless-stopped
     environment:
       THERMOBOX_DB_URL: jdbc:mysql://mysql:3306/thermobox
@@ -55,6 +55,20 @@ services:
       THERMOBOX_DB_PASSWORD: changeit
     ports:
       - "8081:8080"
+    depends_on:
+      - mysql
+      - restserver
+
+  jsf-wildfly:
+    build:
+      context: .
+      dockerfile: Dockerfile-jsf-wildfly
+    container_name: thermobox-jsf-wildfly
+    restart: unless-stopped
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "8082:8080"
     depends_on:
       - mysql
       - restserver
