@@ -1,16 +1,11 @@
-# Thermobox – front JSF (Jakarta Faces 4 + PrimeFaces 14 + Kotlin)
+## 🖥 JSF Module (Web UI)
 
-## Pages
+Le module `JSF` contient l'interface utilisateur web de ThermoBox.
 
-| URL | Accès | Bean | Équivalent REST |
-|---|---|---|---|
-| `/login.xhtml`, `/register.xhtml` | public | `LoginBean`, `RegisterBean` | `GET /users/username/{u}`, `POST /users` |
-| `/app/index.xhtml` | connecté | `DashboardBean` | `/salletemps/room/{id}/measured/latest` + `/consigne` |
-| `/app/salles.xhtml` | connecté (CRUD : ADMIN) | `SalleBean` | `/salles` |
-| `/app/salle.xhtml?id=…` | connecté (consigne : ADMIN/GESTIONNAIRE) | `SalleDetailBean` | `/salletemps/room/{id}/…` |
-| `/app/temperatures.xhtml` | connecté (CRUD : ADMIN) | `TemperatureBean` | `/temperatures` |
-| `/app/profil.xhtml` | propriétaire | `ProfilBean` | `PUT/DELETE /users/{id}` (allowOwner) |
-| `/admin/users.xhtml` | ADMIN | `UserBean` | `/users` |
+### Fonctionnalités principales :
+- **Interface Interactive** : Tableaux de bord, formulaires de saisie et visualisations thermiques.
+- **Composants PrimeFaces** : Utilisation de composants riches pour une expérience utilisateur fluide.
+- **Intégration Jakarta Faces** : Gestion du cycle de vie des pages et liaison de données (Binding).
 
-`AuthFilter` protège `/app/*` (connecté) et `/admin/*` (ADMIN) ; chaque action sensible
-revérifie le rôle côté serveur (`loginBean.require(...)`).
+### Utilisation :
+Ce module est destiné aux utilisateurs finaux qui souhaitent interagir avec le système via un navigateur web. Il communique directement avec la couche `Business` pour mettre à jour l'état de l'interface.
