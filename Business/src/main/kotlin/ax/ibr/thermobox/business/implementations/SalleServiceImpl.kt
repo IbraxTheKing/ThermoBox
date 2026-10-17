@@ -8,6 +8,7 @@ import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
+import jakarta.transaction.Transactional
 
 // The data service is a constructor parameter so tests can pass a mock.
 class SalleServiceImpl(
