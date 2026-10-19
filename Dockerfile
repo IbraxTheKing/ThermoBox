@@ -1,3 +1,4 @@
+
 # syntax=docker/dockerfile:1.7
 
 FROM maven:3.9-eclipse-temurin-23 AS build
@@ -5,10 +6,10 @@ WORKDIR /workspace
 
 COPY . /workspace
 
-# Construire les artefacts de déploiement du projet (RestServer.jar + base.jar)
+# Construire les artefacts de déploiement
 RUN mvn -B -Pdeploy -DskipTests clean package
 
-FROM eclipse-temurin:23-jre-jammy
+FROM eclipse-temurin:23-jre
 WORKDIR /app
 
 # Copie des artefacts de production
@@ -23,9 +24,9 @@ USER thermobox
 EXPOSE 8080
 
 ENV THERMOBOX_DB_URL='jdbc:mysql://mysql:3306/thermobox' \
-    THERMOBOX_DB_USER='thermobox' \
-    THERMOBOX_DB_PASSWORD='changeit' \
-    THERMOBOX_JWT_SECRET='' \
+    THERMOBOX_DB_USER='ibrr' \
+    THERMOBOX_DB_PASSWORD='1010' \
+    THERMOBOX_JWT_SECRET='4zyprxstv3qPWny48Lh0NitrCkxfEOVF2MydeWEcuTZxybFYLtzL8dT27Rau8TK5Byv6lFAkkrPuphhQnrUZJZ' \
     THERMOBOX_JWT_TTL_MINUTES='60'
 
 ENTRYPOINT ["sh", "-c", "java -jar /app/RestServer.jar"]

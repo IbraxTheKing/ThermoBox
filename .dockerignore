@@ -1,9 +1,19 @@
-target/
-.git/
+# Secrets : ne jamais les envoyer dans le contexte de build
+.env
+.env.*
+!.env.example
+
+# Git / IDE
+.git
 .gitignore
-.idea/
-.vscode/
+.github
+.idea
+.vscode
 **/.DS_Store
+
+# Artefacts générés (le build Docker les recrée)
+**/target
+deploy
 **/*.class
 **/*.log
-**/node_modules/
+**/node_modules
