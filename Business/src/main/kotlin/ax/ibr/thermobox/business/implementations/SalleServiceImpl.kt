@@ -8,6 +8,7 @@ import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
+import jakarta.transaction.Transactional
 
 // The data service is a constructor parameter so tests can pass a mock.
 class SalleServiceImpl(
@@ -28,14 +29,17 @@ class SalleServiceImpl(
         return salleService.getByName(name)
     }
 
+    @Transactional
     override fun add(t: Salle) {
         salleService.add(t)
     }
 
+    @Transactional
     override fun update(t: Salle) {
         salleService.update(t)
     }
 
+    @Transactional
     /**
      * Deletes the element with its history, its image and the favourites pointing to it. Its links go too:
      * its children are kept but become unattached. Without this the foreign keys would block the delete.
