@@ -1,0 +1,129 @@
+# ThermoBox : MySQL + REST (toujours) + une interface JSF au choix (profil tomcat ou wildfly)
+# + broker MQTT (profil mqtt).
+#
+#   docker compose up -d --build                     -> MySQL + REST
+#   docker compose --profile tomcat up -d --build    -> + JSF sur Tomcat   (port 8081)
+#   docker compose --profile wildfly up -d --build   -> + JSF sur WildFly  (port 8082)
+#   docker compose --profile mqtt up -d              -> + Mosquitto        (port 1883)
+#
+# Les secrets viennent du fichier .env (créé par scripts/init-env.sh, voir .env.example).
+
+name: thermobox
+
+x-app-env: &app-env
+  TZ: ${TZ:-Europe/Paris}
+  THERMOBOX_DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-thermobox}?allowPublicKeyRetrieval=true&useSSL=false"
+  THERMOBOX_DB_USER: ${MYSQL_USER:-thermobox}
+  THERMOBOX_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD manquant : lancez scripts/init-env.sh}"
+  THERMOBOX_JWT_SECRET: "${THERMOBOX_JWT_SECRET:?THERMOBOX_JWT_SECRET manquant (32 caractères minimum) : lancez scripts/init-env.sh}"
+  THERMOBOX_JWT_TTL_MINUTES: ${THERMOBOX_JWT_TTL_MINUTES:-60}
+
+services:
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD manquant : lancez scripts/init-env.sh}"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-thermobox}
+      MYSQL_USER: ${MYSQL_USER:-thermobox}
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD manquant : lancez scripts/init-env.sh}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      # Uniquement depuis votre machine (outils SQL), pas depuis le réseau
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  rest:
+    build:
+      context: .
+      dockerfile: docker/rest/Dockerfile
+    image: thermobox/rest:local
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      THERMOBOX_HTTP_HOST: 0.0.0.0
+      THERMOBOX_HTTP_PORT: "8080"
+    ports:
+      - "${REST_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", ": </dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  jsf-tomcat:
+    profiles: ["tomcat"]
+    build:
+      context: .
+      dockerfile: docker/jsf-tomcat/Dockerfile
+    image: thermobox/jsf-tomcat:local
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    ports:
+      - "${TOMCAT_PORT:-8081}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /login.xhtml HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -qE ' (200|30[0-9]) '"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  jsf-wildfly:
+    profiles: ["wildfly"]
+    build:
+      context: .
+      dockerfile: docker/jsf-wildfly/Dockerfile
+    image: thermobox/jsf-wildfly:local
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    ports:
+      - "${WILDFLY_PORT:-8082}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /login.xhtml HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -qE ' (200|30[0-9]) '"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+
+  # Optionnel : le code utilise pour l'instant le driver simulé (BusinessFactory.MQTT = false)
+  # et MqttDriver vise tcp://localhost:1883 en dur. Ce broker est prêt pour le jour où
+  # l'URL passera par une variable d'environnement.
+  mosquitto:
+    profiles: ["mqtt"]
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    volumes:
+      - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -t '$$SYS/#' -C 1 -i healthcheck -W 3"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+  mosquitto_data:
