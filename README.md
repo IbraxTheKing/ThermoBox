@@ -1,182 +1,69 @@
 # ThermoBox
 
-ThermoBox est un projet de supervision thermique permettant d'organiser des salles, de consulter leurs températures et de gérer des consignes. Il comprend une API REST sécurisée par JWT, un backend Kotlin/JPA, une persistance JPA et une interface web JSF/PrimeFaces.
+ThermoBox est une application de supervision thermique permettant la gestion des températures dans des infrastructures complexes telles que des bâtiments ou des salles serveurs. Le système permet d'organiser des espaces hiérarchiques, de suivre les mesures en temps réel et de gérer des consignes dynamiques.
 
-État du projet : projet en cours de développement. Certaines parties, notamment les associations entre salles, étages, bâtiments et leurs services de persistance, évoluent encore.
+## Quick Start
 
-## Fonctionnalités
-
-- Gestion des salles et des attributs associés.
-- Enregistrement et consultation des températures et des consignes.
-- Consultation de l'historique des mesures sur une période donnée.
-- API REST JSON pour accéder aux données et envoyer des consignes.
-- Authentification par jetons JWT et contrôle des droits selon les rôles.
-- Pilote de communication simulé et intégration MQTT dans la couche métier.
-- Interface web construite avec Jakarta Faces (JSF) et PrimeFaces.
-
-## Architecture
-
-Le dépôt est un projet Maven multi-modules écrit principalement en Kotlin.
-
-| Module | Rôle |
-|---|---|
-| Common | Entités, modèles et interfaces partagés |
-| Business | Services métier, validation et accès au pilote de communication |
-| Persistence | Accès aux données avec JPA |
-| RestServer | API REST avec Jersey, serveur Jetty et sécurité JWT |
-| JSF | Interface web Jakarta Faces / PrimeFaces |
-| ibr-utils | Utilitaires et annotations partagés |
-
-Les fabriques `BusinessFactory` et `PersistenceFactory` centralisent respectivement les services métier et les services de persistance.
-
-## Prérequis
-
-- Git
+### Prérequis
 - JDK 23
-- Maven
-- MySQL, avec une base de données accessible par l'application
-- Pour l'interface JSF : un conteneur compatible, par exemple Tomcat 10.1 avec les dépendances nécessaires
+- Maven 3.9+
+- MySQL (ou autre base de données compatible JDBC)
 
-## Installation
+### Installation & Configuration
+1. Clonez le dépôt :
+   ```bash
+   git clone https://github.com/IbraxTheKing/ThermoBox.git
+   cd ThermoBox
+   ```
 
-Récupérez le dépôt :
+2. Configurez les variables d'environnement nécessaires (exemple pour Linux/macOS) :
+   ```bash
+   export THERMOBOX_DB_URL='jdbc:mysql://localhost:3306/thermobox'
+   export THERMOBOX_DB_USER='votre_utilisateur'
+   export THERMOBOX_DB_PASSWORD='votre_mot_de_passe'
+   export THERMOBOX_JWT_SECRET='une_cle_secrete_de_32_octets_minimum'
+   ```
 
-```bash
-git clone https://github.com/IbraxTheKing/ThermoBox.git
-cd ThermoBox
-```
+3. Compilez et installez les modules :
+   ```bash
+   mvn clean install
+   ```
 
-Configurez les variables d'environnement décrites ci-dessous, puis compilez le projet :
+### Lancement de l'API REST
+Pour lancer le serveur API, exécutez la classe principale du module `RestServer` depuis votre IDE ou via Maven en ciblant le module spécifique. Le serveur est accessible sur :
+- URL : http://localhost:8080/
+- Préfixe API : /api
 
-```bash
-mvn clean install
-```
+## Architecture du Projet
 
-Cette commande compile les modules et exécute les tests configurés. Elle ne démarre pas automatiquement l'API ni l'interface web.
+Le projet est structuré en modules Maven pour assurer une séparation des responsabilités :
 
-## Configuration
+| Module | Rôle | Description |
+| :--- | :--- | :--- |
+| Common | Domain | Contient les entités JPA, les modèles de données et les interfaces partagées. |
+| Persistence | Data Access | Gère l'accès aux données via JPA et fournit les services de persistance. |
+| Business | Core Logic | Contient la logique métier, les règles de calcul des consignes et les pilotes de communication (MQTT/Simulé). |
+| RestServer | Entry Point | Exposition des ressources via une API REST sécurisée par JWT (Jersey + Jetty). |
+| JSF | UI Layer | Interface utilisateur web construite avec Jakarta Faces et PrimeFaces. |
+| ibr-utils | Shared Utils | Utilitaires transversaux : Logging JSON, Cryptographie, Gestion d'exceptions personnalisées. |
+| Base | Deployment | Module de packaging regroupant les modules internes pour faciliter le déploiement (Fat Jar). |
 
-### Variables d'environnement
-
-| Variable | Obligatoire | Description |
-|---|---|---|
-| `THERMOBOX_DB_URL` | Non | URL JDBC (défaut : `jdbc:mysql://localhost:3306/thermobox`) |
-| `THERMOBOX_DB_USER` | Oui | Utilisateur de la base |
-| `THERMOBOX_DB_PASSWORD` | Oui | Mot de passe de la base |
-| `THERMOBOX_JWT_SECRET` | Recommandé | Clé de signature JWT d'au moins 32 octets. Si elle est absente, une clé aléatoire est générée au démarrage et les jetons ne survivent pas au redémarrage |
-| `THERMOBOX_JWT_TTL_MINUTES` | Non | Durée de vie d'un jeton JWT en minutes (défaut : 60) |
-
-Exemple de configuration sous Linux/macOS :
-
-```bash
-export THERMOBOX_DB_URL='jdbc:mysql://localhost:3306/thermobox'
-export THERMOBOX_DB_USER='votre_utilisateur'
-export THERMOBOX_DB_PASSWORD='votre_mot_de_passe'
-export THERMOBOX_JWT_SECRET='remplacer-par-une-cle-secrete-de-32-octets-minimum'
-export THERMOBOX_JWT_TTL_MINUTES='60'
-```
-
-Adaptez les valeurs à votre environnement. Ne publiez jamais vos vrais identifiants ni votre clé JWT dans le dépôt.
-
-Attention à la base de données : le fichier `Persistence/src/main/resources/META-INF/persistence.xml` configure actuellement la génération du schéma avec l'action `create`. Vérifiez ce réglage avant un environnement partagé ou de production.
-
-## Démarrage
-
-### API REST
-
-Après avoir configuré les variables et compilé le projet, lancez la classe principale `ax.ibr.thermobox.restserver.MainKt` du module `RestServer` depuis votre IDE, avec le classpath Maven du module.
-
-Le serveur écoute par défaut sur :
-
-```text
-http://localhost:8080/
-```
-
-Les ressources REST sont déclarées sous le préfixe `/api`. Par exemple, les ressources associant températures et salles utilisent `/api/salletemps`.
-
-La plupart des routes nécessitent un jeton JWT transmis dans l'en-tête HTTP suivant :
-
-```http
-Authorization: Bearer <votre_jeton>
-```
-
-Les routes publiques, notamment celles d'authentification, font exception. Consultez les classes de ressources du module `RestServer` pour connaître précisément les routes, paramètres et méthodes disponibles.
-
-### Interface web JSF
-
-Le module `JSF` produit une archive WAR nommée `thermobox.war`.
-
-Après compilation, déployez cette archive dans un conteneur compatible Jakarta Faces et Jakarta Servlet, par exemple Tomcat 10.1. Le point d'entrée de l'interface est `index.xhtml`.
+## Stack Technique
+- Langage : Kotlin 2.4+
+- Build Tool : Maven
+- Persistence : Jakarta Persistence (JPA) / Hibernate
+- API : Jersey, Jetty
+- Sécurité : JWT (JSON Web Tokens)
+- Frontend : Jakarta Faces (JSF), PrimeFaces
 
 ## Déploiement
-
-Le profil Maven `deploy` produit les trois livrables dans le dossier `deploy/` à la racine :
+Le projet inclut un profil de déploiement spécifique. Pour générer les artefacts destinés à la production (incluant le regroupement des modules dans base.jar) :
 
 ```bash
-mvn -Pdeploy -DskipTests clean package
+mvn -Pdeploy -DskipTests package
 ```
+Les fichiers produits sont disponibles dans le dossier /deploy.
 
-| Fichier | Contenu |
-|---|---|
-| `base.jar` | `ibr-utils`, `Common`, `Persistence` et `Business` réunis (module `Base`), avec `persistence.xml` |
-| `RestServer.jar` | Le serveur REST, exécutable, avec Jersey, Jetty et les bibliothèques tierces. Il charge `base.jar` posé à côté de lui |
-| `JsfServer.war` | L'interface JSF, avec `base.jar` dans `WEB-INF/lib` à la place des quatre modules séparés |
-
-- API REST : placer `RestServer.jar` et `base.jar` dans le même dossier, puis lancer `java -jar RestServer.jar` avec les variables d'environnement ci-dessus.
-- Interface JSF : copier `JsfServer.war` dans le dossier `webapps` de Tomcat. L'application répond alors sur `/JsfServer` (renommer le fichier pour changer ce chemin).
-
-Sans `-Pdeploy`, le build reste celui du développement (`thermobox.war`, jars par module).
-
-Option Docker : si vous préférez déployer avec Docker (images, docker-compose, Tomcat ou WildFly pour la partie JSF), consultez la documentation Docker du projet : `DOCKER.md` (branche docker-deployment) qui décrit les Dockerfile, docker-compose et les étapes pour Tomcat et WildFly.
-
-## Rôles et sécurité
-
-Les autorisations sont vérifiées côté serveur, dans l'API comme dans l'interface JSF. Côté API, les annotations des ressources définissent les rôles autorisés pour les opérations protégées.
-
-- `ADMIN` : opérations d'administration, dont certaines suppressions.
-- `GESTIONNAIRE` : gestion des données et des consignes selon les routes.
-- `VIEWER` : consultation lorsque les droits de la route le permettent.
-
-Dans l'interface JSF, un `VIEWER` ne voit pas les boîtiers : seulement les bâtiments, étages et salles avec leur température.
-
-Un jeton JWT doit être transmis dans l'en-tête `Authorization` avec le préfixe `Bearer`. Une clé stable configurée via `THERMOBOX_JWT_SECRET` est nécessaire si les jetons doivent rester valides après redémarrage.
-
-L'interface JSF utilise les mêmes jetons (même `JwtService`, dans `Business`), transmis dans un cookie `HttpOnly` et `SameSite=Strict`. Chaque page de `/app` et `/admin` vérifie le jeton et redirige si l'utilisateur n'est pas autorisé.
-
-Les mots de passe sont stockés hachés avec BCrypt (coût 12, sel aléatoire par mot de passe), jamais en clair, et sont limités à 72 octets, la limite de BCrypt. Un compte créé avant le hashage renforcé pourra nécessiter une réinitialisation.
-
-## Bâtiments, étages, salles et boîtiers
-
-Les quatre héritent de `Salle` et sont reliés par `SalleSalleAttr` (parent → enfant) : un bâtiment contient des étages ou directement des salles, un étage des salles, une salle des boîtiers.
-
-Dans l'interface JSF (« Bâtiments & salles »), un administrateur range les éléments par glisser-déposer : le serveur vérifie ces règles avant que l'arbre ne bouge à l'écran.
-
-## Tableau de bord
-
-Les salles y sont regroupées par bâtiment, avec une recherche (nom de salle, d'étage ou de bâtiment, sans tenir compte des accents) et un filtre par bâtiment. Chaque utilisateur peut épingler des salles en favoris.
-
-## Données de démonstration
-
-- `DatabaseSeeder` (`Business/src/test/kotlin/DBPopulate.kt`) crée 3 bâtiments, leurs étages et salles, 27 boîtiers (dont 2 non rattachés), un utilisateur par rôle (`admin`, `gestionnaire`, `viewer`) et des mesures factices.
-- `SimulatedProtocolDriver` mesure ensuite tous les boîtiers chaque minute : chaque boîtier suit la consigne de sa salle, et de nouveaux boîtiers non rattachés s'annoncent toutes les deux minutes.
-
-## Développement
-
-Les derniers changements portent notamment sur :
-
-- la centralisation des fabriques métier et de persistance ;
-- la sécurisation de l'API REST par JWT ;
-- la configuration SQL via des variables d'environnement ;
-- l'ajout des entités `Etage` et `Batiment`, qui héritent de `Salle` ;
-- l'ajout de `SalleSalleAttr` et le renforcement des validations métier ;
-- l'implémentation progressive des services JPA.
-
-La persistance des nouvelles associations doit encore être vérifiée et complétée.
-
-Pour suivre les changements et consulter les commits :
-
-- https://github.com/IbraxTheKing/ThermoBox/commits
-
-## Licence
-
-MIT
+## Notes importantes
+- Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.
+- Sécurité : Ne pas exposer les identifiants ou la clé JWT secrète dans un environnement public.
