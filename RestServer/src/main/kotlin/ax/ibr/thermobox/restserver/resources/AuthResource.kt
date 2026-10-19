@@ -2,6 +2,7 @@ package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.security.Authenticator
 import ax.ibr.thermobox.business.security.JwtService
+import ax.ibr.thermobox.business.security.RateLimiter
 import ax.ibr.thermobox.restserver.dto.LoginRequest
 import ax.ibr.thermobox.restserver.dto.LoginResponse
 import ax.ibr.thermobox.restserver.dto.UserDto
@@ -30,9 +31,18 @@ class AuthResource {
             return error(Response.Status.BAD_REQUEST, "username and password are required")
         }
 
-        val user = Authenticator.authenticate(username, password)
-            ?: return error(Response.Status.UNAUTHORIZED, "Invalid username or password")
+        // Rate Limiting check
+        if (RateLimiter.isBlocked(username)) {
+            return error(Response.Status.TOO_MANY_REQUESTS, "Too many attempts. Please try again later.")
+        }
 
+        val user = Authenticator.authenticate(username, password)
+            ?: run {
+                RateLimiter.recordFailure(username)
+                return error(Response.Status.UNAUTHORIZED, "Invalid username or password")
+            }
+
+        RateLimiter.reset(username)
         val issued = JwtService.issue(user)
         return Response.ok(
             LoginResponse(issued.token, "Bearer", issued.expiresAt.toString(), UserDto.from(user))

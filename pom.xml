@@ -21,6 +21,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <kotlin.version>2.4.10</kotlin.version>
+    <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
   </properties>
 
   <dependencies>
@@ -40,6 +41,12 @@
       <artifactId>kotlin-test-junit</artifactId>
       <version>${kotlin.version}</version>
       <scope>test</scope>
+    </dependency>
+    <!-- Added for Transactional support -->
+    <dependency>
+      <groupId>jakarta.transaction</groupId>
+      <artifactId>jakarta.transaction-api</artifactId>
+      <version>${jakarta.transaction.version}</version>
     </dependency>
   </dependencies>
 
