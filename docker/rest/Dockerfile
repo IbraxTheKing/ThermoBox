@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 # ---------------------------------------------------------------------------
 # Image d'exécution
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:${JAVA_VERSION}-jre-jammy
+FROM eclipse-temurin:${JAVA_VERSION}-jre
 
 RUN groupadd --system --gid 10001 thermobox \
  && useradd  --system --uid 10001 --gid thermobox --no-create-home \
