@@ -17,7 +17,7 @@
     font-weight: 200 800;
     font-display: swap;
     src: url("#{resource['fonts/manrope-latin.woff2']}") format("woff2-variations"),
-         url("#{resource['fonts/manrope-latin.woff2']}") format("woff2");
+    url("#{resource['fonts/manrope-latin.woff2']}") format("woff2");
 }
 
 /* ============================== Tokens ============================== */
@@ -56,10 +56,10 @@
 
     /* Glass */
     --tb-bg:
-        radial-gradient(58vmax 48vmax at 8% 4%, rgba(111, 177, 224, .30), transparent 66%),
-        radial-gradient(48vmax 42vmax at 92% 12%, rgba(155, 155, 220, .22), transparent 64%),
-        radial-gradient(64vmax 50vmax at 76% 105%, rgba(95, 163, 204, .26), transparent 66%),
-        linear-gradient(145deg, #c6d6e8 0%, #b1c2d7 48%, #a0b2c8 100%);
+            radial-gradient(58vmax 48vmax at 8% 4%, rgba(111, 177, 224, .30), transparent 66%),
+            radial-gradient(48vmax 42vmax at 92% 12%, rgba(155, 155, 220, .22), transparent 64%),
+            radial-gradient(64vmax 50vmax at 76% 105%, rgba(95, 163, 204, .26), transparent 66%),
+            linear-gradient(145deg, #c6d6e8 0%, #b1c2d7 48%, #a0b2c8 100%);
     --tb-glass: linear-gradient(135deg, rgba(234, 242, 251, .60), rgba(206, 223, 243, .40) 58%, rgba(226, 234, 247, .50));
     --tb-glass-hover: linear-gradient(135deg, rgba(240, 246, 253, .72), rgba(214, 229, 247, .52) 58%, rgba(232, 239, 250, .62));
     --tb-glass-solid: rgba(232, 240, 250, .9);
@@ -152,10 +152,10 @@
     --md-scrim: rgba(0, 0, 0, .55);
 
     --tb-bg:
-        radial-gradient(58vmax 48vmax at 8% 4%, rgba(60, 110, 200, .26), transparent 66%),
-        radial-gradient(48vmax 42vmax at 92% 12%, rgba(120, 100, 220, .16), transparent 64%),
-        radial-gradient(64vmax 50vmax at 76% 105%, rgba(40, 140, 190, .18), transparent 66%),
-        linear-gradient(145deg, #121a27 0%, #0d131c 50%, #0a0e15 100%);
+            radial-gradient(58vmax 48vmax at 8% 4%, rgba(60, 110, 200, .26), transparent 66%),
+            radial-gradient(48vmax 42vmax at 92% 12%, rgba(120, 100, 220, .16), transparent 64%),
+            radial-gradient(64vmax 50vmax at 76% 105%, rgba(40, 140, 190, .18), transparent 66%),
+            linear-gradient(145deg, #121a27 0%, #0d131c 50%, #0a0e15 100%);
     --tb-glass: linear-gradient(135deg, rgba(48, 60, 82, .58), rgba(28, 36, 50, .48));
     --tb-glass-hover: linear-gradient(135deg, rgba(56, 70, 96, .66), rgba(32, 42, 58, .56));
     --tb-glass-solid: rgba(26, 34, 48, .92);
@@ -856,9 +856,9 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     padding: 28px 32px;
     border-radius: var(--tb-shape-xxl);
     background:
-        radial-gradient(120% 90% at 100% 100%, color-mix(in srgb, var(--tone) 30%, transparent), transparent 60%),
-        linear-gradient(140deg, color-mix(in srgb, var(--md-primary) 22%, transparent), color-mix(in srgb, var(--md-primary) 6%, transparent)),
-        var(--tb-glass);
+            radial-gradient(120% 90% at 100% 100%, color-mix(in srgb, var(--tone) 30%, transparent), transparent 60%),
+            linear-gradient(140deg, color-mix(in srgb, var(--md-primary) 22%, transparent), color-mix(in srgb, var(--md-primary) 6%, transparent)),
+            var(--tb-glass);
     color: var(--md-on-surface);
     overflow: hidden;
 }
@@ -1755,4 +1755,474 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     a.tb-crumb:hover { background: transparent; }
     .tb-theme-btn:hover i { transform: none; }
     .ui-tree.tb-tree .ui-treenode-content:hover { background: transparent; }
+}
+
+/* ============================== Mobile refinement ==============================
+   Focus: the building/salle tree, one-handed actions, safe areas and compact screens.
+   These rules intentionally override only the responsive layer above.
+*/
+
+@media (max-width: 840px) {
+    :root body {
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-x: none;
+    }
+
+    .tb-topbar {
+        min-height: 58px;
+        padding-top: env(safe-area-inset-top);
+        height: calc(58px + env(safe-area-inset-top));
+    }
+
+    .tb-topbar .tb-brand {
+        min-width: 0;
+        font-size: 1.12rem;
+    }
+
+    .tb-topbar .tb-brand span:not(.tb-logo) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tb-rail {
+        height: calc(72px + env(safe-area-inset-bottom));
+        padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    }
+
+    .tb-dests {
+        max-width: none;
+        gap: 4px;
+    }
+
+    .tb-dest {
+        min-width: 0;
+        min-height: 52px;
+        padding: 3px 2px 2px;
+        gap: 2px;
+        font-size: .68rem;
+        line-height: 1.15;
+    }
+
+    .tb-dest-icon {
+        width: 44px;
+        height: 30px;
+        border-radius: 10px;
+    }
+
+    .tb-dest-icon .pi { font-size: 1.15rem; }
+
+    .tb-app .tb-main {
+        padding-top: 16px;
+        padding-bottom: calc(94px + env(safe-area-inset-bottom));
+    }
+
+    .tb-page-head {
+        align-items: center;
+        gap: 12px;
+    }
+
+    .tb-page-title { min-width: 0; }
+    .tb-page-title h1 { overflow-wrap: anywhere; }
+
+    .tb-lead {
+        margin-top: -4px;
+        margin-bottom: 18px;
+        font-size: .95rem;
+        line-height: 1.55;
+    }
+
+    /* Tree becomes a comfortable, full-width touch list. */
+    :root body .ui-tree.tb-tree {
+        padding: 6px 0;
+        overflow: visible;
+    }
+
+    .ui-tree.tb-tree .ui-tree-container {
+        min-width: 0;
+        padding: 0;
+    }
+
+    .ui-tree.tb-tree .ui-treenode {
+        min-width: 0;
+    }
+
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content {
+        min-width: 0;
+        min-height: 68px;
+        padding: 6px 4px;
+        border-radius: 14px;
+    }
+
+    .ui-tree.tb-tree .ui-treenode-content .ui-tree-toggler {
+        flex: 0 0 34px;
+        width: 34px;
+        height: 38px;
+        margin-right: 2px;
+    }
+
+    .ui-tree.tb-tree .ui-treenode-label {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .tb-node {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) 44px;
+        column-gap: 6px;
+    }
+
+    .tb-node-main {
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .tb-tree-icon {
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 1rem;
+    }
+
+    .tb-node-main .tb-node-name {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        line-height: 1.25;
+    }
+
+    .tb-node-temp {
+        margin: 3px 0 0 42px;
+        font-size: .92rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .tb-node-actions {
+        justify-content: center;
+        align-self: center;
+    }
+
+    :root body .tb-node-actions .ui-button.ui-button-icon-only,
+    :root body .tb-node-actions .ui-linkbutton.ui-button-icon-only {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+    }
+
+    /* Dialogs fit the available viewport and remain usable above the phone keyboard. */
+    :root body .ui-dialog:not(.tb-sheet) {
+        width: calc(100vw - 24px) !important;
+        max-width: 440px;
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+        margin: 0;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    :root body .ui-dialog:not(.tb-sheet) .ui-dialog-content {
+        max-height: calc(100dvh - 150px - env(safe-area-inset-top));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    :root body .ui-dialog.tb-sheet {
+        max-height: min(82dvh, 720px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .tb-sheet-item {
+        min-height: 56px;
+        padding-inline: 16px;
+    }
+
+    .tb-sheet-head { padding-inline: 18px; }
+
+    .tb-field { margin-bottom: 20px; }
+
+    :root body .tb-field .ui-inputfield,
+    :root body .tb-field .ui-selectonemenu,
+    :root body .tb-field .ui-selectonemenu .ui-selectonemenu-label {
+        min-height: 46px;
+        font-size: 16px; /* Avoids iOS Safari auto-zoom on focus. */
+    }
+
+    .tb-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        display: flex;
+        gap: 10px;
+        padding: 12px 0 calc(4px + env(safe-area-inset-bottom));
+        background: var(--tb-glass-solid);
+    }
+
+    .tb-actions > .ui-button {
+        flex: 1 1 0;
+        min-height: 46px;
+    }
+
+    /* The floating create action must stay clear of the bottom navigation. */
+    :root body .ui-button.tb-fab {
+        right: 16px;
+        bottom: calc(88px + env(safe-area-inset-bottom));
+        min-height: 52px;
+        border-radius: 17px;
+        padding-inline: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tb-main,
+    .tb-app .tb-main {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .tb-page-title h1 {
+        font-size: clamp(1.75rem, 7vw, 2.2rem);
+        letter-spacing: -.035em;
+    }
+
+    .tb-eyebrow {
+        font-size: .72rem;
+        letter-spacing: .1em;
+    }
+
+    .tb-tree-icon {
+        flex-basis: 30px;
+        width: 30px;
+        height: 30px;
+    }
+
+    .ui-tree.tb-tree .ui-tree-container .ui-treenode .ui-treenode-content {
+        padding-inline: 1px;
+    }
+
+    .tb-node {
+        grid-template-columns: minmax(0, 1fr) 42px;
+        column-gap: 2px;
+    }
+
+    .tb-node-main { gap: 6px; }
+
+    .tb-node-temp { margin-left: 36px; }
+
+    .tb-node-main .tb-node-name { font-size: .92rem; }
+
+    .tb-node-temp .tb-muted {
+        display: block;
+        margin: 1px 0 0;
+        font-size: .75rem;
+    }
+
+    .tb-summary {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 2px 2px 8px;
+        margin-right: -12px;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tb-summary-chip {
+        flex: 0 0 auto;
+        min-height: 40px;
+    }
+
+    .tb-boxes { grid-template-columns: minmax(0, 1fr); }
+
+    .tb-hero-reading { padding: 20px 18px; }
+    .tb-temp-hero { font-size: clamp(4.5rem, 20vw, 6rem); }
+
+    .tb-card { padding: 18px 14px; }
+
+    .tb-range {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .tb-range > * { min-width: 0; width: 100%; }
+
+    .tb-chart { height: 260px; }
+
+    :root body .ui-button.tb-fab {
+        width: 54px;
+        min-width: 54px;
+        height: 54px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 18px;
+    }
+
+    :root body .ui-button.tb-fab .ui-button-text {
+        display: none;
+    }
+}
+
+@media (max-width: 360px) {
+    .tb-topbar { padding-left: 10px; }
+    .tb-dest { font-size: .62rem; }
+    .tb-dest-icon { width: 38px; }
+    .tb-page-head { gap: 8px; }
+    .tb-node-main .tb-node-name { font-size: .88rem; }
+}
+
+/* Respect the device's reduced-motion preference without relying on hover. */
+@media (prefers-reduced-motion: reduce) {
+    .tb-node *,
+    .tb-dest,
+    .tb-room,
+    .tb-box {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+    }
+}
+
+
+/* ====================== Salles: safer touch scrolling ======================
+   Scoped to this page so other trees/widgets keep their existing behaviour. */
+@media (max-width: 840px), (hover: none) and (pointer: coarse) {
+    #sallesForm\:arbre {
+        overflow: visible;
+        touch-action: pan-y;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    #sallesForm\:arbre .ui-tree-container,
+    #sallesForm\:arbre .ui-treenode,
+    #sallesForm\:arbre .ui-treenode-content {
+        touch-action: pan-y;
+    }
+
+    #sallesForm\:arbre .ui-treenode-content {
+        min-height: 76px;
+        margin: 3px 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        border: 1px solid var(--tb-glass-line);
+        background: color-mix(in srgb, var(--tb-glass) 72%, transparent);
+    }
+
+    #sallesForm\:arbre .ui-treenode-content:active,
+    #sallesForm\:arbre .ui-treenode-content.ui-state-hover {
+        transform: none;
+        outline: none;
+        background: color-mix(in srgb, var(--md-primary) 7%, var(--tb-glass));
+    }
+
+    #sallesForm\:arbre .ui-treenode-content .ui-tree-toggler,
+    #sallesForm\:arbre .tb-node-actions {
+        touch-action: manipulation;
+        -webkit-user-select: auto;
+        user-select: auto;
+    }
+
+    #sallesForm\:arbre .ui-treenode-children {
+        margin-left: 10px;
+        padding-left: 7px;
+    }
+}
+
+@media (max-width: 480px) {
+    #sallesForm .tb-lead {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--tb-glass);
+        font-size: .92rem;
+    }
+
+    #sallesForm .tb-node-temp {
+        min-height: 22px;
+    }
+
+    #sallesForm\:arbre .ui-treenode-content {
+        min-height: 80px;
+        border-radius: 13px;
+    }
+}
+
+
+
+/* Dashboard state filters: use each state's own colour even when inactive.
+   The state class (tb-ton-stable / tb-ton-chauffe / tb-ton-chaud / tb-ton-inconnu)
+   supplies --tone, --tone-container and --tone-on-container. */
+.tb-summary-chip {
+    border-color: color-mix(in srgb, var(--tone) 38%, var(--tb-glass-line));
+    background: color-mix(in srgb, var(--tone-container) 48%, var(--tb-glass));
+    color: var(--tone-on-container);
+}
+
+.tb-summary-chip::before {
+    background: var(--tone);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 18%, transparent);
+}
+
+.tb-summary-chip:hover {
+    border-color: color-mix(in srgb, var(--tone) 65%, var(--tb-glass-line));
+    background: color-mix(in srgb, var(--tone-container) 68%, var(--tb-glass));
+}
+
+.tb-summary-chip.tb-chip-on {
+    border-color: var(--tone);
+    background: var(--tone-container);
+    color: var(--tone-on-container);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--tone) 18%, transparent),
+    var(--tb-glass-shadow);
+}
+
+.tb-summary-chip.tb-chip-on .tb-chip-check { color: currentColor; }
+
+.tb-summary:has(.tb-chip-on) .tb-summary-chip:not(.tb-chip-on) {
+    opacity: .78;
+}
+
+@media (hover: none) {
+    .tb-summary-chip:hover {
+        border-color: color-mix(in srgb, var(--tone) 38%, var(--tb-glass-line));
+        background: color-mix(in srgb, var(--tone-container) 48%, var(--tb-glass));
+        box-shadow: var(--tb-glass-hi);
+    }
+}
+
+/* Dashboard: tint the whole page according to the selected state filter.
+   The tint is deliberately soft so the cards remain readable; clearing the
+   filter automatically restores the default blue glass background. */
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-stable) body {
+    background:
+            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--tb-stable) 30%, transparent), transparent 68%),
+            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--tb-stable) 19%, transparent), transparent 70%),
+            var(--tb-bg);
+}
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chauffe) body {
+    background:
+            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--tb-chauffe) 30%, transparent), transparent 68%),
+            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--tb-chauffe) 19%, transparent), transparent 70%),
+            var(--tb-bg);
+}
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chaud) body {
+    background:
+            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--md-error) 29%, transparent), transparent 68%),
+            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--md-error) 18%, transparent), transparent 70%),
+            var(--tb-bg);
+}
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-inconnu) body {
+    background:
+            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--md-outline) 24%, transparent), transparent 68%),
+            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--md-outline) 15%, transparent), transparent 70%),
+            var(--tb-bg);
+}
+
+:root body {
+    transition: background-color .35s ease;
 }
