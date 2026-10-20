@@ -28,13 +28,14 @@
                     <i class="pi pi-search"/>
                     <p:inputText id="recherche" value="#{userBean.recherche}" placeholder="Rechercher un utilisateur…"
                                  autocomplete="off" pt:type="search" pt:enterkeyhint="search">
-                        <p:ajax event="keyup" delay="200" update="table"/>
+                        <p:ajax event="keyup" delay="200" update="table" onstart="tbFlip.first('#usersForm\\:table [data-flip]')" oncomplete="tbFlip.play()"/>
                     </p:inputText>
                 </span>
             </div>
             <h:panelGroup id="roles" layout="block" styleClass="tb-summary">
                 <ui:repeat value="#{userBean.roles}" var="r">
                     <p:commandLink action="#{userBean.basculerRole(r)}" process="@this" update=":usersForm:table :usersForm:roles"
+                                   onstart="tbFlip.first('#usersForm\\:table [data-flip]')" oncomplete="tbFlip.play()"
                                    styleClass="tb-summary-chip tb-role-chip tb-role-#{r} #{userBean.roleFiltre eq r ? 'tb-chip-on' : ''}"
                                    pt:aria-pressed="#{userBean.roleFiltre eq r}">
                         <i class="pi pi-check tb-chip-check"/>#{r}<span class="tb-chip-n">#{userBean.nombre(r)}</span>
@@ -44,7 +45,7 @@
 
             <h:panelGroup id="table" layout="block" styleClass="tb-users">
                 <ui:repeat value="#{userBean.visibles}" var="u">
-                    <div class="tb-user">
+                    <div class="tb-user" data-flip="u#{u.id}">
                         <span class="tb-avatar tb-user-avatar tb-role-#{u.type}">#{userBean.initiale(u)}</span>
                         <div class="tb-user-text">
                             <strong>
@@ -59,6 +60,7 @@
                                              styleClass="ui-button-flat"/>
                             <p:commandButton icon="pi pi-trash" title="Supprimer #{u.username}" action="#{userBean.delete(u)}"
                                              process="@this" update=":usersForm:table :usersForm:roles" disabled="#{userBean.isSelf(u)}"
+                                             onstart="tbFlip.first('#usersForm\\:table [data-flip]')" oncomplete="tbFlip.play()"
                                              styleClass="ui-button-flat ui-button-danger">
                                 <p:confirm header="Supprimer" message="Supprimer l'utilisateur « #{u.username} » ?"
                                            icon="pi pi-exclamation-triangle"/>

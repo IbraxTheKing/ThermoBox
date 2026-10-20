@@ -2455,9 +2455,26 @@ html { background-color: var(--md-surface); }
     50% { stroke-dashoffset: 0; opacity: 1; }
     100% { stroke-dashoffset: -160; opacity: .3; }
 }
-/* Curves that just arrived draw themselves once */
-.tb-spark-new svg { animation: tb-draw .9s var(--tb-ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
-.tb-spark-new .tb-spark-dot { animation: tb-pop-in .4s var(--tb-spring) both; animation-delay: calc(.7s + var(--i, 0) * 40ms); }
+/*
+ * Curves that just arrived: the placeholder's tinted box fades out while the curve draws itself
+ * from the left, so the wait ends in a hand-over rather than a cut.
+ */
+.tb-spark-new::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--tb-shape-lg);
+    background: color-mix(in srgb, var(--tone, var(--md-primary)) 7%, transparent);
+    pointer-events: none;
+    animation: tb-placeholder-out .9s ease both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+}
+.tb-spark-new svg { animation: tb-draw 1.1s cubic-bezier(.4, 0, .2, 1) both; animation-delay: calc(.08s + var(--i, 0) * 40ms); }
+.tb-spark-new .tb-spark-fill { animation-name: tb-draw, tb-fade-in; animation-duration: 1.1s, .8s; }
+.tb-spark-new .tb-spark-consigne, .tb-spark-new .tb-spark-caption { animation: tb-fade-in .6s ease both; animation-delay: calc(.2s + var(--i, 0) * 40ms); }
+.tb-spark-new .tb-spark-dot { animation: tb-pop-in .45s var(--tb-spring) both; animation-delay: calc(1s + var(--i, 0) * 40ms); }
+.tb-spark-empty.tb-spark-new { animation: tb-fade-in .6s ease both; }
+@keyframes tb-placeholder-out { from { opacity: 1; } to { opacity: 0; } }
 
 /* Preferences: animations turned off (cookie thermobox-animations, PreferencesBean) */
 :root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after {

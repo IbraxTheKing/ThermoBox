@@ -4,7 +4,7 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:p="http://primefaces.org/ui">
-    <article class="tb-card tb-maj-version-card tb-canal-#{updateBean.canal(v.version)}">
+    <article class="tb-card tb-maj-version-card tb-canal-#{updateBean.canal(v.version)}" data-flip="v#{v.version.tag}">
         <div class="tb-card-head">
             <div class="tb-maj-titre">
                 <strong class="tb-maj-version">#{v.version.tag}</strong>

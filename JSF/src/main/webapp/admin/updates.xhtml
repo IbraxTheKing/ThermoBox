@@ -112,7 +112,7 @@
                 <!-- Filter by channel: RC, Beta, Nightly, Stable (a second click shows them all) -->
                 <h:panelGroup layout="block" styleClass="tb-summary tb-maj-canaux" rendered="#{updateBean.chipsCanaux.size() gt 1}">
                     <ui:repeat value="#{updateBean.chipsCanaux}" var="c">
-                        <p:commandLink action="#{updateBean.filtrerCanal(c.cle)}" process="@this" update=":majForm:versions"
+                        <p:commandLink action="#{updateBean.filtrerCanal(c.cle)}" process="@this" update=":majForm:versions" onstart="tbFlip.first('#majForm\\:versions [data-flip]')" oncomplete="tbFlip.play()"
                                        styleClass="tb-summary-chip tb-canal-chip tb-canal-#{c.couleur} #{updateBean.canalFiltre eq c.cle ? 'tb-chip-on' : ''}"
                                        pt:aria-pressed="#{updateBean.canalFiltre eq c.cle}">
                             <i class="pi pi-check tb-chip-check"/>#{c.libelle}<span class="tb-chip-n">#{c.nombre}</span>

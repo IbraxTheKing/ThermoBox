@@ -213,27 +213,38 @@ var tbAnim = (function () {
 })();
 
 var tbFlip = (function () {
-    var SELECTOR = '#dashForm\\:grille [data-flip]';
-    var avant = null, favoris = null;
+    var PAR_DEFAUT = '#dashForm\\:grille [data-flip]';
+    var selecteur = PAR_DEFAUT;
+    var avant = null, favoris = null, fantomes = null;
 
     return {
-        /** onstart: where every card is before the update. */
-        first: function () {
+        /**
+         * onstart: where every element is before the update. [sel]: the elements to follow
+         * (dashboard cards by default; users list, versions list…).
+         */
+        first: function (sel) {
             if (tbAnim.reduced) return;
+            selecteur = sel || PAR_DEFAUT;
             avant = {};
             favoris = {};
-            document.querySelectorAll(SELECTOR).forEach(function (el) {
+            fantomes = {};
+            document.querySelectorAll(selecteur).forEach(function (el) {
                 var id = el.getAttribute('data-flip');
-                avant[id] = el.getBoundingClientRect();
+                var r = el.getBoundingClientRect();
+                avant[id] = r;
                 favoris[id] = !!el.querySelector('.tb-fav-on');
+                // Kept to fade out the ones the update removes
+                if (r.bottom > 0 && r.top < innerHeight) fantomes[id] = el.cloneNode(true);
             });
         },
         /** oncomplete: from there to where they are now. */
         play: function () {
             if (!avant) return;
             var nouveaux = 0;
-            document.querySelectorAll(SELECTOR).forEach(function (el) {
+            var presents = {};
+            document.querySelectorAll(selecteur).forEach(function (el) {
                 var id = el.getAttribute('data-flip');
+                presents[id] = true;
                 var old = avant[id];
                 var now = el.getBoundingClientRect();
                 // The star just turned on spins in
@@ -253,7 +264,19 @@ var tbFlip = (function () {
                         { duration: 380, delay: Math.min(nouveaux++, 10) * 35, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
                 }
             });
-            avant = null;
+            // Removed elements: their copy fades out where they were
+            Object.keys(fantomes).forEach(function (id) {
+                if (presents[id]) return;
+                var r = avant[id], f = fantomes[id];
+                f.removeAttribute('id');
+                f.setAttribute('aria-hidden', 'true');
+                f.style.cssText += ';position:fixed;margin:0;pointer-events:none;z-index:5;view-transition-name:none;'
+                    + 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+                document.body.appendChild(f);
+                f.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.96)' }],
+                    { duration: 260, easing: 'ease-in', fill: 'forwards' }).finished.then(function () { f.remove(); });
+            });
+            avant = fantomes = null;
         }
     };
 })();

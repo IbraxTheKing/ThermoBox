@@ -71,7 +71,7 @@
             <span class="tb-spark-dot" style="left: #{r.tendance.dernierX}%; top: #{r.tendance.dernierY}%"/>
             <span class="tb-spark-caption">24 h</span>
         </h:panelGroup>
-        <h:panelGroup layout="block" styleClass="tb-spark tb-spark-empty"
+        <h:panelGroup layout="block" styleClass="tb-spark tb-spark-empty #{dashboardBean.courbesNouvelles ? 'tb-spark-new' : ''}"
                       rendered="#{not dashboardBean.courbesEnAttente and r.tendance eq null}">
             Pas encore assez de mesures pour une courbe
         </h:panelGroup>
