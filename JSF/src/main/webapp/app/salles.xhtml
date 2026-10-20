@@ -105,7 +105,7 @@
                     draggable="#{loginBean.admin}" droppable="#{loginBean.admin}"
                     onDrop="#{salleBean.onDrop}">
                 <!-- Averages and "non rattaché" tags change with the move: redraw from the database. -->
-                <p:ajax event="dragdrop" listener="#{salleBean.load}" update="arbre drill"/>
+                <p:ajax event="dragdrop" listener="#{salleBean.load}" update=":sallesForm:arbre :sallesForm:drill"/>
 
                 <p:treeNode>
                     <span class="tb-node">
