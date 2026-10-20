@@ -144,7 +144,9 @@ class DashboardBean : Serializable {
         val favorisIds = favorisDe(login.currentUser)
         val images = Services.images.getDates()
         // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
-        val salles = Services.salles.getAllByType(Salle(null))
+        // Only those the user may see (AccesService), checked on the server at every refresh.
+        val acces = login.perimetre
+        val salles = Services.salles.getAllByType(Salle(null)).filter { acces.peutVoir(it) }
         val consignes = salles.associate { it.id to Services.climat.getConsigneEffective(it) }
         courbesNouvelles = false
         if (!courbesEnAttente) chargerTendances(salles, consignes.mapValues { it.value?.consigne })
@@ -165,10 +167,17 @@ class DashboardBean : Serializable {
                 tendance = tendances[salle.id],
             )
         }
-        batiments = Services.salles.getAllByType(Batiment(null)).sortedBy { it.name?.lowercase() }
-        // Average of every box of the building, not of the salle averages (salles differ in size).
-        moyennesBatiments = batiments.associate { it.id to Services.climat.getMoyenne(it) }
-        boitiersNonRattaches = Services.hierarchie.getRacines().count { it is Boitier }
+        batiments = Services.salles.getAllByType(Batiment(null)).filter { acces.estVisible(it) }.sortedBy { it.name?.lowercase() }
+        moyennesBatiments = if (acces.tout) {
+            // Average of every box of the building, not of the salle averages (salles differ in size).
+            batiments.associate { it.id to Services.climat.getMoyenne(it) }
+        } else {
+            // Limited user: over the salles they may see only, weighted by their number of boxes
+            // (the building's own average would tell about the others).
+            toutes.filter { it.moyenne != null && it.boitiers > 0 }.groupBy { it.batiment?.id }
+                .mapValues { (_, l) -> (l.sumOf { it.moyenne!!.toDouble() * it.boitiers } / l.sumOf { it.boitiers }).toFloat() }
+        }
+        boitiersNonRattaches = if (acces.tout) Services.hierarchie.getRacines().count { it is Boitier } else 0
         compteurs = toutes.groupingBy { it.etat }.eachCount().toSortedMap().map { (etat, n) -> Compteur(etat, n) }
         filtrer()
     }

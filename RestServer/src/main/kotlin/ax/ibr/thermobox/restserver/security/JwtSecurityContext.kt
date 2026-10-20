@@ -28,3 +28,10 @@ class JwtSecurityContext(
 /** Authenticated user of the current request. Only valid on non-public endpoints. */
 val SecurityContext.currentUser: User
     get() = (this as JwtSecurityContext).user
+
+/**
+ * Bâtiments, étages and salles the current user may see (AccesService). Computed for each
+ * request: a change of accesses applies at once.
+ */
+val SecurityContext.perimetre: ax.ibr.thermobox.common.acces.Perimetre
+    get() = ax.ibr.thermobox.business.implementations.BusinessFactory.getAccesService().perimetre(currentUser)

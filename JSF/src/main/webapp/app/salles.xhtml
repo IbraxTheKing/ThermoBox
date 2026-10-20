@@ -62,7 +62,8 @@
                             <h:outputText value=" °C" rendered="#{salleBean.dossier.temperature ne null}"/>
                         </span>
                     </div>
-                    <p:linkButton icon="pi pi-chart-line" title="Voir le détail" outcome="/app/salle" styleClass="ui-button-flat">
+                    <p:linkButton icon="pi pi-chart-line" title="Voir le détail" outcome="/app/salle" styleClass="ui-button-flat"
+                                  rendered="#{salleBean.dossier.accessible}">
                         <f:param name="id" value="#{salleBean.dossier.salle.id}"/>
                     </p:linkButton>
                     <p:commandButton icon="pi pi-ellipsis-v" title="Actions" rendered="#{loginBean.admin}"
@@ -121,13 +122,13 @@
                                 <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
                             </h:outputText>
                             <h:outputText value=" °C" rendered="#{n.temperature ne null}"/>
-                            <h:outputText value="—" rendered="#{n.temperature eq null}"/>
+                            <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
                             <h:outputText styleClass="tb-muted" value="#{n.boitiers} boîtier(s)"
                                           rendered="#{loginBean.canSeeBoitiers and n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
                         </span>
 
                         <span class="tb-node-actions">
-                            <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle"
+                            <p:linkButton icon="pi pi-eye" title="Voir" outcome="/app/salle" rendered="#{n.accessible}"
                                           styleClass="ui-button-flat tb-node-keep">
                                 <f:param name="id" value="#{n.salle.id}"/>
                             </p:linkButton>

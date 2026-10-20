@@ -1,6 +1,10 @@
 package ax.ibr.thermobox.jsf.beans
 
+import ax.ibr.thermobox.common.entities.Boitier
+import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.SalleKind
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.usernameTaken
@@ -13,6 +17,8 @@ import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
 import org.primefaces.PrimeFaces
+import org.primefaces.model.DefaultTreeNode
+import org.primefaces.model.TreeNode
 import java.io.Serializable
 
 /** Gestion des utilisateurs (ADMIN), équivalent de UserResource. */
@@ -53,10 +59,91 @@ class UserBean : Serializable {
 
     fun initiale(user: User): String = user.username?.trim()?.firstOrNull()?.uppercase().orEmpty()
 
+    // ------------------------------------------------------------- accesses (dialog "Accès")
+
+    /** User whose accesses are being edited. */
+    var accesUser: User? = null
+    /** false: sees everything; true: only what is ticked in [accesArbre]. */
+    var accesRestreint: Boolean = true
+    /** Bâtiments → étages → salles (no boxes: they follow their salle). */
+    @Transient
+    var accesArbre: TreeNode<Salle> = DefaultTreeNode()
+    var accesSelection: Array<TreeNode<Salle>>? = null
+
+    private var resumes: Map<Long?, String> = emptyMap()
+
     @PostConstruct
     fun load() {
         users = Services.users.getAll()
+        resumes = users.associate { it.id to resumer(it) }
     }
+
+    /** « Accès à tout », « Bâtiment A, Salle 12 », « Aucun accès »… shown under each user. */
+    fun resumeAcces(user: User): String = resumes[user.id].orEmpty()
+
+    private fun resumer(user: User): String = runCatching {
+        when {
+            user.type == UserType.ADMIN -> "Accès à tout (administrateur)"
+            !Services.acces.estRestreint(user) -> "Accès à tout"
+            else -> Services.acces.getAutorisations(user).map { it.name.orEmpty() }.sorted().let { noms ->
+                when {
+                    noms.isEmpty() -> "Aucun accès"
+                    noms.size <= 3 -> "Accès : " + noms.joinToString()
+                    else -> "Accès : " + noms.take(3).joinToString() + " et ${noms.size - 3} autre(s)"
+                }
+            }
+        }
+    }.getOrDefault("")
+
+    fun libelleType(salle: Salle): String = salle.kind.label
+
+    fun ouvrirAcces(user: User) {
+        if (!login.require(login.isAdmin)) return
+        val u = Services.users.getById(user.id!!) ?: return
+        accesUser = u
+        accesRestreint = Services.acces.estRestreint(u)
+        val accordes = Services.acces.getAutorisations(u).mapNotNull { it.id }.toSet()
+        val racine = DefaultTreeNode<Salle>()
+        Services.hierarchie.getRacines().filter { it !is Boitier }.forEach { ajouterAcces(it, racine, accordes, herite = false) }
+        accesArbre = racine
+        accesSelection = null
+    }
+
+    // A ticked element ticks what it contains (it gives access to it).
+    private fun ajouterAcces(salle: Salle, parent: TreeNode<Salle>, accordes: Set<Long>, herite: Boolean) {
+        val noeud = DefaultTreeNode(salle, parent)
+        val coche = herite || salle.id in accordes
+        noeud.isSelected = coche
+        noeud.isExpanded = salle.kind != SalleKind.SALLE
+        Services.hierarchie.getChildren(salle).filter { it !is Boitier }.forEach { ajouterAcces(it, noeud, accordes, coche) }
+    }
+
+    /**
+     * Records the ticked elements. An element counts with everything it contains (and what will
+     * be added to it later) only if it is ticked with all its content; otherwise only its ticked
+     * content counts: unticking one salle of an allowed étage limits the access to the others.
+     */
+    fun enregistrerAcces() {
+        if (!login.require(login.isAdmin)) return
+        val user = accesUser ?: return
+        val coches = accesSelection.orEmpty().mapNotNull { it.data?.id }.toSet()
+        val elements = if (accesRestreint) retenir(accesArbre, coches) else emptyList()
+        try {
+            Services.acces.definir(user, accesRestreint, elements)
+            Faces.info("Accès de « ${user.username} » enregistrés",
+                if (accesRestreint) "${elements.size} élément(s) et leur contenu" else "Accès à tout")
+            PrimeFaces.current().ajax().addCallbackParam("saved", true)
+            load()
+        } catch (e: Exception) {
+            Faces.error("Enregistrement impossible", e.message)
+        }
+    }
+
+    private fun retenir(noeud: TreeNode<Salle>, coches: Set<Long>): List<Salle> =
+        noeud.children.flatMap { enfant -> if (complet(enfant, coches)) listOf(enfant.data) else retenir(enfant, coches) }
+
+    private fun complet(noeud: TreeNode<Salle>, coches: Set<Long>): Boolean =
+        noeud.data?.id in coches && noeud.children.all { complet(it, coches) }
 
     fun isSelf(user: User): Boolean = login.isOwner(user)
 
@@ -89,7 +176,8 @@ class UserBean : Serializable {
         try {
             if (creating) {
                 Services.users.add(user)
-                Faces.info("Utilisateur « ${user.username} » créé")
+                Faces.info("Utilisateur « ${user.username} » créé",
+                    if (user.type == UserType.ADMIN) null else "Il n'a encore accès à aucune salle : donnez-lui des accès avec le bouton Accès.")
             } else {
                 Services.users.update(user)
                 Faces.info("Utilisateur « ${user.username} » modifié")

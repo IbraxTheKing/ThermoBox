@@ -20,7 +20,7 @@
             <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
         </h:outputText>
         <h:outputText value="°" rendered="#{n.temperature ne null}"/>
-        <h:outputText value="—" rendered="#{n.temperature eq null}"/>
+        <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
     </span>
     <i class="pi #{salleBean.estDossier(n) ? 'pi-angle-right' : 'pi-arrow-up-right'} tb-drill-go"/>
 </ui:composition>

@@ -3,6 +3,7 @@ package ax.ibr.thermobox.business.implementations
 import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
+import ax.ibr.thermobox.common.services.AccesService
 import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
@@ -17,6 +18,7 @@ class UserServiceImpl(
 
     // Only needed by remove(); lazy so tests of the other methods don't open the database.
     private val favoris: FavoriService by lazy { PersistenceFactory.getFavoriDataService() }
+    private val acces: AccesService by lazy { BusinessFactory.getAccesService() }
 
     override fun getByUsername(username: String): User? {
         return userService.getByUsername(username)
@@ -32,9 +34,14 @@ class UserServiceImpl(
             throw InvalidNameException("User name must not contain spaces")
         }
         userService.add(t)
+        // New accounts see nothing until an ADMIN grants them accesses (no excessive rights by default).
+        if (t.id != null) acces.initialiser(t)
     }
 
     override fun update(t: User) {
+        // An ADMIN turned into a GESTIONNAIRE / VIEWER doesn't keep a view on everything.
+        val avant = t.id?.let { userService.getById(it) }?.type
+        if (avant == UserType.ADMIN && t.type != UserType.ADMIN) acces.initialiser(t)
         hashPassword(t)
         if (t.username?.contains(" ") == true) {
             throw InvalidNameException("User name must not contain spaces")
@@ -45,7 +52,10 @@ class UserServiceImpl(
     /** Deletes the user's favourites first, or the foreign key blocks the delete. */
     override fun remove(t: User) {
         // A user never saved (no id) has no favourites: no need to reach the database for them.
-        if (t.id != null) favoris.getByUser(t).forEach { favoris.remove(it) }
+        if (t.id != null) {
+            favoris.getByUser(t).forEach { favoris.remove(it) }
+            acces.oublierUtilisateur(t)
+        }
         userService.remove(t)
     }
 

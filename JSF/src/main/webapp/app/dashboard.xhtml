@@ -73,9 +73,11 @@
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.vide}">
                     <span class="tb-empty-icon"><i class="pi pi-building"/></span>
-                    <strong>Aucune salle pour le moment</strong>
+                    <strong>#{loginBean.perimetre.tout ? 'Aucune salle pour le moment' : 'Aucune salle ne vous est accessible pour le moment'}</strong>
+                    <h:outputText value="Un administrateur vous donne accès aux bâtiments, étages ou salles à suivre."
+                                  rendered="#{not loginBean.perimetre.tout}"/>
                     <p:linkButton value="Gérer les bâtiments et salles" outcome="/app/salles"
-                                  styleClass="tb-tonal"/>
+                                  rendered="#{loginBean.admin}" styleClass="tb-tonal"/>
                 </h:panelGroup>
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.aucunResultat}">
