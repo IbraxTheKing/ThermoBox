@@ -163,8 +163,9 @@ class UpdateServiceImpl(
         val controles = ArrayList<Controle>()
 
         if (dispo.type == TypeMiseAJour.CORRECTIVE) {
-            controles += Controle(NiveauControle.OK, "Mise à jour corrective : ${installee} → $v",
-                "Corrections de la série ${v.serie}, compatible avec la version installée.")
+            controles += Controle(NiveauControle.OK, "Mise à jour corrective, recommandée : ${installee} → $v",
+                "Corrections de bugs et de sécurité de la série ${v.serie}, sans nouvelle fonctionnalité : la base de données " +
+                    "n'est pas modifiée, et revenir à $installee reste possible.")
         } else {
             controles += Controle(NiveauControle.AVERTISSEMENT, "Mise à jour fonctionnelle : ${installee?.serie ?: "version inconnue"} → ${v.serie}",
                 "Une nouvelle série peut modifier le schéma de la base ou migrer des données. Le retour à " +
@@ -229,7 +230,7 @@ class UpdateServiceImpl(
 
         val obligatoire = dispo.type == TypeMiseAJour.FONCTIONNELLE || dispo.migration != null || dispo.incompatible || installee == null
         controles += Controle(NiveauControle.INFO, "Sauvegarde de la base de données",
-            (if (obligatoire) "Faite d'office avant l'installation" else "Recommandée, faite avant l'installation si elle est cochée") +
+            (if (obligatoire) "Faite d'office avant l'installation" else "Facultative (une corrective ne modifie pas la base), faite avant l'installation si elle est cochée") +
                 ", dans ${dossier.sauvegardes}. Restauration : gunzip -c <fichier> | mysql -u <utilisateur> -p <base>.")
 
         return Preparation(

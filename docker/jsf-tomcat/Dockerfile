@@ -37,6 +37,8 @@ RUN rm -rf webapps/* webapps.dist
 
 COPY docker/jsf-tomcat/setenv.sh ${CATALINA_HOME}/bin/setenv.sh
 COPY --chmod=755 docker/jsf-tomcat/entrypoint.sh /usr/local/bin/thermobox-entrypoint.sh
+# A Windows checkout may have turned the script into CRLF: "/bin/sh^M: bad interpreter"
+RUN sed -i 's/\r$//' /usr/local/bin/thermobox-entrypoint.sh
 
 # Volume thermobox_data (partagé avec le serveur REST) : versions téléchargées et sauvegardes
 RUN mkdir -p /var/lib/thermobox && chown tomcat:tomcat /var/lib/thermobox

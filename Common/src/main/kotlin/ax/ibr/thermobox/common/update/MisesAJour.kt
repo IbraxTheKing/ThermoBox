@@ -3,7 +3,7 @@ package ax.ibr.thermobox.common.update
 import java.time.Instant
 
 enum class TypeMiseAJour(val label: String, val description: String) {
-    CORRECTIVE("Corrective", "Corrections dans la même série mensuelle, compatible avec la version installée."),
+    CORRECTIVE("Corrective", "Corrections de bugs et de sécurité de la même série, sans nouvelle fonctionnalité ni changement de la base de données : installation recommandée."),
     FONCTIONNELLE("Fonctionnelle", "Nouvelle série mensuelle : peut modifier la base de données et ne pas permettre de retour arrière."),
 }
 

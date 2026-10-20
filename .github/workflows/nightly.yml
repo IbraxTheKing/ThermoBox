@@ -1,9 +1,21 @@
 name: Nightly pre-release
 
+# Nightly de la prochaine version fonctionnelle, construite depuis la branche dev/ :
+# après la stable 26.10.x, dev/ prépare 26.11.0 et les nightly s'appellent 26.11.0-nightly.<n>
+# (format du README ; les anciennes nightly en -nightly-<n> sont encore comptées).
+# Les correctifs (26.10.x) ne passent pas par ici : ils sont publiés comme versions stables.
+#
+# Branche construite : dev/<série> (ex. dev/26.11) si elle existe, sinon la seule branche dev/*.
+# Un cron ne lit que le fichier du workflow présent sur la branche par défaut du dépôt.
+
 on:
   schedule:
     - cron: '0 2 * * *'   # chaque jour à 02:00 UTC (04:00 à Paris en été, 03:00 en hiver)
   workflow_dispatch:       # lancement manuel possible depuis l'onglet Actions
+    inputs:
+      branche:
+        description: Branche dev/ à construire (vide = choix automatique)
+        required: false
 
 permissions:
   contents: write          # nécessaire pour créer le tag et la release
@@ -18,59 +30,88 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
-          fetch-depth: 0   # historique complet + tags, pour comparer avec la dernière nightly
+          fetch-depth: 0   # tous les tags et toutes les branches
 
-      - name: Nouveaux commits depuis la dernière nightly ?
-        id: check
+      # Série : celle qui suit la dernière stable (26.10.1 -> 26.11, 26.12.x -> 27.01).
+      # Sans aucune stable : la série du mois en cours.
+      - name: Branche dev/ et version
+        id: version
+        env:
+          DEMANDEE: ${{ inputs.branche }}
         run: |
-          # '*nightly-*' also matches the tags of the older naming (nightly-AAAAMMJJ)
-          last_tag=$(git tag --list '*nightly-*' --sort=-creatordate | head -n1)
-          if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$(git rev-parse HEAD)" ]; then
-            echo "Aucun nouveau commit depuis $last_tag, rien à publier."
-            echo "build=false" >> "$GITHUB_OUTPUT"
+          stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -n1 || true)
+          if [ -n "$stable" ]; then
+            aa=$((10#$(echo "$stable" | cut -d. -f1)))
+            mm=$((10#$(echo "$stable" | cut -d. -f2)))
+            if [ "$mm" -eq 12 ]; then aa=$((aa + 1)); mm=1; else mm=$((mm + 1)); fi
           else
-            echo "build=true" >> "$GITHUB_OUTPUT"
+            aa=$((10#$(date -u +%y)))
+            mm=$((10#$(date -u +%m)))
+          fi
+          serie=$(printf '%d.%02d' "$aa" "$mm")
+
+          branches=$(git branch -r --format='%(refname:short)' | sed -n 's#^origin/##p' | grep '^dev/' || true)
+          if [ -n "$DEMANDEE" ]; then
+            branche="$DEMANDEE"
+          elif echo "$branches" | grep -qx "dev/$serie"; then
+            branche="dev/$serie"
+          elif [ -n "$branches" ] && [ "$(echo "$branches" | wc -l)" -eq 1 ]; then
+            branche="$branches"
+          else
+            echo "Pas de branche dev/ à construire (attendu : dev/$serie). Branches dev/ : ${branches:-aucune}"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git rev-parse -q --verify "origin/$branche^{commit}" >/dev/null; then
+            echo "::error::Branche $branche introuvable"
+            exit 1
+          fi
+          commit=$(git rev-parse "origin/$branche")
+
+          base="$serie.0"
+          # Last nightly of the series, whichever separator it was named with
+          last=$(git tag --list "${base}-nightly[.-]*" | sed -E "s/^${base//./\.}-nightly[.-]//" | grep -E '^[0-9]+$' | sort -n | tail -n1 || true)
+          if [ -n "$last" ]; then
+            last_tag=$(git tag --list "${base}-nightly.${last}" "${base}-nightly-${last}" | head -n1)
+          fi
+          if [ -n "$last" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
+            echo "Aucun nouveau commit sur $branche depuis $last_tag, rien à publier."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          tag="${base}-nightly.$(( ${last:-0} + 1 ))"
+          echo "Dernière stable : ${stable:-aucune} ; $branche -> $tag"
+          {
+            echo "build=true"
+            echo "tag=$tag"
+            echo "branche=$branche"
+            echo "commit=$commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Passer sur la branche dev/
+        if: steps.version.outputs.build == 'true'
+        run: git checkout --detach "${{ steps.version.outputs.commit }}"
+
       - name: Installer le JDK 23
-        if: steps.check.outputs.build == 'true'
+        if: steps.version.outputs.build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '23'
           cache: maven
 
-      # Version : la version qui suivra la dernière stable, + -nightly-<n>.
-      # Dernière stable = plus grand tag X.Y.Z (ou vX.Y.Z) ; on prend X.Y.(Z+1) : en SemVer,
-      # 26.10.1-nightly-3 se classe après 26.10.0 et avant 26.10.1, ce qui est le cas réel.
-      # n repart à 1 à chaque nouvelle stable. Sans aucun tag stable : AA.M.0 du jour.
-      - name: Version
-        if: steps.check.outputs.build == 'true'
-        id: version
-        run: |
-          stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
-          if [ -n "$stable" ]; then
-            base="${stable%.*}.$(( ${stable##*.} + 1 ))"
-          else
-            base="$(date -u +%y).$(date -u +%-m).0"
-          fi
-          last=$(git tag --list "${base}-nightly-*" | sed "s/^${base}-nightly-//" | grep -E '^[0-9]+$' | sort -n | tail -n1 || true)
-          tag="${base}-nightly-$(( ${last:-0} + 1 ))"
-          echo "Dernière stable : ${stable:-aucune} -> $tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
       # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
       # on compile et on package sans les lancer. Le profil "deploy" remplit deploy/
       # (base.jar, RestServer.jar, JsfClient.war), comme pour une mise en production.
       - name: Compiler (Maven, profil deploy)
-        if: steps.check.outputs.build == 'true'
+        if: steps.version.outputs.build == 'true'
         # -Dthermobox.version: the version the update system reads in the build
         run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
 
       # Les trois fichiers de deploy/, plus le dossier entier dans une archive
       - name: Rassembler les livrables
-        if: steps.check.outputs.build == 'true'
+        if: steps.version.outputs.build == 'true'
         run: |
           mkdir -p dist
           cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
@@ -78,14 +119,13 @@ jobs:
           ls -l dist
 
       - name: Créer la pre-release
-        if: steps.check.outputs.build == 'true'
+        if: steps.version.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.version.outputs.tag }}"
           gh release create "$tag" dist/* \
-            --target "$(git rev-parse HEAD)" \
+            --target "${{ steps.version.outputs.commit }}" \
             --prerelease \
-            --title "$tag ($(date -u +%Y-%m-%d))" \
+            --title "$tag ($(date -u +%Y-%m-%d), ${{ steps.version.outputs.branche }})" \
             --generate-notes
-

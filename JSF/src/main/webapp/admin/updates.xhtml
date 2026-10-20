@@ -122,6 +122,7 @@
                             <div class="tb-maj-titre">
                                 <strong class="tb-maj-version">#{v.version.tag}</strong>
                                 <p:tag value="#{v.type.label}" severity="#{updateBean.severiteType(v.type)}"/>
+                                <p:tag value="Recommandée" severity="success" icon="pi pi-thumbs-up" rendered="#{v.type eq 'CORRECTIVE' and not v.incompatible}"/>
                                 <p:tag value="Version de test" severity="info" rendered="#{v.version.prerelease ne null}"/>
                                 <p:tag value="Incompatibilité annoncée" severity="danger" rendered="#{v.incompatible}"/>
                             </div>
@@ -193,7 +194,7 @@
                             <p:selectBooleanCheckbox id="sauvegarde" value="#{updateBean.sauvegarder}"
                                                      disabled="#{updateBean.preparation.sauvegardeObligatoire}"/>
                             <p:outputLabel for="sauvegarde"
-                                           value="#{updateBean.preparation.sauvegardeObligatoire ? 'Sauvegarde de la base (obligatoire pour cette version)' : 'Sauvegarder la base de données avant (recommandé)'}"/>
+                                           value="#{updateBean.preparation.sauvegardeObligatoire ? 'Sauvegarde de la base (obligatoire pour cette version)' : 'Sauvegarder aussi la base de données (facultatif : une corrective ne la modifie pas)'}"/>
                         </div>
                         <h:panelGroup layout="block" styleClass="tb-maj-option" rendered="#{updateBean.preparation.confirmationRequise}">
                             <p:selectBooleanCheckbox id="risques" value="#{updateBean.risquesAcceptes}"/>

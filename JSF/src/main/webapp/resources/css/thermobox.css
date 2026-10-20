@@ -1842,7 +1842,24 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-maj-notes p, .tb-maj-migration p { margin: 6px 0; }
 .tb-maj-notes code, .tb-maj-sauvegarde code { padding: 1px 5px; border-radius: 6px; background: var(--md-surface-container-high); font-size: .88em; }
 
-/* Installation dialog */
+/* Installation dialog: the content scrolls inside the window, the buttons stay at the bottom */
+:root body .ui-dialog.tb-maj-dialog .ui-dialog-content {
+    max-height: calc(100vh - 110px);
+    max-height: calc(100dvh - 110px);
+    padding-bottom: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.tb-maj-dialog .tb-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 8px -24px 0;
+    padding: 14px 24px 20px;
+    border-top: 1px solid var(--md-outline-variant);
+    /* Opaque: the glass colour alone would let the scrolled text show through */
+    background: linear-gradient(var(--tb-glass-solid), var(--tb-glass-solid)), var(--md-surface-container);
+}
 .tb-maj-dlg-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .tb-maj-de { color: var(--md-on-surface-variant); font-size: 1.2rem; font-weight: 650; }
 .tb-maj-dialog .tb-banner { margin-bottom: 14px; }

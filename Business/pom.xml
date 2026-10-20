@@ -71,7 +71,8 @@
         </dependency>
 
         <!-- JSON of the GitHub API (update system). java-jwt only has it at runtime, so it must be
-             declared to compile; same version as jackson-datatype-jsr310 in RestServer. -->
+             declared to compile. Declared once (Maven refuses duplicates), same version as
+             jackson-datatype-jsr310 in RestServer: Jackson modules must match databind. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -90,24 +91,6 @@
             <groupId>org.eclipse.paho</groupId>
             <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
             <version>1.2.5</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.19.2</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.19.2</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.19.2</version>
-            <scope>compile</scope>
         </dependency>
 
     </dependencies>

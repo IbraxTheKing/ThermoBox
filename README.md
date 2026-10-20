@@ -150,10 +150,13 @@ ThermoBox cherche chaque jour une nouvelle version sur GitHub (et à la demande,
 
 | Type | Exemple depuis 26.10.1 | Ce que cela implique |
 |---|---|---|
-| Corrective | 26.10.2 | Même série mensuelle, compatible. Sauvegarde de la base proposée. |
+| Corrective | 26.10.2 | Corrections de bugs et de sécurité, sans nouvelle fonctionnalité ni changement de la base : installation recommandée. Sauvegarde facultative. |
 | Fonctionnelle | 26.11.0 | Nouvelle série : peut modifier la base. Avertissement à accepter, sauvegarde de la base faite d'office, retour arrière non garanti. |
 
 Les prépublications (nightly, beta, rc) ne sont proposées qu'avec `THERMOBOX_UPDATE_CHANNEL=prerelease`.
+Les nightly sont construites chaque nuit depuis la branche `dev/` (`dev/AA.MM` de préférence) et portent
+le numéro de la prochaine version fonctionnelle : après 26.10.x, `26.11.0-nightly.N`. Les correctifs
+n'ont pas de nightly, ils sont publiés directement en version stable.
 
 **Installation** (ADMIN) : sauvegarde de la base (SQL gzip, dans `backups/`), téléchargement des
 fichiers, vérification de leur empreinte SHA-256 (publiée par GitHub), contrôle de la version de

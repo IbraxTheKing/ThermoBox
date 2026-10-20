@@ -66,8 +66,10 @@ class UpdateBean : Serializable {
     fun preparer(tag: String) {
         if (!login.require(login.isAdmin)) return
         try {
-            preparation = service.preparer(tag)
-            sauvegarder = true
+            val p = service.preparer(tag)
+            preparation = p
+            // A corrective doesn't touch the database: the backup is offered, not ticked.
+            sauvegarder = p.sauvegardeObligatoire
             risquesAcceptes = false
             PrimeFaces.current().ajax().addCallbackParam("ok", true)
         } catch (e: IllegalArgumentException) {
@@ -143,6 +145,7 @@ class UpdateNoticeBean {
 
     /** « 26.11.0 (fonctionnelle) et 26.10.2 (corrective) » */
     val resume: String
-        get() = listOfNotNull(etat?.fonctionnelle, etat?.corrective)
-            .joinToString(" et ") { "${it.version} (${it.type.label.lowercase()})" }
+        get() = listOfNotNull(etat?.corrective, etat?.fonctionnelle).joinToString(" et ") {
+            "${it.version} (${it.type.label.lowercase()}${if (it.type == TypeMiseAJour.CORRECTIVE) ", recommandée" else ""})"
+        }
 }

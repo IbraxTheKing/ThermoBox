@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.business.update
 
 import ax.ibr.thermobox.common.update.Version
-import com.fasterxml.jackson.databind.ObjectMapper.ObjectMapper
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock

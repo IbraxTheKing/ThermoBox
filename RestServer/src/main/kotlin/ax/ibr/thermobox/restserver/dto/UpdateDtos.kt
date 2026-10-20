@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.update.Etape
 import ax.ibr.thermobox.common.update.EtatMisesAJour
 import ax.ibr.thermobox.common.update.Installation
 import ax.ibr.thermobox.common.update.Preparation
+import ax.ibr.thermobox.common.update.TypeMiseAJour
 import ax.ibr.thermobox.common.update.VersionDisponible
 
 /**
@@ -54,6 +55,8 @@ data class AvailableVersionDto(
     /** CORRECTIVE (same monthly series) or FONCTIONNELLE (new series, may be incompatible). */
     val type: String,
     val typeLabel: String,
+    /** Corrective: bug and security fixes only, the database is untouched; installing is recommended. */
+    val recommended: Boolean,
     val prerelease: Boolean,
     val title: String,
     val publishedAt: String?,
@@ -65,7 +68,8 @@ data class AvailableVersionDto(
 ) {
     companion object {
         fun from(v: VersionDisponible) = AvailableVersionDto(
-            version = v.version.tag, type = v.type.name, typeLabel = v.type.label, prerelease = v.version.estPrerelease,
+            version = v.version.tag, type = v.type.name, typeLabel = v.type.label,
+            recommended = v.type == TypeMiseAJour.CORRECTIVE && !v.incompatible, prerelease = v.version.estPrerelease,
             title = v.titre, publishedAt = v.publieeLe?.toString(), url = v.page, notes = v.notes,
             migration = v.migration, incompatible = v.incompatible,
         )
