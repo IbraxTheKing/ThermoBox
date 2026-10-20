@@ -19,6 +19,8 @@
                                  styleClass="tb-btn-lg"/>
             </header>
 
+            <ui:include src="/WEB-INF/includes/update-banner.xhtml"/>
+
             <p:dataTable id="table" value="#{userBean.users}" var="u" rows="20" paginator="true"
                          paginatorAlwaysVisible="false" emptyMessage="Aucun utilisateur" styleClass="tb-table">
                 <p:column headerText="Nom d'utilisateur" sortBy="#{u.username}" filterBy="#{u.username}"

@@ -41,6 +41,11 @@
         <param-value>false</param-value>
     </context-param>
 
+    <!-- Daily check for new versions, and installation from /admin/updates.xhtml -->
+    <listener>
+        <listener-class>ax.ibr.thermobox.jsf.update.MisesAJourListener</listener-class>
+    </listener>
+
     <servlet>
         <servlet-name>Faces Servlet</servlet-name>
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>

@@ -56,6 +56,21 @@ Si vous la modifiez, modifiez-la dans les trois.
 - **Mode développement.** `web.xml` est en `PROJECT_STAGE=Development` : à passer en `Production` pour un
   déploiement réel. Les `schema-generation ... create` de `persistence.xml` sont à revoir pour la prod.
 
+## Mises à jour depuis l'interface
+
+Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/updates/{version}/install`)
+sont téléchargées dans le volume `thermobox_data`, partagé par `rest` et `jsf-tomcat`, avec les
+sauvegardes de la base (`/var/lib/thermobox/backups`). Au démarrage, chaque conteneur prend la version
+de `updates/current` si elle existe, sinon les fichiers de l'image : une version installée survit donc
+à la recréation des conteneurs.
+
+- `THERMOBOX_VERSION` (dans `.env`) inscrit la version dans les images construites ici. Laissée à `dev`,
+  l'interface ne connaît pas sa version et traite toute mise à jour comme fonctionnelle.
+- Reconstruire les images ne remplace pas une version installée depuis l'interface. Pour revenir aux
+  fichiers des images : `docker compose exec rest rm /var/lib/thermobox/updates/current`, puis
+  `docker compose --profile tomcat up -d --force-recreate`.
+- WildFly : pas d'installation depuis l'interface (le WAR doit passer par `prepare-war.sh`).
+
 ## Commandes utiles
 
 ```bash

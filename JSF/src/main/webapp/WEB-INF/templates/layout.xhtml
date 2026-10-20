@@ -67,6 +67,15 @@
                     <span class="tb-dest-icon"><i class="pi pi-users"/></span>
                     <span class="tb-dest-label">Utilisateurs</span>
                 </h:link>
+                <h:link outcome="/admin/updates" rendered="#{loginBean.admin}"
+                        styleClass="tb-dest #{view.viewId eq '/admin/updates.xhtml' ? 'tb-dest-on' : ''}"
+                        title="#{updateNoticeBean.disponible ? 'Nouvelle version disponible' : 'Mises à jour'}">
+                    <span class="tb-dest-icon">
+                        <i class="pi pi-cloud-download"/>
+                        <h:panelGroup styleClass="tb-dest-badge" rendered="#{updateNoticeBean.disponible}"/>
+                    </span>
+                    <span class="tb-dest-label">Mises à jour</span>
+                </h:link>
             </div>
 
             <div class="tb-rail-end">

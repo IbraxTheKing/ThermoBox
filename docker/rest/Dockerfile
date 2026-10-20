@@ -12,6 +12,8 @@ ARG JAVA_VERSION=23
 # ---------------------------------------------------------------------------
 FROM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 WORKDIR /workspace
+# Version written into the build, read by the update system (docker-compose.yml: THERMOBOX_VERSION)
+ARG THERMOBOX_VERSION=dev
 
 COPY pom.xml ./
 COPY ibr-utils ./ibr-utils
@@ -23,7 +25,7 @@ COPY JSF ./JSF
 COPY Base ./Base
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -ntp -Pdeploy -DskipTests clean package
+    mvn -B -ntp -Pdeploy -DskipTests -Dthermobox.version=${THERMOBOX_VERSION} clean package
 
 # ---------------------------------------------------------------------------
 # Image d'exécution
@@ -38,6 +40,12 @@ WORKDIR /app
 
 # RestServer.jar référence base.jar via Class-Path : les deux doivent rester côte à côte.
 COPY --from=build --chown=thermobox:thermobox /workspace/deploy/RestServer.jar /workspace/deploy/base.jar ./
+COPY --chmod=755 docker/rest/entrypoint.sh /usr/local/bin/thermobox-entrypoint.sh
+# A Windows checkout may have turned the script into CRLF: "/bin/sh^M: bad interpreter"
+RUN sed -i 's/\r$//' /usr/local/bin/thermobox-entrypoint.sh
+
+# Volume thermobox_data (partagé avec l'interface JSF) : versions téléchargées et sauvegardes
+RUN mkdir -p /var/lib/thermobox && chown thermobox:thermobox /var/lib/thermobox
 
 USER thermobox
 
@@ -46,8 +54,11 @@ USER thermobox
 # (JwtService exige au moins 32 octets s'il est défini).
 ENV THERMOBOX_HTTP_HOST=0.0.0.0 \
     THERMOBOX_HTTP_PORT=8080 \
+    THERMOBOX_DATA_DIR=/var/lib/thermobox \
     JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.awt.headless=true"
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/RestServer.jar"]
+# Lance /app/RestServer.jar, ou la version installée depuis l'interface (updates/current),
+# et relance le serveur quand il s'arrête pour une mise à jour.
+ENTRYPOINT ["/usr/local/bin/thermobox-entrypoint.sh"]
