@@ -1,0 +1,15 @@
+<!-- Admins: a new ThermoBox version is out (UpdateNoticeBean, checked once a day). -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+    <h:panelGroup layout="block" styleClass="tb-banner tb-banner-info" rendered="#{updateNoticeBean.disponible}">
+        <span class="tb-banner-icon"><i class="pi pi-cloud-download"/></span>
+        <div class="tb-banner-text">
+            <strong>Nouvelle version de ThermoBox disponible</strong>
+            <span>#{updateNoticeBean.resume}</span>
+        </div>
+        <p:linkButton value="Voir" icon="pi pi-arrow-right" iconPos="right" outcome="/admin/updates"
+                      styleClass="ui-button-flat"/>
+    </h:panelGroup>
+</ui:composition>

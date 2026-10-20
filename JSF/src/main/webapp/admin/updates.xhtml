@@ -1,0 +1,217 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <ui:define name="title">Mises à jour</ui:define>
+
+    <ui:define name="content">
+        <h:form id="majForm">
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">Administration</span>
+                    <h1>Mises à jour</h1>
+                </div>
+                <p:commandButton value="Rechercher maintenant" icon="pi pi-refresh" action="#{updateBean.verifier}"
+                                 process="@this" update="@form" styleClass="tb-tonal"
+                                 disabled="#{updateBean.suivi}"/>
+            </header>
+
+            <!-- Installed version and how this server installs -->
+            <h:panelGroup id="entete" layout="block" styleClass="tb-card tb-maj-installee">
+                <span class="tb-section-icon"><i class="pi pi-server"/></span>
+                <div class="tb-maj-installee-text">
+                    <span class="tb-eyebrow">#{updateBean.etat.composant.label} · version installée</span>
+                    <strong class="tb-maj-version">#{updateBean.etat.installee ne null ? updateBean.etat.installee.tag : 'Développement'}</strong>
+                    <span class="tb-muted">
+                        Dernière vérification : #{updateBean.date(updateBean.etat.derniereVerification)}
+                        · #{updateBean.etat.verificationAutomatique ? 'vérification quotidienne' : 'vérification automatique désactivée'}
+                        · #{updateBean.etat.canal eq 'PRERELEASE' ? 'versions stables et de test' : 'versions stables'}
+                    </span>
+                </div>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="tb-banner tb-banner-error" rendered="#{updateBean.etat.erreur ne null}">
+                <span class="tb-banner-icon"><i class="pi pi-times-circle"/></span>
+                <div class="tb-banner-text">
+                    <strong>La dernière vérification a échoué</strong>
+                    <span>#{updateBean.etat.erreur}</span>
+                </div>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="tb-banner" rendered="#{not updateBean.etat.mode.automatique}">
+                <span class="tb-banner-icon"><i class="pi pi-exclamation-triangle"/></span>
+                <div class="tb-banner-text">
+                    <strong>Installation automatique impossible sur ce serveur</strong>
+                    <span>#{updateBean.etat.mode.detail}</span>
+                </div>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="tb-banner tb-banner-info" rendered="#{updateBean.etat.enAttente ne null}">
+                <span class="tb-banner-icon"><i class="pi pi-clock"/></span>
+                <div class="tb-banner-text">
+                    <strong>Version #{updateBean.etat.enAttente} installée depuis l'autre composant</strong>
+                    <span>Ce serveur ne peut pas encore y passer : #{updateBean.etat.mode.detail}</span>
+                </div>
+            </h:panelGroup>
+
+            <!-- Progress of the last installation; polled while it runs -->
+            <h:panelGroup id="installation" layout="block">
+                <h:panelGroup layout="block" styleClass="tb-card tb-maj-installation"
+                              rendered="#{updateBean.etat.installation ne null}">
+                    <div class="tb-card-head">
+                        <span class="tb-section-icon"><i class="pi pi-cloud-download"/></span>
+                        <div>
+                            <h2>Installation de #{updateBean.etat.installation.cible}</h2>
+                            <span class="tb-muted">
+                                Lancée par #{updateBean.etat.installation.utilisateur} le #{updateBean.date(updateBean.etat.installation.demarreeLe)}
+                                depuis #{updateBean.etat.installation.composant.label}#{updateBean.etat.installation.depuis ne null ? ', depuis la version '.concat(updateBean.etat.installation.depuis) : ''}
+                            </span>
+                        </div>
+                        <p:tag value="#{updateBean.etat.installation.etat.label}" severity="#{updateBean.severiteInstallation(updateBean.etat.installation.etat)}" styleClass="tb-maj-etat"/>
+                    </div>
+                    <ol class="tb-maj-etapes">
+                        <ui:repeat value="#{updateBean.etat.installation.etapes}" var="e">
+                            <li class="tb-maj-etape tb-maj-etape-#{e.etat}">
+                                <span class="tb-maj-etape-icon"><i class="pi #{updateBean.iconeEtape(e.etat)}"/></span>
+                                <div>
+                                    <strong>#{e.titre}</strong>
+                                    <h:outputText value="#{e.detail}" styleClass="tb-muted" rendered="#{not empty e.detail}"/>
+                                </div>
+                            </li>
+                        </ui:repeat>
+                    </ol>
+                    <h:panelGroup layout="block" styleClass="tb-maj-message tb-maj-message-#{updateBean.etat.installation.etat}" rendered="#{not empty updateBean.etat.installation.message}">
+                        #{updateBean.etat.installation.message}
+                    </h:panelGroup>
+                    <h:panelGroup layout="block" styleClass="tb-muted tb-maj-sauvegarde" rendered="#{updateBean.etat.installation.sauvegarde ne null}">
+                        <i class="pi pi-database"/> Sauvegarde de la base : <code>#{updateBean.etat.installation.sauvegarde}</code>
+                    </h:panelGroup>
+                </h:panelGroup>
+
+                <p:poll interval="2" listener="#{updateBean.rafraichir}" process="@this"
+                        update="installation entete versions" rendered="#{updateBean.suivi}"
+                        onerror="tbMaj.attendre()"/>
+                <!-- The interface itself restarts: wait for it, then reload -->
+                <h:outputScript rendered="#{updateBean.etat.installation.etat eq 'REDEMARRAGE' and updateBean.etat.installation.composant eq 'JSF'}">
+                    tbMaj.attendre();
+                </h:outputScript>
+            </h:panelGroup>
+
+            <!-- Available versions -->
+            <h:panelGroup id="versions" layout="block" styleClass="tb-section">
+                <h2 class="tb-section-title">
+                    <span class="tb-section-icon"><i class="pi pi-box"/></span>
+                    Versions disponibles
+                    <span class="tb-section-meta">#{updateBean.etat.disponibles.size()}</span>
+                </h2>
+
+                <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty updateBean.etat.disponibles}">
+                    <span class="tb-empty-icon"><i class="pi pi-check"/></span>
+                    <strong>#{updateBean.etat.derniereVerification eq null ? 'Pas encore vérifié' : 'ThermoBox est à jour'}</strong>
+                    <span>#{updateBean.etat.derniereVerification eq null
+                            ? 'La première vérification a lieu une minute après le démarrage. Lancez-la maintenant avec « Rechercher maintenant ».'
+                            : 'Aucune version plus récente sur GitHub.'}</span>
+                </h:panelGroup>
+
+                <ui:repeat value="#{updateBean.etat.disponibles}" var="v">
+                    <article class="tb-card tb-maj-version-card tb-maj-#{v.type}">
+                        <div class="tb-card-head">
+                            <div class="tb-maj-titre">
+                                <strong class="tb-maj-version">#{v.version.tag}</strong>
+                                <p:tag value="#{v.type.label}" severity="#{updateBean.severiteType(v.type)}"/>
+                                <p:tag value="Version de test" severity="info" rendered="#{v.version.prerelease ne null}"/>
+                                <p:tag value="Incompatibilité annoncée" severity="danger" rendered="#{v.incompatible}"/>
+                            </div>
+                            <span class="tb-spacer"/>
+                            <p:linkButton value="Sur GitHub" icon="pi pi-external-link" href="#{v.page}" target="_blank"
+                                          styleClass="ui-button-flat"/>
+                            <p:commandButton value="Installer…" icon="pi pi-download" action="#{updateBean.preparer(v.version.tag)}"
+                                             process="@this" update=":installForm" oncomplete="if (args &amp;&amp; args.ok) PF('installDlg').show()"
+                                             disabled="#{updateBean.suivi}"
+                                             styleClass="#{v.type eq 'CORRECTIVE' ? '' : 'tb-tonal'}"/>
+                        </div>
+                        <p class="tb-maj-type">
+                            <h:outputText value="#{v.titre} · " rendered="#{v.titre ne v.version.tag}"/>
+                            publiée le #{updateBean.date(v.publieeLe)}. #{v.type.description}
+                        </p>
+                        <h:panelGroup layout="block" styleClass="tb-maj-migration" rendered="#{v.migration ne null}">
+                            <strong><i class="pi pi-exclamation-triangle"/> Opérations à prévoir</strong>
+                            <h:outputText value="#{updateBean.notes(v.migration)}" escape="false"/>
+                        </h:panelGroup>
+                        <details class="tb-maj-notes">
+                            <summary>Notes de version</summary>
+                            <h:outputText value="#{updateBean.notes(v.notes)}" escape="false"/>
+                        </details>
+                    </article>
+                </ui:repeat>
+            </h:panelGroup>
+        </h:form>
+
+        <!-- Before installing: checks, risks, backup -->
+        <p:dialog header="Installer une version" widgetVar="installDlg" modal="true" resizable="false" responsive="true"
+                  width="640" styleClass="tb-maj-dialog">
+            <h:form id="installForm">
+                <h:panelGroup rendered="#{updateBean.preparation ne null}">
+                    <div class="tb-maj-dlg-titre">
+                        <span class="tb-maj-de">#{updateBean.preparation.installee ne null ? updateBean.preparation.installee.tag : 'Développement'}</span>
+                        <i class="pi pi-arrow-right"/>
+                        <strong class="tb-maj-version">#{updateBean.preparation.version.version.tag}</strong>
+                        <p:tag value="#{updateBean.preparation.version.type.label}" severity="#{updateBean.severiteType(updateBean.preparation.version.type)}"/>
+                    </div>
+
+                    <!-- Feature update: rollback is not guaranteed -->
+                    <h:panelGroup layout="block" styleClass="tb-banner tb-banner-error" rendered="#{not updateBean.preparation.retourSimple}">
+                        <span class="tb-banner-icon"><i class="pi pi-exclamation-triangle"/></span>
+                        <div class="tb-banner-text">
+                            <strong>Retour arrière non garanti</strong>
+                            <span>
+                                Cette version peut modifier la base de données. Revenir à la version actuelle pourra
+                                demander de restaurer la sauvegarde faite avant l'installation, et perdre les données
+                                enregistrées depuis. Une sauvegarde de la base est faite d'office.
+                            </span>
+                        </div>
+                    </h:panelGroup>
+
+                    <ul class="tb-maj-controles">
+                        <ui:repeat value="#{updateBean.preparation.controles}" var="c">
+                            <li class="tb-maj-controle tb-maj-controle-#{c.niveau}">
+                                <i class="pi #{updateBean.iconeControle(c.niveau)}"/>
+                                <div>
+                                    <strong>#{c.titre}</strong>
+                                    <!-- Release notes extracts (Migration) are Markdown; Markdown escapes everything else -->
+                                    <h:outputText value="#{updateBean.notes(c.detail)}" escape="false" rendered="#{not empty c.detail}"/>
+                                </div>
+                            </li>
+                        </ui:repeat>
+                    </ul>
+
+                    <h:panelGroup layout="block" styleClass="tb-maj-options" rendered="#{updateBean.preparation.installable}">
+                        <div class="tb-maj-option">
+                            <p:selectBooleanCheckbox id="sauvegarde" value="#{updateBean.sauvegarder}"
+                                                     disabled="#{updateBean.preparation.sauvegardeObligatoire}"/>
+                            <p:outputLabel for="sauvegarde"
+                                           value="#{updateBean.preparation.sauvegardeObligatoire ? 'Sauvegarde de la base (obligatoire pour cette version)' : 'Sauvegarder la base de données avant (recommandé)'}"/>
+                        </div>
+                        <h:panelGroup layout="block" styleClass="tb-maj-option" rendered="#{updateBean.preparation.confirmationRequise}">
+                            <p:selectBooleanCheckbox id="risques" value="#{updateBean.risquesAcceptes}"/>
+                            <p:outputLabel for="risques"
+                                           value="J'ai lu les avertissements et les notes de version, et je lance l'installation en connaissance de cause"/>
+                        </h:panelGroup>
+                    </h:panelGroup>
+
+                    <div class="tb-actions">
+                        <p:commandButton value="Annuler" type="button" onclick="PF('installDlg').hide()" styleClass="ui-button-flat"/>
+                        <p:commandButton value="Installer #{updateBean.preparation.version.version.tag}" icon="pi pi-download"
+                                         action="#{updateBean.installer}" process="@form" update=":majForm"
+                                         oncomplete="if (args &amp;&amp; args.ok) PF('installDlg').hide()"
+                                         disabled="#{not updateBean.preparation.installable}"
+                                         styleClass="#{updateBean.preparation.retourSimple ? '' : 'ui-button-danger'}"/>
+                    </div>
+                </h:panelGroup>
+            </h:form>
+        </p:dialog>
+    </ui:define>
+</ui:composition>

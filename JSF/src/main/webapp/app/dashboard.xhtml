@@ -19,6 +19,8 @@
                                  process="@this" update="grille resume" styleClass="tb-tonal" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
             </header>
 
+            <ui:include src="/WEB-INF/includes/update-banner.xhtml"/>
+
             <h:panelGroup id="resume" layout="block" styleClass="tb-summary">
                 <!-- Filter chips: one click shows only the salles in that state, a second click shows them all -->
                 <ui:repeat value="#{dashboardBean.compteurs}" var="c">

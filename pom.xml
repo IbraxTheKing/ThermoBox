@@ -22,6 +22,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <kotlin.version>2.4.10</kotlin.version>
     <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
+    <!-- Version written into the build (Business: thermobox-version.properties), read by the update
+         system. The workflows pass the release tag: mvn -Dthermobox.version=26.11.0 … -->
+    <thermobox.version>dev</thermobox.version>
   </properties>
 
   <dependencies>

@@ -17,6 +17,10 @@ x-app-env: &app-env
   THERMOBOX_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD manquant : lancez scripts/init-env.sh}"
   THERMOBOX_JWT_SECRET: "${THERMOBOX_JWT_SECRET:?THERMOBOX_JWT_SECRET manquant (32 caractères minimum) : lancez scripts/init-env.sh}"
   THERMOBOX_JWT_TTL_MINUTES: ${THERMOBOX_JWT_TTL_MINUTES:-60}
+  # Mises à jour (voir README) : canal stable ou prerelease, vérification quotidienne, jeton GitHub optionnel
+  THERMOBOX_UPDATE_CHANNEL: ${THERMOBOX_UPDATE_CHANNEL:-stable}
+  THERMOBOX_UPDATE_CHECK: ${THERMOBOX_UPDATE_CHECK:-true}
+  THERMOBOX_GITHUB_TOKEN: ${THERMOBOX_GITHUB_TOKEN:-}
 
 services:
 
@@ -46,6 +50,8 @@ services:
     build:
       context: .
       dockerfile: docker/rest/Dockerfile
+      args:
+        THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
     image: thermobox/rest:local
     restart: unless-stopped
     environment:
@@ -54,6 +60,9 @@ services:
       THERMOBOX_HTTP_PORT: "8080"
     ports:
       - "${REST_PORT:-8080}:8080"
+    volumes:
+      # Mises à jour installées depuis l'interface, sauvegardes de la base (partagé avec jsf-tomcat)
+      - thermobox_data:/var/lib/thermobox
     depends_on:
       mysql:
         condition: service_healthy
@@ -69,12 +78,16 @@ services:
     build:
       context: .
       dockerfile: docker/jsf-tomcat/Dockerfile
+      args:
+        THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
     image: thermobox/jsf-tomcat:local
     restart: unless-stopped
     environment:
       <<: *app-env
     ports:
       - "${TOMCAT_PORT:-8081}:8080"
+    volumes:
+      - thermobox_data:/var/lib/thermobox
     depends_on:
       mysql:
         condition: service_healthy
@@ -90,6 +103,8 @@ services:
     build:
       context: .
       dockerfile: docker/jsf-wildfly/Dockerfile
+      args:
+        THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
     image: thermobox/jsf-wildfly:local
     restart: unless-stopped
     environment:
@@ -126,4 +141,5 @@ services:
 
 volumes:
   mysql_data:
+  thermobox_data:
   mosquitto_data:

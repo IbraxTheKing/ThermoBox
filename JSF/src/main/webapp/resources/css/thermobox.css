@@ -1756,3 +1756,112 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     .tb-theme-btn:hover i { transform: none; }
     .ui-tree.tb-tree .ui-treenode-content:hover { background: transparent; }
 }
+
+/* ============================== Updates (admin/updates.xhtml) ============================== */
+
+/* Rail: dot on the destination when a version is out */
+.tb-dest-icon { position: relative; }
+.tb-dest-badge {
+    position: absolute;
+    top: 3px;
+    right: 7px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--md-error);
+    box-shadow: 0 0 0 2px var(--tb-glass-solid);
+}
+
+/* Banner variants: information (primary) and error */
+.tb-banner.tb-banner-info {
+    border-color: color-mix(in srgb, var(--md-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--md-primary-container) 75%, transparent);
+    color: var(--md-on-primary-container);
+}
+.tb-banner-info .tb-banner-icon { background: var(--md-primary); color: var(--md-on-primary); }
+:root body .tb-banner.tb-banner-info .ui-button.ui-button-flat { color: var(--md-on-primary-container); }
+.tb-banner.tb-banner-error {
+    border-color: color-mix(in srgb, var(--md-error) 35%, transparent);
+    background: color-mix(in srgb, var(--md-error-container) 75%, transparent);
+    color: var(--md-on-error-container);
+}
+.tb-banner-error .tb-banner-icon { background: var(--md-error); color: var(--md-on-error); }
+.tb-banner + .tb-banner, .tb-card + .tb-banner { margin-top: 12px; }
+
+.tb-maj-installee { display: flex; align-items: center; gap: 18px; margin: 0 0 16px; }
+.tb-maj-installee-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tb-maj-version { font-size: 1.9rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+/* Steps of an installation */
+.tb-maj-etat { margin-left: auto; }
+.tb-maj-etapes { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.tb-maj-etape { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; }
+.tb-maj-etape > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.tb-maj-etape-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid var(--md-outline-variant);
+    color: var(--md-on-surface-variant);
+    font-size: .8rem;
+}
+.tb-maj-etape-EN_ATTENTE { opacity: .55; }
+.tb-maj-etape-EN_COURS .tb-maj-etape-icon { border-color: var(--md-primary); color: var(--md-primary); }
+.tb-maj-etape-OK .tb-maj-etape-icon { border-color: var(--tb-stable); background: var(--tb-stable); color: #fff; }
+.tb-maj-etape-ECHEC .tb-maj-etape-icon { border-color: var(--md-error); background: var(--md-error); color: var(--md-on-error); }
+.tb-maj-etape-ECHEC strong { color: var(--md-error); }
+.tb-maj-message { margin-top: 12px; padding: 12px 16px; border-radius: var(--tb-shape-md); background: var(--md-surface-container-high); font-weight: 600; }
+.tb-maj-message-ECHEC { background: var(--md-error-container); color: var(--md-on-error-container); }
+.tb-maj-message-TERMINEE { background: var(--tb-stable-container); color: var(--tb-on-stable-container); }
+.tb-maj-sauvegarde { margin-top: 12px; font-size: .9rem; overflow-wrap: anywhere; }
+.tb-maj-sauvegarde .pi { margin-right: 4px; }
+
+/* Available versions: a coloured edge tells corrective from feature updates */
+.tb-maj-version-card { margin-top: 16px; border-left: 4px solid var(--tb-stable); }
+.tb-maj-version-card.tb-maj-FONCTIONNELLE { border-left-color: var(--tb-chauffe); }
+.tb-maj-version-card .tb-card-head { margin-bottom: 10px; }
+.tb-maj-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.tb-maj-type { margin: 0; color: var(--md-on-surface-variant); }
+.tb-maj-migration {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: var(--tb-shape-md);
+    background: color-mix(in srgb, var(--tb-chauffe-container) 75%, transparent);
+    color: var(--tb-on-chauffe-container);
+}
+.tb-maj-notes { margin-top: 14px; }
+.tb-maj-notes summary { cursor: pointer; font-weight: 650; color: var(--md-primary); }
+.tb-maj-notes, .tb-maj-migration { overflow-wrap: anywhere; }
+.tb-maj-notes h3, .tb-maj-notes h4, .tb-maj-notes h5, .tb-maj-notes h6,
+.tb-maj-migration h3, .tb-maj-migration h4, .tb-maj-migration h5 { margin: 14px 0 6px; font-size: 1rem; font-weight: 700; }
+.tb-maj-notes ul, .tb-maj-migration ul { margin: 6px 0; padding-left: 20px; }
+.tb-maj-notes li { margin: 3px 0; }
+.tb-maj-notes p, .tb-maj-migration p { margin: 6px 0; }
+.tb-maj-notes code, .tb-maj-sauvegarde code { padding: 1px 5px; border-radius: 6px; background: var(--md-surface-container-high); font-size: .88em; }
+
+/* Installation dialog */
+.tb-maj-dlg-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.tb-maj-de { color: var(--md-on-surface-variant); font-size: 1.2rem; font-weight: 650; }
+.tb-maj-dialog .tb-banner { margin-bottom: 14px; }
+.tb-maj-controles { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
+.tb-maj-controle { display: flex; gap: 12px; align-items: flex-start; }
+.tb-maj-controle > .pi { flex: none; margin-top: 3px; font-size: 1rem; color: var(--md-on-surface-variant); }
+.tb-maj-controle > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; color: var(--md-on-surface-variant); font-size: .92rem; }
+.tb-maj-controle strong { color: var(--md-on-surface); font-size: .98rem; }
+.tb-maj-controle p, .tb-maj-controle ul { margin: 2px 0; }
+.tb-maj-controle ul { padding-left: 18px; }
+.tb-maj-controle-OK > .pi { color: var(--tb-stable); }
+.tb-maj-controle-AVERTISSEMENT > .pi { color: var(--tb-chauffe); }
+.tb-maj-controle-BLOQUANT > .pi, .tb-maj-controle-BLOQUANT strong { color: var(--md-error); }
+.tb-maj-options { display: flex; flex-direction: column; gap: 12px; padding: 14px 0 4px; border-top: 1px solid var(--md-outline-variant); }
+.tb-maj-option { display: flex; align-items: flex-start; gap: 10px; }
+.tb-maj-option .ui-outputlabel { font-weight: 600; }
+
+@media (max-width: 640px) {
+    .tb-maj-installee { align-items: flex-start; }
+    .tb-maj-version { font-size: 1.6rem; }
+    .tb-maj-version-card .tb-card-head .tb-spacer { display: none; }
+}

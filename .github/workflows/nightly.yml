@@ -41,13 +41,6 @@ jobs:
           java-version: '23'
           cache: maven
 
-      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
-      # on compile et on package sans les lancer. Le profil "deploy" remplit deploy/
-      # (base.jar, RestServer.jar, JsfClient.war), comme pour une mise en production.
-      - name: Compiler (Maven, profil deploy)
-        if: steps.check.outputs.build == 'true'
-        run: mvn -B -Pdeploy -DskipTests package
-
       # Version : la version qui suivra la dernière stable, + -nightly-<n>.
       # Dernière stable = plus grand tag X.Y.Z (ou vX.Y.Z) ; on prend X.Y.(Z+1) : en SemVer,
       # 26.10.1-nightly-3 se classe après 26.10.0 et avant 26.10.1, ce qui est le cas réel.
@@ -66,6 +59,14 @@ jobs:
           tag="${base}-nightly-$(( ${last:-0} + 1 ))"
           echo "Dernière stable : ${stable:-aucune} -> $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
+      # on compile et on package sans les lancer. Le profil "deploy" remplit deploy/
+      # (base.jar, RestServer.jar, JsfClient.war), comme pour une mise en production.
+      - name: Compiler (Maven, profil deploy)
+        if: steps.check.outputs.build == 'true'
+        # -Dthermobox.version: the version the update system reads in the build
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
 
       # Les trois fichiers de deploy/, plus le dossier entier dans une archive
       - name: Rassembler les livrables

@@ -140,6 +140,62 @@ Exemples : `26.10.0`, `26.10.1`, `26.11.0-beta.1`.
 
 Les tags constituent des références immuables vers les commits publiés. Un tag existant ne doit jamais être déplacé ni réutilisé pour désigner un autre commit.
 
+## Mises à jour depuis l'interface
+
+ThermoBox cherche chaque jour une nouvelle version sur GitHub (et à la demande, depuis
+**Administration → Mises à jour**). Les administrateurs sont prévenus dans l'interface JSF
+(pastille dans la navigation, bandeau sur l'aperçu) et par l'API REST.
+
+**Types de mise à jour**, d'après le numéro de version :
+
+| Type | Exemple depuis 26.10.1 | Ce que cela implique |
+|---|---|---|
+| Corrective | 26.10.2 | Même série mensuelle, compatible. Sauvegarde de la base proposée. |
+| Fonctionnelle | 26.11.0 | Nouvelle série : peut modifier la base. Avertissement à accepter, sauvegarde de la base faite d'office, retour arrière non garanti. |
+
+Les prépublications (nightly, beta, rc) ne sont proposées qu'avec `THERMOBOX_UPDATE_CHANNEL=prerelease`.
+
+**Installation** (ADMIN) : sauvegarde de la base (SQL gzip, dans `backups/`), téléchargement des
+fichiers, vérification de leur empreinte SHA-256 (publiée par GitHub), contrôle de la version de
+Java demandée, conservation des fichiers actuels, puis bascule :
+
+- le serveur REST s'arrête avec le code 75 et son lanceur le relance sur la nouvelle version :
+  `docker/rest/entrypoint.sh` dans Docker, `scripts/thermobox-rest.sh` ailleurs (avec
+  `java -jar` seul, l'installation est refusée : personne ne relancerait le serveur) ;
+- l'interface JSF remplace le WAR que Tomcat déploie, et Tomcat la redéploie. Sur WildFly,
+  l'installation reste manuelle (le WAR doit passer par `prepare-war.sh`).
+
+REST et JSF partagent le dossier de données (`THERMOBOX_DATA_DIR`, volume `thermobox_data` dans
+Docker, `~/.thermobox` sinon) : une version installée depuis l'un est appliquée par l'autre dans la
+minute. Chaque étape est affichée pendant l'installation, et les erreurs sont remontées à
+l'administrateur.
+
+**Pour publier une version** : le tag suit `AA.MM.PATCH` ; le workflow `release.yml` joint
+`RestServer.jar`, `base.jar` et `JsfClient.war` à la version publiée, avec le numéro inscrit dedans
+(`-Dthermobox.version`). Dans les notes, une section `## Migration` (ou des lignes `Migration : …`)
+liste les opérations à faire, et le mot « incompatible » signale une version incompatible :
+l'interface les met en avant avant l'installation.
+
+**Schéma de la base** : EclipseLink crée les tables manquantes mais ne modifie pas les tables
+existantes. Une colonne ajoutée ou renommée demande une migration décrite dans les notes ; en cas
+de retour arrière, restaurez la sauvegarde :
+`gunzip -c backups/<fichier>.sql.gz | mysql -u <utilisateur> -p <base>`.
+
+API REST :
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/updates` | Authentifié : version installée, versions disponibles (`latestPatch`, `latestFeature`) |
+| POST | `/api/updates/check` | ADMIN : vérifier maintenant |
+| GET | `/api/updates/{version}` | ADMIN : contrôles et risques avant installation |
+| POST | `/api/updates/{version}/install` | ADMIN : `{"backupDatabase": true, "acceptRisks": true}`, réponse 202 |
+| GET | `/api/updates/installation` | ADMIN : déroulement de la dernière installation |
+
+Variables : `THERMOBOX_UPDATE_CHANNEL` (`stable` / `prerelease`), `THERMOBOX_UPDATE_CHECK`
+(`false` coupe la vérification quotidienne), `THERMOBOX_DATA_DIR`, `THERMOBOX_UPDATE_REPO`,
+`THERMOBOX_GITHUB_TOKEN` (facultatif), `THERMOBOX_WAR_PATH` (WAR surveillé par Tomcat, s'il n'est
+pas à côté de l'application dépliée).
+
 ## Notes importantes
 - Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.
 - Sécurité : Ne pas exposer les identifiants ou la clé JWT secrète dans un environnement public.
