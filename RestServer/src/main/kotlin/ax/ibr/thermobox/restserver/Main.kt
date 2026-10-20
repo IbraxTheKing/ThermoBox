@@ -17,8 +17,14 @@ fun main() {
         "ax.ibr.thermobox.restserver.filters"
     )
 
+    // Local development: localhost:8080. In Docker, set THERMOBOX_HTTP_HOST=0.0.0.0, otherwise the
+    // server only listens on the container's loopback and is unreachable from outside.
+    val host = System.getenv("THERMOBOX_HTTP_HOST")?.takeIf { it.isNotBlank() } ?: "localhost"
+    val port = System.getenv("THERMOBOX_HTTP_PORT")?.toIntOrNull() ?: 8080
+    val baseUri = URI.create("http://$host:$port/")
+
     val server = JettyHttpContainerFactory.createServer(
-        URI.create("http://localhost:8080/"),
+        baseUri,
         config
     )
 
@@ -28,6 +34,6 @@ fun main() {
     // Release the database connection pool when the server stops.
     Runtime.getRuntime().addShutdownHook(Thread { PersistenceFactory.close() })
 
-    println("REST server started on http://localhost:8080/ (JWT lifetime: ${tokenTtl.toMinutes()} min)")
+    println("REST server started on $baseUri (JWT lifetime: ${tokenTtl.toMinutes()} min)")
 
 }
