@@ -1,0 +1,56 @@
+name: Release assets
+
+# Une version publiée à la main (stable, beta, rc) reçoit les fichiers que le système de mise à
+# jour télécharge : RestServer.jar, base.jar, JsfClient.war (GitHub publie leur empreinte
+# SHA-256), construits depuis le tag avec ce numéro de version inscrit dedans.
+# Les notes de version restent celles écrites à la main. Les nightly ont leur propre workflow.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag de la version à compléter (ex. 26.11.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Version
+        id: check
+        run: |
+          case "$TAG" in
+            *nightly*) echo "Nightly : fichiers déjà publiés par nightly.yml"; echo "build=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "build=true" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.build == 'true'
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Installer le JDK 23
+        if: steps.check.outputs.build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      - name: Compiler (Maven, profil deploy)
+        if: steps.check.outputs.build == 'true'
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version="$TAG" package
+
+      # --clobber : relancer le workflow remplace les fichiers au lieu d'échouer
+      - name: Joindre les fichiers à la version
+        if: steps.check.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" deploy/RestServer.jar deploy/base.jar deploy/JsfClient.war --clobber

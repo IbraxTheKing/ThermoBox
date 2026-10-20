@@ -412,3 +412,23 @@ var tbSections = (function () {
         }
     };
 })();
+
+/*
+ * Updates page: when the interface redeploys itself on a new version, the poll fails for a few
+ * seconds. Wait until the page answers again, then reload it (the view of the old version is gone).
+ */
+var tbMaj = (function () {
+    var attente = false;
+    return {
+        attendre: function () {
+            if (attente) return;
+            attente = true;
+            var essai = function () {
+                fetch(location.href, { cache: 'no-store', credentials: 'same-origin' })
+                    .then(function (r) { if (r.ok) location.reload(); else setTimeout(essai, 3000); })
+                    .catch(function () { setTimeout(essai, 3000); });
+            };
+            setTimeout(essai, 8000);
+        }
+    };
+})();

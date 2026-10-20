@@ -14,8 +14,11 @@ import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.backup.ResultatSauvegarde
+import ax.ibr.thermobox.persistence.backup.SauvegardeBase
 import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
+import java.nio.file.Path
 
 object PersistenceFactory {
 
@@ -72,12 +75,18 @@ object PersistenceFactory {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()
     }
 
+    /** Full SQL dump of the database (gzip), with the same connection settings as JPA. */
+    fun sauvegarderBase(fichier: Path): ResultatSauvegarde =
+        SauvegardeBase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD")).ecrire(fichier)
+
+    private fun databaseUrl(): String = System.getenv("THERMOBOX_DB_URL") ?: DEFAULT_DB_URL
+
     /**
      * JDBC settings read from the environment, so no credentials live in persistence.xml:
      * `THERMOBOX_DB_URL`, `THERMOBOX_DB_USER`, `THERMOBOX_DB_PASSWORD`.
      */
     private fun databaseProperties(): Map<String, String> = mapOf(
-        "jakarta.persistence.jdbc.url" to (System.getenv("THERMOBOX_DB_URL") ?: DEFAULT_DB_URL),
+        "jakarta.persistence.jdbc.url" to databaseUrl(),
         "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
         "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD")
     )

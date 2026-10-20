@@ -15,6 +15,8 @@ ARG WILDFLY_IMAGE=quay.io/wildfly/wildfly:36.0.1.Final-jdk21
 # ---------------------------------------------------------------------------
 FROM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 WORKDIR /workspace
+# Version written into the build, read by the update system (docker-compose.yml: THERMOBOX_VERSION)
+ARG THERMOBOX_VERSION=dev
 
 COPY pom.xml ./
 COPY ibr-utils ./ibr-utils
@@ -26,7 +28,7 @@ COPY JSF ./JSF
 COPY Base ./Base
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -ntp -Pdeploy -DskipTests clean package
+    mvn -B -ntp -Pdeploy -DskipTests -Dthermobox.version=${THERMOBOX_VERSION} clean package
 
 # ---------------------------------------------------------------------------
 # Adaptation du WAR pour WildFly (voir prepare-war.sh pour le détail)
