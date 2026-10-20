@@ -35,6 +35,9 @@ RUN rm -rf webapps/* webapps.dist
 
 COPY docker/jsf-tomcat/setenv.sh ${CATALINA_HOME}/bin/setenv.sh
 
+RUN sed -i 's/\r$//' ${CATALINA_HOME}/bin/setenv.sh \
+    && chmod 755 ${CATALINA_HOME}/bin/setenv.sh
+
 COPY --from=build --chown=tomcat:tomcat \
     /workspace/deploy/JsfClient.war \
     ${CATALINA_HOME}/webapps/ROOT.war
