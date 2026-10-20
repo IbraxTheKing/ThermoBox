@@ -3,7 +3,8 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
 
     <ui:define name="title">Utilisateurs</ui:define>
 
@@ -16,34 +17,59 @@
                 </div>
                 <p:commandButton value="Nouvel utilisateur" icon="pi pi-user-plus" action="#{userBean.create}"
                                  process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"
-                                 styleClass="tb-btn-lg"/>
+                                 styleClass="tb-btn-lg tb-fab"/>
             </header>
 
             <ui:include src="/WEB-INF/includes/update-banner.xhtml"/>
 
-            <p:dataTable id="table" value="#{userBean.users}" var="u" rows="20" paginator="true"
-                         paginatorAlwaysVisible="false" emptyMessage="Aucun utilisateur" styleClass="tb-table">
-                <p:column headerText="Nom d'utilisateur" sortBy="#{u.username}" filterBy="#{u.username}"
-                          filterMatchMode="contains">
-                    <h:outputText value="#{u.username}"/>
-                    <p:tag value="vous" severity="info" rendered="#{userBean.isSelf(u)}" styleClass="tb-ml"/>
-                </p:column>
-                <p:column headerText="Rôle" sortBy="#{u.type}">
-                    <p:tag value="#{u.type}"
-                           severity="#{u.type eq 'ADMIN' ? 'danger' : (u.type eq 'GESTIONNAIRE' ? 'warning' : 'success')}"/>
-                </p:column>
-                <p:column headerText="Actions" styleClass="tb-col-actions">
-                    <p:commandButton icon="pi pi-pencil" title="Modifier" action="#{userBean.edit(u)}"
-                                     process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"
-                                     styleClass="ui-button-flat"/>
-                    <p:commandButton icon="pi pi-trash" title="Supprimer" action="#{userBean.delete(u)}"
-                                     process="@this" update="table" disabled="#{userBean.isSelf(u)}"
-                                     styleClass="ui-button-flat ui-button-danger">
-                        <p:confirm header="Supprimer" message="Supprimer l'utilisateur « #{u.username} » ?"
-                                   icon="pi pi-exclamation-triangle"/>
-                    </p:commandButton>
-                </p:column>
-            </p:dataTable>
+            <!-- Search and role chips, then one row per user: same on a phone and on a desktop -->
+            <div class="tb-toolbar">
+                <span class="ui-input-icon-left tb-search">
+                    <i class="pi pi-search"/>
+                    <p:inputText id="recherche" value="#{userBean.recherche}" placeholder="Rechercher un utilisateur…"
+                                 autocomplete="off" pt:type="search" pt:enterkeyhint="search">
+                        <p:ajax event="keyup" delay="200" update="table"/>
+                    </p:inputText>
+                </span>
+            </div>
+            <h:panelGroup id="roles" layout="block" styleClass="tb-summary">
+                <ui:repeat value="#{userBean.roles}" var="r">
+                    <p:commandLink action="#{userBean.basculerRole(r)}" process="@this" update=":usersForm:table :usersForm:roles"
+                                   styleClass="tb-summary-chip tb-role-chip tb-role-#{r} #{userBean.roleFiltre eq r ? 'tb-chip-on' : ''}"
+                                   pt:aria-pressed="#{userBean.roleFiltre eq r}">
+                        <i class="pi pi-check tb-chip-check"/>#{r}<span class="tb-chip-n">#{userBean.nombre(r)}</span>
+                    </p:commandLink>
+                </ui:repeat>
+            </h:panelGroup>
+
+            <h:panelGroup id="table" layout="block" styleClass="tb-users">
+                <ui:repeat value="#{userBean.visibles}" var="u">
+                    <div class="tb-user">
+                        <span class="tb-avatar tb-user-avatar tb-role-#{u.type}">#{userBean.initiale(u)}</span>
+                        <div class="tb-user-text">
+                            <strong>
+                                #{u.username}
+                                <p:tag value="vous" severity="info" rendered="#{userBean.isSelf(u)}" styleClass="tb-ml"/>
+                            </strong>
+                            <span class="tb-role-tag tb-role-#{u.type}">#{u.type}</span>
+                        </div>
+                        <div class="tb-user-actions">
+                            <p:commandButton icon="pi pi-pencil" title="Modifier #{u.username}" action="#{userBean.edit(u)}"
+                                             process="@this" update=":userDlgForm" oncomplete="PF('userDlg').show()"
+                                             styleClass="ui-button-flat"/>
+                            <p:commandButton icon="pi pi-trash" title="Supprimer #{u.username}" action="#{userBean.delete(u)}"
+                                             process="@this" update=":usersForm:table :usersForm:roles" disabled="#{userBean.isSelf(u)}"
+                                             styleClass="ui-button-flat ui-button-danger">
+                                <p:confirm header="Supprimer" message="Supprimer l'utilisateur « #{u.username} » ?"
+                                           icon="pi pi-exclamation-triangle"/>
+                            </p:commandButton>
+                        </div>
+                    </div>
+                </ui:repeat>
+                <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty userBean.visibles}">
+                    Aucun utilisateur ne correspond.
+                </h:panelGroup>
+            </h:panelGroup>
         </h:form>
 
         <p:dialog header="Utilisateur" widgetVar="userDlg" modal="true" resizable="false" responsive="true"
@@ -81,7 +107,7 @@
                         <p:commandButton value="Annuler" type="button" onclick="PF('userDlg').hide()"
                                          styleClass="ui-button-flat"/>
                         <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{userBean.save}"
-                                         update="@form :usersForm:table"
+                                         update="@form :usersForm:table :usersForm:roles"
                                          oncomplete="if (args &amp;&amp; args.saved) PF('userDlg').hide()"/>
                     </div>
                 </h:panelGroup>

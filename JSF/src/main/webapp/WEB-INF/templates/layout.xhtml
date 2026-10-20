@@ -86,21 +86,28 @@
             </div>
 
             <div class="tb-rail-end">
-                <h:link outcome="/app/preferences" title="Préférences"
-                        styleClass="tb-icon-btn tb-prefs-btn #{view.viewId eq '/app/preferences.xhtml' ? 'tb-prefs-on' : ''}">
-                    <i class="pi pi-sliders-v"/>
-                </h:link>
-                <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
-                        title="Changer de thème" aria-label="Changer de thème">
-                    <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+                <!-- Phones held sideways: little height, so these actions go behind one button -->
+                <button type="button" class="tb-icon-btn tb-rail-more" onclick="tbRail.basculer(this)"
+                        title="Plus d'options" aria-label="Plus d'options" aria-expanded="false">
+                    <i class="pi pi-ellipsis-h"/>
                 </button>
-                <h:link outcome="/app/profil"
-                        styleClass="tb-avatar #{view.viewId eq '/app/profil.xhtml' ? 'tb-avatar-on' : ''}"
-                        title="Mon profil (#{loginBean.currentUser.username})">
-                    #{loginBean.initiale}
-                </h:link>
-                <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
-                                 ajax="false" styleClass="ui-button-flat tb-logout"/>
+                <div class="tb-rail-extras">
+                    <h:link outcome="/app/preferences" title="Préférences"
+                            styleClass="tb-icon-btn tb-prefs-btn #{view.viewId eq '/app/preferences.xhtml' ? 'tb-prefs-on' : ''}">
+                        <i class="pi pi-sliders-v"/>
+                    </h:link>
+                    <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
+                            title="Changer de thème" aria-label="Changer de thème">
+                        <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+                    </button>
+                    <h:link outcome="/app/profil"
+                            styleClass="tb-avatar #{view.viewId eq '/app/profil.xhtml' ? 'tb-avatar-on' : ''}"
+                            title="Mon profil (#{loginBean.currentUser.username})">
+                        #{loginBean.initiale}
+                    </h:link>
+                    <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
+                                     ajax="false" styleClass="ui-button-flat tb-logout"/>
+                </div>
             </div>
         </nav>
     </h:form>

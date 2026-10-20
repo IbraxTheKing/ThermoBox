@@ -28,15 +28,84 @@
                 <h:outputText rendered="#{loginBean.admin}" styleClass="tb-hide-sm"
                               value="Glisse un élément sur un autre pour l'y ranger, ou entre deux éléments du premier niveau pour le détacher."/>
                 <h:outputText rendered="#{loginBean.admin}" styleClass="tb-show-sm"
-                              value="Fais défiler la liste normalement. Le déplacement par glisser-déposer est désactivé sur écran tactile : ouvre ⋮ pour modifier ou déplacer un élément."/>
+                              value="Touche un bâtiment ou un étage pour l'ouvrir, ⋮ pour ajouter, modifier, déplacer ou supprimer."/>
             </p>
+
+            <!-- Phones: one level at a time, like a file browser (the tree is too wide and too deep) -->
+            <h:panelGroup id="drill" layout="block" styleClass="tb-drill">
+                <nav class="tb-drill-path" aria-label="Emplacement">
+                    <p:commandLink action="#{salleBean.ouvrir(null)}" process="@this" update="drill"
+                                   styleClass="tb-drill-crumb #{salleBean.dossierId eq null ? 'tb-drill-crumb-on' : ''}">
+                        <i class="pi pi-sitemap"/>Tout
+                    </p:commandLink>
+                    <ui:repeat value="#{salleBean.chemin}" var="c">
+                        <i class="pi pi-angle-right tb-drill-sep"/>
+                        <p:commandLink action="#{salleBean.ouvrir(c.salle.id)}" process="@this" update=":sallesForm:drill"
+                                       styleClass="tb-drill-crumb #{c.salle.id eq salleBean.dossierId ? 'tb-drill-crumb-on' : ''}">
+                            #{c.salle.name}
+                        </p:commandLink>
+                    </ui:repeat>
+                </nav>
+
+                <!-- Opened folder: back, its temperature, its page and its actions -->
+                <h:panelGroup layout="block" styleClass="tb-drill-head" rendered="#{salleBean.dossier ne null}">
+                    <p:commandButton icon="pi pi-arrow-left" title="Remonter" action="#{salleBean.remonter}"
+                                     process="@this" update="drill" styleClass="ui-button-flat tb-drill-back"/>
+                    <div class="tb-drill-head-text">
+                        <strong>#{salleBean.dossier.salle.name}</strong>
+                        <span class="tb-muted">
+                            #{salleBean.dossier.kind.label}
+                            <h:outputText value=" · " rendered="#{salleBean.dossier.temperature ne null}"/>
+                            <h:outputText value="#{salleBean.dossier.temperature}" rendered="#{salleBean.dossier.temperature ne null}">
+                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
+                            </h:outputText>
+                            <h:outputText value=" °C" rendered="#{salleBean.dossier.temperature ne null}"/>
+                        </span>
+                    </div>
+                    <p:linkButton icon="pi pi-chart-line" title="Voir le détail" outcome="/app/salle" styleClass="ui-button-flat">
+                        <f:param name="id" value="#{salleBean.dossier.salle.id}"/>
+                    </p:linkButton>
+                    <p:commandButton icon="pi pi-ellipsis-v" title="Actions" rendered="#{loginBean.admin}"
+                                     action="#{salleBean.choisir(salleBean.dossier)}" process="@this" update=":actionsForm"
+                                     oncomplete="PF('actionsDlg').show()" styleClass="ui-button-flat"/>
+                </h:panelGroup>
+
+                <ul class="tb-drill-list">
+                    <ui:repeat value="#{salleBean.contenu}" var="n">
+                        <li class="tb-drill-item">
+                            <!-- A bâtiment / étage opens here; a salle / boîtier opens its page -->
+                            <p:commandLink rendered="#{salleBean.estDossier(n)}" action="#{salleBean.ouvrir(n.salle.id)}"
+                                           process="@this" update=":sallesForm:drill" styleClass="tb-drill-main">
+                                <ui:include src="/WEB-INF/includes/drill-item.xhtml"/>
+                            </p:commandLink>
+                            <h:link rendered="#{not salleBean.estDossier(n)}" outcome="/app/salle" styleClass="tb-drill-main">
+                                <f:param name="id" value="#{n.salle.id}"/>
+                                <ui:include src="/WEB-INF/includes/drill-item.xhtml"/>
+                            </h:link>
+                            <p:commandButton icon="pi pi-ellipsis-v" title="Actions" rendered="#{loginBean.admin}"
+                                             action="#{salleBean.choisir(n)}" process="@this" update=":actionsForm"
+                                             oncomplete="PF('actionsDlg').show()" styleClass="ui-button-flat tb-drill-more"/>
+                        </li>
+                    </ui:repeat>
+                </ul>
+
+                <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty salleBean.contenu}">
+                    #{salleBean.dossier eq null ? 'Aucun bâtiment pour le moment.' : 'Rien ici pour le moment.'}
+                </h:panelGroup>
+
+                <p:commandButton value="Ajouter dans « #{salleBean.dossier.salle.name} »" icon="pi pi-plus"
+                                 rendered="#{loginBean.admin and salleBean.dossier ne null and not empty salleBean.dossier.kind.childKinds}"
+                                 action="#{salleBean.create(salleBean.dossier.kind.childKinds[0], salleBean.dossier.salle)}"
+                                 process="@this" update=":salleDlgForm" oncomplete="PF('salleDlg').show()"
+                                 styleClass="tb-tonal tb-drill-add"/>
+            </h:panelGroup>
 
             <!-- onDrop: the server validates and saves the move first; a refused move never shows. -->
             <p:tree id="arbre" value="#{salleBean.arbre}" var="n" styleClass="tb-tree"
                     draggable="#{loginBean.admin}" droppable="#{loginBean.admin}"
                     onDrop="#{salleBean.onDrop}">
                 <!-- Averages and "non rattaché" tags change with the move: redraw from the database. -->
-                <p:ajax event="dragdrop" listener="#{salleBean.load}" update="arbre"/>
+                <p:ajax event="dragdrop" listener="#{salleBean.load}" update="arbre drill"/>
 
                 <p:treeNode>
                     <span class="tb-node">
@@ -75,10 +144,10 @@
                             <p:commandButton icon="pi pi-link" title="Détacher"
                                              rendered="#{loginBean.admin and n.rattache and n.kind ne 'BATIMENT'}"
                                              action="#{salleBean.detacher(n.salle)}" process="@this"
-                                             update=":sallesForm:arbre" styleClass="ui-button-flat"/>
+                                             update=":sallesForm:arbre :sallesForm:drill" styleClass="ui-button-flat"/>
                             <p:commandButton icon="pi pi-trash" title="Supprimer" rendered="#{loginBean.admin}"
                                              action="#{salleBean.delete(n.salle)}" process="@this"
-                                             update=":sallesForm:arbre"
+                                             update=":sallesForm:arbre :sallesForm:drill"
                                              styleClass="ui-button-flat ui-button-danger">
                                 <p:confirm header="Supprimer « #{n.salle.name} »"
                                            message="Son historique est supprimé ; ce qu'il contient est gardé mais n'est plus rattaché."
@@ -176,12 +245,12 @@
                         </p:commandLink>
                         <p:commandLink rendered="#{salleBean.selection.rattache and salleBean.selection.kind ne 'BATIMENT'}"
                                        styleClass="tb-sheet-item" action="#{salleBean.detacher(salleBean.selection.salle)}"
-                                       process="@this" update=":sallesForm:arbre" oncomplete="PF('actionsDlg').hide()">
+                                       process="@this" update=":sallesForm:arbre :sallesForm:drill" oncomplete="PF('actionsDlg').hide()">
                             <i class="pi pi-link"/>Détacher
                         </p:commandLink>
                         <p:commandLink styleClass="tb-sheet-item tb-sheet-danger"
                                        action="#{salleBean.delete(salleBean.selection.salle)}"
-                                       process="@this" update=":sallesForm:arbre" oncomplete="PF('actionsDlg').hide()">
+                                       process="@this" update=":sallesForm:arbre :sallesForm:drill" oncomplete="PF('actionsDlg').hide()">
                             <i class="pi pi-trash"/>Supprimer
                             <p:confirm header="Supprimer « #{salleBean.selection.salle.name} »"
                                        message="Son historique est supprimé ; ce qu'il contient est gardé mais n'est plus rattaché."
@@ -225,7 +294,7 @@
                     <p:commandButton value="Annuler" type="button" onclick="PF('salleDlg').hide()"
                                      styleClass="ui-button-flat"/>
                     <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{salleBean.save}"
-                                     update="@form :sallesForm:arbre"
+                                     update="@form :sallesForm:arbre :sallesForm:drill"
                                      oncomplete="if (args &amp;&amp; args.saved) PF('salleDlg').hide()"/>
                 </div>
             </h:form>

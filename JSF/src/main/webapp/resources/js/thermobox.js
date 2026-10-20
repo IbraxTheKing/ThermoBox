@@ -458,3 +458,25 @@ var tbPrefs = (function () {
         }
     };
 })();
+
+/* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */
+var tbRail = (function () {
+    function fermer() {
+        var rail = document.querySelector('.tb-rail.tb-rail-open');
+        if (!rail) return;
+        rail.classList.remove('tb-rail-open');
+        var b = rail.querySelector('.tb-rail-more');
+        if (b) b.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('.tb-rail-end')) fermer();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fermer(); });
+    return {
+        basculer: function (bouton) {
+            var rail = bouton.closest('.tb-rail');
+            var ouvert = rail.classList.toggle('tb-rail-open');
+            bouton.setAttribute('aria-expanded', String(ouvert));
+        }
+    };
+})();

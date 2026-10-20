@@ -2397,8 +2397,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 }
 :root body {
     background:
-        radial-gradient(75vmax 62vmax at 6% 0%, color-mix(in srgb, var(--tb-page-tone) 44%, transparent), transparent 68%),
-        radial-gradient(62vmax 56vmax at 96% 100%, color-mix(in srgb, var(--tb-page-tone) 30%, transparent), transparent 70%),
+        radial-gradient(75vmax 62vmax at 6% 0%, color-mix(in srgb, var(--tb-page-tone) 30%, transparent), transparent 68%),
+        radial-gradient(62vmax 56vmax at 96% 100%, color-mix(in srgb, var(--tb-page-tone) 18%, transparent), transparent 70%),
         var(--tb-bg);
     background-color: var(--md-surface);
     background-attachment: fixed;
@@ -2502,21 +2502,6 @@ html { background-color: var(--md-surface); }
 }
 :root body .ui-growl { right: calc(20px + env(safe-area-inset-right)); }
 
-/* Phones held sideways (iPhone: 844-932 px wide, ~390 high): compact rail, labels hidden */
-@media (min-width: 841px) and (max-height: 520px) {
-    :root { --tb-rail: 76px; }
-    .tb-rail { top: 8px; bottom: 8px; padding: 10px 0; gap: 4px; overflow-y: auto; scrollbar-width: none; }
-    .tb-rail-brand { margin-bottom: 4px; }
-    .tb-rail-brand .tb-logo { width: 38px; height: 38px; }
-    .tb-dests { gap: 2px; }
-    .tb-dest { width: 52px; padding: 4px 0; }
-    .tb-dest-label { display: none; }
-    .tb-rail-end { gap: 4px; }
-    .tb-rail-end .tb-icon-btn { width: 38px; height: 38px; }
-    .tb-rail-end .tb-avatar { width: 34px; height: 34px; font-size: .85rem; }
-    .tb-app .tb-main { padding-top: 16px; }
-}
-
 /*
  * Phones: the top bar was "sticky" inside its form, which is only as tall as the bar itself,
  * so it scrolled away. Both bars are now fixed to the screen.
@@ -2551,4 +2536,294 @@ html { background-color: var(--md-surface); }
         padding-left: calc(12px + env(safe-area-inset-left));
         padding-right: calc(12px + env(safe-area-inset-right));
     }
+}
+
+/*
+ * The whole palette follows the page tone (dashboard filter, state of the salle shown): every
+ * blue of the theme (surfaces, glass, primary, background) turns by the same hue angle, so the
+ * interface and the background change colour together. --tb-hue-shift and --tb-sat are
+ * registered, so the change is a smooth turn of the hue rather than a jump.
+ */
+@property --tb-hue-shift { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --tb-sat { syntax: "<number>"; inherits: true; initial-value: 1; }
+:root { transition: --tb-hue-shift .8s var(--tb-ease), --tb-sat .8s var(--tb-ease); }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-stable), :root:has(.tb-hero-reading.tb-ton-stable) { --tb-hue-shift: -112; --tb-sat: 1.15; }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chauffe), :root:has(.tb-hero-reading.tb-ton-chauffe) { --tb-hue-shift: -197; --tb-sat: 1.2; }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chaud), :root:has(.tb-hero-reading.tb-ton-chaud) { --tb-hue-shift: -235; --tb-sat: 1.2; }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-inconnu), :root:has(.tb-hero-reading.tb-ton-inconnu) { --tb-sat: .25; }
+
+/* Older browsers without relative colours keep the blue theme */
+@supports (color: oklch(from red l c h)) {
+    :root {
+        --md-primary: oklch(from #2160cc l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-primary-container: oklch(from #cfe0f8 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-primary-container: oklch(from #0b2a57 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-secondary-container: oklch(from #1d3049 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface: oklch(from #bccde2 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-lowest: oklch(from #f4f8fd l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-low: oklch(from #e7eef8 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container: oklch(from #dde7f3 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-high: oklch(from #d3dfef l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-highest: oklch(from #c8d6ea l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-surface: oklch(from #1d3049 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-surface-variant: oklch(from #4c6480 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-outline: oklch(from #6f849c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-outline-variant: oklch(from rgba(29, 48, 73, .14) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-surface: oklch(from #1d2a3c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-on-surface: oklch(from #eef3fa l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-primary: oklch(from #9cc0ff l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-scrim: oklch(from rgba(18, 30, 48, .35) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --tb-bg: radial-gradient(58vmax 48vmax at 8% 4%, oklch(from rgba(111, 177, 224, .30) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 66%),
+            radial-gradient(48vmax 42vmax at 92% 12%, oklch(from rgba(155, 155, 220, .22) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 64%),
+            radial-gradient(64vmax 50vmax at 76% 105%, oklch(from rgba(95, 163, 204, .26) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 66%),
+            linear-gradient(145deg, oklch(from #c6d6e8 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 0%, oklch(from #b1c2d7 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 48%, oklch(from #a0b2c8 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 100%);
+        --tb-glass: linear-gradient(135deg, oklch(from rgba(234, 242, 251, .60) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from rgba(206, 223, 243, .40) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 58%, oklch(from rgba(226, 234, 247, .50) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-glass-hover: linear-gradient(135deg, oklch(from rgba(240, 246, 253, .72) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from rgba(214, 229, 247, .52) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 58%, oklch(from rgba(232, 239, 250, .62) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-glass-solid: oklch(from rgba(232, 240, 250, .9) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --tb-glass-shadow: 0 10px 30px oklch(from rgba(44, 67, 99, .10) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), inset 0 1px 0 rgba(255, 255, 255, .6);
+        --tb-glass-shadow-hover: 0 16px 38px oklch(from rgba(44, 67, 99, .15) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), inset 0 1px 0 rgba(255, 255, 255, .7);
+        --tb-brand: linear-gradient(140deg, oklch(from #3d7cf0 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from #2bb3d1 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-serie-moyenne: oklch(from #1d3049 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+    }
+    :root[data-theme="dark"] {
+        --md-primary: oklch(from #8fb4ff l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-primary: oklch(from #0b2a5c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-primary-container: oklch(from #1e3b70 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-primary-container: oklch(from #dbe7ff l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-secondary-container: oklch(from #dbe5f5 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface: oklch(from #0f141c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-lowest: oklch(from #0d121a l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-low: oklch(from #151c27 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container: oklch(from #1a2230 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-high: oklch(from #222b3a l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-surface-container-highest: oklch(from #2b3546 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-surface: oklch(from #e4eaf4 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-on-surface-variant: oklch(from #a9b7cb l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-outline: oklch(from #7a889c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-surface: oklch(from #e4eaf4 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-on-surface: oklch(from #1a2230 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --md-inverse-primary: oklch(from #2160cc l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --tb-bg: radial-gradient(58vmax 48vmax at 8% 4%, oklch(from rgba(60, 110, 200, .26) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 66%),
+            radial-gradient(48vmax 42vmax at 92% 12%, oklch(from rgba(120, 100, 220, .16) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 64%),
+            radial-gradient(64vmax 50vmax at 76% 105%, oklch(from rgba(40, 140, 190, .18) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), transparent 66%),
+            linear-gradient(145deg, oklch(from #121a27 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 0%, oklch(from #0d131c l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 50%, oklch(from #0a0e15 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))) 100%);
+        --tb-glass: linear-gradient(135deg, oklch(from rgba(48, 60, 82, .58) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from rgba(28, 36, 50, .48) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-glass-hover: linear-gradient(135deg, oklch(from rgba(56, 70, 96, .66) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from rgba(32, 42, 58, .56) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-glass-solid: oklch(from rgba(26, 34, 48, .92) l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+        --tb-brand: linear-gradient(140deg, oklch(from #4f86f0 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))), oklch(from #2aa7c4 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift))));
+        --tb-serie-moyenne: oklch(from #e4eaf4 l calc(c * var(--tb-sat)) calc(h + var(--tb-hue-shift)));
+    }
+}
+
+/* Light theme: fields stood out too little from the light glass (dashboard search, filters) */
+:root { --tb-field: rgba(255, 255, 255, .68); --tb-field-hover: rgba(255, 255, 255, .82); --tb-field-line: rgba(29, 48, 73, .2); }
+:root[data-theme="dark"] { --tb-field-line: rgba(255, 255, 255, .12); }
+:root body .ui-inputfield,
+:root body .ui-selectonemenu {
+    border-color: var(--tb-field-line);
+    box-shadow: inset 0 1px 2px rgba(20, 35, 65, .06), 0 1px 2px rgba(20, 35, 65, .05);
+}
+:root body .ui-inputfield.ui-state-hover, :root body .ui-selectonemenu.ui-state-hover {
+    border-color: color-mix(in srgb, var(--md-primary) 40%, var(--tb-field-line));
+}
+:root body .tb-toolbar .ui-inputfield, :root body .tb-toolbar .ui-selectonemenu { box-shadow: var(--tb-glass-shadow); }
+
+/* Rail: the "more" button only exists for phones held sideways */
+.tb-rail-more { display: none; }
+.tb-rail-extras { display: contents; }
+
+/*
+ * Phones held sideways (any width, ~320-430 px high): no top bar, no bottom bar, but a slim rail
+ * on the left with the destinations only; theme, preferences, profile and logout open from "…".
+ * Content gets the full height.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+    :root { --tb-rail: 76px; }
+    .tb-topbar { display: none !important; }
+    .tb-rail {
+        inset: 8px auto 8px calc(8px + env(safe-area-inset-left));
+        left: calc(8px + env(safe-area-inset-left));
+        width: 60px;
+        height: auto;
+        padding: 8px 0;
+        gap: 4px;
+        flex-direction: column;
+        justify-content: flex-start;
+        border-width: 1px;
+        border-radius: var(--tb-shape-xl);
+        overflow: visible;
+        background: var(--tb-glass-solid);
+        box-shadow: var(--tb-glass-shadow);
+    }
+    .tb-rail-brand { display: none; }
+    .tb-dests { flex-direction: column; width: auto; max-width: none; gap: 2px; justify-content: flex-start; }
+    .tb-dest { flex: none; width: 48px; min-height: 0; padding: 3px 0; }
+    .tb-dest-label { display: none; }
+    .tb-dest-icon { width: 42px; height: 36px; }
+    .tb-rail-end { display: flex; flex-direction: column; margin-top: auto; }
+    .tb-rail-more { display: inline-grid; width: 42px; height: 42px; }
+    .tb-rail-extras {
+        position: fixed;
+        left: calc(76px + env(safe-area-inset-left));
+        bottom: 8px;
+        z-index: 60;
+        display: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid var(--tb-glass-line);
+        border-radius: var(--tb-shape-xl);
+        background: var(--tb-glass-solid);
+        box-shadow: var(--tb-elev-2);
+        -webkit-backdrop-filter: var(--tb-blur);
+        backdrop-filter: var(--tb-blur);
+    }
+    .tb-rail-open .tb-rail-extras { display: flex; animation: tb-rise .25s var(--tb-ease); }
+    .tb-rail-open .tb-rail-more { background: var(--md-secondary-container); color: var(--md-on-surface); }
+
+    .tb-app .tb-main {
+        margin-left: calc(var(--tb-rail) + env(safe-area-inset-left));
+        padding: 16px calc(20px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) 16px;
+    }
+    :root body .ui-growl { top: 8px; left: auto; right: calc(8px + env(safe-area-inset-right)); width: 360px; }
+    html { scroll-padding-top: 8px; }
+    :root body .ui-button.tb-fab { bottom: calc(16px + env(safe-area-inset-bottom)); }
+
+    /* Salle detail: laid out as on a desktop, at a size that fits the height */
+    .tb-hero { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+    .tb-hero-reading { min-height: 0; padding: 18px 20px; }
+    .tb-temp-hero { font-size: clamp(3.6rem, 12vh, 5rem); }
+    .tb-photo { min-height: 0; height: 100%; }
+    .tb-boxes { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .tb-chart { height: 240px; }
+    .tb-page-title h1 { font-size: 1.8rem; }
+    .tb-page-head { margin-bottom: 14px; }
+}
+
+/* Filter chips with a count (updates: channels, users: roles) */
+.tb-chip-n {
+    min-width: 22px;
+    height: 22px;
+    margin-left: 2px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    font-size: .75rem;
+    line-height: 22px;
+    text-align: center;
+}
+.tb-canal-chip { --tone: var(--canal); --tone-container: var(--canal-container); --tone-on-container: var(--canal-on); }
+.tb-maj-canaux { margin: 0 0 4px; }
+
+/* ============================== Salles: phone list (one level at a time) ============================== */
+
+.tb-drill { display: none; }
+@media (max-width: 840px) {
+    .tb-drill { display: block; }
+    #sallesForm\:arbre { display: none; }
+}
+.tb-drill-path {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0 -4px 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+}
+.tb-drill-path::-webkit-scrollbar { display: none; }
+.tb-drill-crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: var(--tb-shape-sm);
+    color: var(--md-on-surface-variant);
+    font-weight: 600;
+    text-decoration: none;
+}
+.tb-drill-crumb-on { color: var(--md-on-surface); background: var(--md-secondary-container); }
+.tb-drill-sep { color: var(--md-outline); font-size: .8rem; }
+.tb-drill-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 8px 6px 8px 4px;
+    border: 1px solid var(--tb-glass-line);
+    border-radius: var(--tb-shape-lg);
+    background: var(--tb-glass);
+}
+.tb-drill-head-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.tb-drill-head-text strong { font-size: 1.15rem; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-drill-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tb-drill-item {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--tb-glass-line);
+    border-radius: var(--tb-shape-lg);
+    background: var(--tb-glass);
+    box-shadow: var(--tb-glass-shadow);
+}
+.tb-drill-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 68px;
+    padding: 10px 6px 10px 12px;
+    border-radius: var(--tb-shape-lg);
+    color: var(--md-on-surface);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.tb-drill-main:active { background: var(--md-secondary-container); }
+.tb-drill-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.tb-drill-name { font-weight: 700; overflow-wrap: anywhere; line-height: 1.25; }
+.tb-drill-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; color: var(--md-on-surface-variant); font-size: .82rem; }
+.tb-drill-temp { flex: none; font-size: 1.25rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tb-drill-go { flex: none; color: var(--md-outline); font-size: .9rem; }
+:root body .tb-drill-item .ui-button.tb-drill-more { align-self: center; width: 44px; min-width: 44px; height: 44px; margin-right: 4px; }
+:root body .ui-button.tb-drill-add { width: 100%; margin-top: 12px; min-height: 48px; }
+
+/* ============================== Users: searchable list ============================== */
+
+.tb-users { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.tb-user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 68px;
+    padding: 10px 8px 10px 14px;
+    border: 1px solid var(--tb-glass-line);
+    border-radius: var(--tb-shape-lg);
+    background: var(--tb-glass);
+    box-shadow: var(--tb-glass-shadow);
+}
+.tb-user-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.tb-user-text strong { font-size: 1.02rem; overflow-wrap: anywhere; }
+.tb-user-actions { display: flex; gap: 2px; flex: none; }
+:root body .tb-user-actions .ui-button.ui-button-icon-only { width: 44px; min-width: 44px; height: 44px; }
+.tb-role-ADMIN { --role: var(--md-error); --role-container: var(--md-error-container); --role-on: var(--md-on-error-container); }
+.tb-role-GESTIONNAIRE { --role: var(--tb-chauffe); --role-container: var(--tb-chauffe-container); --role-on: var(--tb-on-chauffe-container); }
+.tb-role-VIEWER { --role: var(--tb-stable); --role-container: var(--tb-stable-container); --role-on: var(--tb-on-stable-container); }
+.tb-role-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--tb-shape-xs);
+    background: var(--role-container);
+    color: var(--role-on);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+.tb-avatar.tb-user-avatar { flex: none; width: 42px; height: 42px; background: var(--role-container); color: var(--role-on); box-shadow: none; }
+.tb-role-chip { --tone: var(--role); --tone-container: var(--role-container); --tone-on-container: var(--role-on); }
+@media (min-width: 841px) {
+    .tb-users { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
 }

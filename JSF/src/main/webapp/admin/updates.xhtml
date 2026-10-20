@@ -3,7 +3,8 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
 
     <ui:define name="title">Mises à jour</ui:define>
 
@@ -108,6 +109,17 @@
                     <span class="tb-section-meta">#{updateBean.etat.disponibles.size()}</span>
                 </h2>
 
+                <!-- Filter by channel: RC, Beta, Nightly, Stable (a second click shows them all) -->
+                <h:panelGroup layout="block" styleClass="tb-summary tb-maj-canaux" rendered="#{updateBean.chipsCanaux.size() gt 1}">
+                    <ui:repeat value="#{updateBean.chipsCanaux}" var="c">
+                        <p:commandLink action="#{updateBean.filtrerCanal(c.cle)}" process="@this" update="versions"
+                                       styleClass="tb-summary-chip tb-canal-chip tb-canal-#{c.couleur} #{updateBean.canalFiltre eq c.cle ? 'tb-chip-on' : ''}"
+                                       pt:aria-pressed="#{updateBean.canalFiltre eq c.cle}">
+                            <i class="pi pi-check tb-chip-check"/>#{c.libelle}<span class="tb-chip-n">#{c.nombre}</span>
+                        </p:commandLink>
+                    </ui:repeat>
+                </h:panelGroup>
+
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{empty updateBean.etat.disponibles}">
                     <span class="tb-empty-icon"><i class="pi pi-check"/></span>
                     <strong>#{updateBean.etat.derniereVerification eq null ? 'Pas encore vérifié' : 'ThermoBox est à jour'}</strong>
@@ -116,23 +128,23 @@
                             : 'Aucune version plus récente sur GitHub.'}</span>
                 </h:panelGroup>
 
-                <ui:repeat value="#{updateBean.etat.disponibles}" var="v">
+                <ui:repeat value="#{updateBean.filtrees(updateBean.etat.disponibles)}" var="v">
                     <ui:include src="/WEB-INF/includes/version-card.xhtml"/>
                 </ui:repeat>
 
                 <!-- Prerelease channel: older versions can be installed again (rollback) -->
-                <ui:fragment rendered="#{not empty updateBean.etat.anterieures}">
+                <ui:fragment rendered="#{not empty updateBean.filtrees(updateBean.etat.anterieures)}">
                     <details class="tb-maj-anterieures">
                         <summary>
                             <span class="tb-section-icon"><i class="pi pi-history"/></span>
                             Versions antérieures
-                            <span class="tb-section-meta">#{updateBean.etat.anterieures.size()}</span>
+                            <span class="tb-section-meta">#{updateBean.filtrees(updateBean.etat.anterieures).size()}</span>
                         </summary>
                         <p class="tb-muted">
                             Plus anciennes que la version installée. Revenir dessus est un retour arrière : la base
                             de données a pu être modifiée depuis, une sauvegarde est faite avant.
                         </p>
-                        <ui:repeat value="#{updateBean.etat.anterieures}" var="v">
+                        <ui:repeat value="#{updateBean.filtrees(updateBean.etat.anterieures)}" var="v">
                             <ui:include src="/WEB-INF/includes/version-card.xhtml"/>
                         </ui:repeat>
                     </details>

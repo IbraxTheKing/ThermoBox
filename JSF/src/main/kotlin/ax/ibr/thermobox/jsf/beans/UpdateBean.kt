@@ -9,6 +9,7 @@ import ax.ibr.thermobox.common.update.OptionsInstallation
 import ax.ibr.thermobox.common.update.Preparation
 import ax.ibr.thermobox.common.update.TypeMiseAJour
 import ax.ibr.thermobox.common.update.Version
+import ax.ibr.thermobox.common.update.VersionDisponible
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.thermobox.jsf.util.Markdown
@@ -44,6 +45,28 @@ class UpdateBean : Serializable {
 
     var sauvegarder: Boolean = true
     var risquesAcceptes: Boolean = false
+
+    /** Channel chip picked ("rc", "beta", "nightly", "stable"), null for all. */
+    var canalFiltre: String? = null
+
+    /** One chip per channel present, in this order: RC, Beta, Nightly, Stable. */
+    val chipsCanaux: List<ChipCanal>
+        get() {
+            val toutes = etat?.let { it.disponibles + it.anterieures }.orEmpty()
+            val parCle = toutes.groupingBy { cle(it.version) }.eachCount()
+            val ordre = listOf("rc", "beta", "nightly", "stable")
+            return (ordre + (parCle.keys - ordre.toSet()).sorted())
+                .filter { it in parCle }
+                .map { c -> ChipCanal(c, libelle(c), parCle.getValue(c), couleur(c)) }
+        }
+
+    fun filtrerCanal(c: String) {
+        canalFiltre = if (canalFiltre == c) null else c
+    }
+
+    /** [liste] restricted to the picked channel. */
+    fun filtrees(liste: List<VersionDisponible>?): List<VersionDisponible> =
+        liste.orEmpty().filter { canalFiltre == null || cle(it.version) == canalFiltre }
 
     @PostConstruct
     fun init() = rafraichir()
@@ -103,16 +126,22 @@ class UpdateBean : Serializable {
     fun date(instant: Instant?): String = instant?.let { DATE.format(it) } ?: "jamais"
 
     /** Colour of a version: stable (green), test for beta / rc (orange), nightly (violet). */
-    fun canal(v: Version): String = when (v.prerelease) {
-        null -> "stable"
+    fun canal(v: Version): String = couleur(cle(v))
+
+    fun canalLabel(v: Version): String = libelle(cle(v))
+
+    private fun cle(v: Version): String = v.prerelease ?: "stable"
+
+    private fun couleur(cle: String): String = when (cle) {
+        "stable" -> "stable"
         "nightly" -> "nightly"
         else -> "test"
     }
 
-    fun canalLabel(v: Version): String = when (val p = v.prerelease) {
-        null -> "Stable"
+    private fun libelle(cle: String): String = when (cle) {
         "rc" -> "RC"
-        else -> p.replaceFirstChar { it.uppercase() }
+        "nightly" -> "Nightly"
+        else -> cle.replaceFirstChar { it.uppercase() }
     }
 
     fun severiteType(type: TypeMiseAJour): String = if (type == TypeMiseAJour.CORRECTIVE) "success" else "warning"
@@ -142,6 +171,9 @@ class UpdateBean : Serializable {
         val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy 'à' HH:mm", Locale.FRANCE).withZone(ZoneId.systemDefault())
     }
 }
+
+/** A channel filter on the updates page; [couleur] is the tb-canal-* class. */
+data class ChipCanal(val cle: String, val libelle: String, val nombre: Int, val couleur: String) : Serializable
 
 /** The rail badge and the banner shown to admins when a version is out. */
 @Named
