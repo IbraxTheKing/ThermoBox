@@ -56,6 +56,23 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 - Sécurité : JWT (JSON Web Tokens)
 - Frontend : Jakarta Faces (JSF), PrimeFaces
 
+## Tests et intégration continue
+
+`mvn verify` compile tous les modules et lance les tests. Certains tests (Persistence) ouvrent une
+vraie connexion : il faut une base MySQL vide et les variables `THERMOBOX_DB_*` / `THERMOBOX_JWT_SECRET`
+ci-dessus.
+
+Sur GitHub, le workflow **Tests** (`.github/workflows/tests.yml`) fait la même chose avec un MySQL 8.4
+de test :
+- à chaque pull request et à chaque push sur `dev`, `master` et `release/**` ;
+- avant chaque nightly, beta, RC et avant de joindre les fichiers d'une version : si un test échoue,
+  rien n'est publié.
+
+Le résumé (tests lancés, échecs) s'affiche dans l'onglet de l'exécution. En cas d'échec, les
+rapports Surefire sont joints (`rapports-tests`). Pour bloquer la fusion d'une pull request en
+échec : *Settings → Branches → Branch protection*, cocher « Require status checks » et choisir
+`maven`.
+
 ## Déploiement
 Le projet inclut un profil de déploiement spécifique. Pour générer les artefacts destinés à la production (incluant le regroupement des modules dans base.jar) :
 

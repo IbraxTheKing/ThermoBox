@@ -18,26 +18,42 @@ permissions:
   contents: write
 
 jobs:
-  assets:
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      tag: ${{ steps.check.outputs.tag }}
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Version
         id: check
         run: |
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           case "$TAG" in
             *nightly*) echo "Nightly : fichiers déjà publiés par nightly.yml"; echo "build=false" >> "$GITHUB_OUTPUT" ;;
             *) echo "build=true" >> "$GITHUB_OUTPUT" ;;
           esac
 
+  # Les fichiers ne sont joints que si les tests passent sur le tag
+  tests:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.check.outputs.tag }}
+
+  assets:
+    needs: [check, tests]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
+    steps:
       - uses: actions/checkout@v4
-        if: steps.check.outputs.build == 'true'
         with:
           ref: ${{ env.TAG }}
 
       - name: Installer le JDK 23
-        if: steps.check.outputs.build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -45,12 +61,10 @@ jobs:
           cache: maven
 
       - name: Compiler (Maven, profil deploy)
-        if: steps.check.outputs.build == 'true'
         run: mvn -B -Pdeploy -DskipTests -Dthermobox.version="$TAG" package
 
       # --clobber : relancer le workflow remplace les fichiers au lieu d'échouer
       - name: Joindre les fichiers à la version
-        if: steps.check.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" deploy/RestServer.jar deploy/base.jar deploy/JsfClient.war --clobber

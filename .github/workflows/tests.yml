@@ -1,0 +1,99 @@
+name: Tests
+
+# Compile et lance tous les tests (Maven verify) avec une vraie base MySQL, comme en production.
+# Sur chaque pull request et chaque push des branches de travail ; appelé aussi par les workflows
+# Beta / RC et Release assets, qui ne publient rien si les tests échouent.
+
+on:
+  pull_request:
+  push:
+    branches: [dev, develop, master, 'dev/**', 'release/**']
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit, branche ou tag à tester (vide = celui de l'événement)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maven:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: thermobox_test
+          MYSQL_USER: thermobox
+          MYSQL_PASSWORD: thermobox
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      THERMOBOX_DB_URL: jdbc:mysql://127.0.0.1:3306/thermobox_test?allowPublicKeyRetrieval=true&useSSL=false
+      THERMOBOX_DB_USER: thermobox
+      THERMOBOX_DB_PASSWORD: thermobox
+      # Test secret only (32 bytes minimum)
+      THERMOBOX_JWT_SECRET: thermobox-ci-secret-not-for-production-use
+      THERMOBOX_UPDATE_CHECK: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Installer le JDK 23
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      - name: Compiler et tester (Maven verify)
+        env:
+          THERMOBOX_DATA_DIR: ${{ runner.temp }}/thermobox-data
+        run: mvn -B -ntp verify
+
+      # Résumé lisible dans l'onglet de l'exécution, succès ou échec
+      - name: Résumé des tests
+        if: always()
+        run: |
+          total=0; echecs=0; erreurs=0; ignores=0
+          for f in $(find . -path '*/target/surefire-reports/TEST-*.xml' -o -path '*/target/failsafe-reports/TEST-*.xml'); do
+            ligne=$(grep -m1 -o '<testsuite[^>]*>' "$f")
+            n() { echo "$ligne" | grep -o " $1=\"[0-9]*\"" | grep -o '[0-9]*' || echo 0; }
+            total=$((total + $(n tests))); echecs=$((echecs + $(n failures)))
+            erreurs=$((erreurs + $(n errors))); ignores=$((ignores + $(n skipped)))
+          done
+          {
+            echo "### Tests"
+            echo "| Lancés | Échecs | Erreurs | Ignorés |"
+            echo "|---|---|---|---|"
+            echo "| $total | $echecs | $erreurs | $ignores |"
+            if [ $((echecs + erreurs)) -gt 0 ]; then
+              echo ""
+              echo "Tests en échec :"
+              grep -l -E '<(failure|error)' $(find . -path '*/target/*-reports/TEST-*.xml') 2>/dev/null \
+                | sed -E 's#.*/TEST-(.*)\.xml#- \1#' || true
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rapports de tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-tests
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 14

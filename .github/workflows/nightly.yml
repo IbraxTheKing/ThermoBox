@@ -26,8 +26,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  nightly:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.version.outputs.build }}
+      tag: ${{ steps.version.outputs.tag }}
+      branche: ${{ steps.version.outputs.branche }}
+      commit: ${{ steps.version.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,43 +97,51 @@ jobs:
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Passer sur la branche dev/
-        if: steps.version.outputs.build == 'true'
-        run: git checkout --detach "${{ steps.version.outputs.commit }}"
+  # Pas de nightly si un test échoue
+  tests:
+    needs: version
+    if: needs.version.outputs.build == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.version.outputs.commit }}
+
+  nightly:
+    needs: [version, tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.commit }}
 
       - name: Installer le JDK 23
-        if: steps.version.outputs.build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '23'
           cache: maven
 
-      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
-      # on compile et on package sans les lancer. Le profil "deploy" remplit deploy/
+      # Tests déjà passés (job « tests ») : ici on ne fait que construire.
+      # Le profil "deploy" remplit deploy/
       # (base.jar, RestServer.jar, JsfClient.war), comme pour une mise en production.
       - name: Compiler (Maven, profil deploy)
-        if: steps.version.outputs.build == 'true'
         # -Dthermobox.version: the version the update system reads in the build
-        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ needs.version.outputs.tag }} package
 
       # Les trois fichiers de deploy/, plus le dossier entier dans une archive
       - name: Rassembler les livrables
-        if: steps.version.outputs.build == 'true'
         run: |
           mkdir -p dist
           cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
-          zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
+          zip -j "dist/thermobox-${{ needs.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
           ls -l dist
 
       - name: Créer la pre-release
-        if: steps.version.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ steps.version.outputs.tag }}"
+          tag="${{ needs.version.outputs.tag }}"
           gh release create "$tag" dist/* \
-            --target "${{ steps.version.outputs.commit }}" \
+            --target "${{ needs.version.outputs.commit }}" \
             --prerelease \
-            --title "$tag ($(date -u +%Y-%m-%d), ${{ steps.version.outputs.branche }})" \
+            --title "$tag ($(date -u +%Y-%m-%d), ${{ needs.version.outputs.branche }})" \
             --generate-notes

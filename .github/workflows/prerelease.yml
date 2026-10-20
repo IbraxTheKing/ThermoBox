@@ -33,8 +33,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prerelease:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,8 +92,20 @@ jobs:
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Passer sur la branche
-        run: git checkout --detach "${{ steps.version.outputs.commit }}"
+  # Rien n'est publié si un test échoue
+  tests:
+    needs: version
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.version.outputs.commit }}
+
+  prerelease:
+    needs: [version, tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.commit }}
 
       - name: Installer le JDK 23
         uses: actions/setup-java@v4
@@ -99,15 +114,15 @@ jobs:
           java-version: '23'
           cache: maven
 
-      # Comme la nightly : les tests ont besoin de MySQL et d'un broker MQTT, absents du runner.
+      # Tests déjà passés (job « tests ») : ici on ne fait que construire les livrables.
       - name: Compiler (Maven, profil deploy)
-        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ needs.version.outputs.tag }} package
 
       - name: Rassembler les livrables
         run: |
           mkdir -p dist
           cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
-          zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
+          zip -j "dist/thermobox-${{ needs.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
           ls -l dist
 
       - name: Créer la pre-release
@@ -115,9 +130,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NOTES: ${{ inputs.notes }}
         run: |
-          tag="${{ steps.version.outputs.tag }}"
+          tag="${{ needs.version.outputs.tag }}"
           gh release create "$tag" dist/* \
-            --target "${{ steps.version.outputs.commit }}" \
+            --target "${{ needs.version.outputs.commit }}" \
             --prerelease \
             --title "$tag" \
             --notes "$NOTES" \
