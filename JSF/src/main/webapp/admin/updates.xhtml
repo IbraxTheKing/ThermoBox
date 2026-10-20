@@ -117,37 +117,26 @@
                 </h:panelGroup>
 
                 <ui:repeat value="#{updateBean.etat.disponibles}" var="v">
-                    <article class="tb-card tb-maj-version-card tb-maj-#{v.type}">
-                        <div class="tb-card-head">
-                            <div class="tb-maj-titre">
-                                <strong class="tb-maj-version">#{v.version.tag}</strong>
-                                <p:tag value="#{v.type.label}" severity="#{updateBean.severiteType(v.type)}"/>
-                                <p:tag value="Recommandée" severity="success" icon="pi pi-thumbs-up" rendered="#{v.type eq 'CORRECTIVE' and not v.incompatible}"/>
-                                <p:tag value="Version de test" severity="info" rendered="#{v.version.prerelease ne null}"/>
-                                <p:tag value="Incompatibilité annoncée" severity="danger" rendered="#{v.incompatible}"/>
-                            </div>
-                            <span class="tb-spacer"/>
-                            <p:linkButton value="Sur GitHub" icon="pi pi-external-link" href="#{v.page}" target="_blank"
-                                          styleClass="ui-button-flat"/>
-                            <p:commandButton value="Installer…" icon="pi pi-download" action="#{updateBean.preparer(v.version.tag)}"
-                                             process="@this" update=":installForm" oncomplete="if (args &amp;&amp; args.ok) PF('installDlg').show()"
-                                             disabled="#{updateBean.suivi}"
-                                             styleClass="#{v.type eq 'CORRECTIVE' ? '' : 'tb-tonal'}"/>
-                        </div>
-                        <p class="tb-maj-type">
-                            <h:outputText value="#{v.titre} · " rendered="#{v.titre ne v.version.tag}"/>
-                            publiée le #{updateBean.date(v.publieeLe)}. #{v.type.description}
-                        </p>
-                        <h:panelGroup layout="block" styleClass="tb-maj-migration" rendered="#{v.migration ne null}">
-                            <strong><i class="pi pi-exclamation-triangle"/> Opérations à prévoir</strong>
-                            <h:outputText value="#{updateBean.notes(v.migration)}" escape="false"/>
-                        </h:panelGroup>
-                        <details class="tb-maj-notes">
-                            <summary>Notes de version</summary>
-                            <h:outputText value="#{updateBean.notes(v.notes)}" escape="false"/>
-                        </details>
-                    </article>
+                    <ui:include src="/WEB-INF/includes/version-card.xhtml"/>
                 </ui:repeat>
+
+                <!-- Prerelease channel: older versions can be installed again (rollback) -->
+                <ui:fragment rendered="#{not empty updateBean.etat.anterieures}">
+                    <details class="tb-maj-anterieures">
+                        <summary>
+                            <span class="tb-section-icon"><i class="pi pi-history"/></span>
+                            Versions antérieures
+                            <span class="tb-section-meta">#{updateBean.etat.anterieures.size()}</span>
+                        </summary>
+                        <p class="tb-muted">
+                            Plus anciennes que la version installée. Revenir dessus est un retour arrière : la base
+                            de données a pu être modifiée depuis, une sauvegarde est faite avant.
+                        </p>
+                        <ui:repeat value="#{updateBean.etat.anterieures}" var="v">
+                            <ui:include src="/WEB-INF/includes/version-card.xhtml"/>
+                        </ui:repeat>
+                    </details>
+                </ui:fragment>
             </h:panelGroup>
         </h:form>
 
@@ -160,7 +149,8 @@
                         <span class="tb-maj-de">#{updateBean.preparation.installee ne null ? updateBean.preparation.installee.tag : 'Développement'}</span>
                         <i class="pi pi-arrow-right"/>
                         <strong class="tb-maj-version">#{updateBean.preparation.version.version.tag}</strong>
-                        <p:tag value="#{updateBean.preparation.version.type.label}" severity="#{updateBean.severiteType(updateBean.preparation.version.type)}"/>
+                        <span class="tb-canal tb-canal-#{updateBean.canal(updateBean.preparation.version.version)}">#{updateBean.canalLabel(updateBean.preparation.version.version)}</span>
+                        <span class="tb-maj-type-tag">#{updateBean.preparation.version.anterieure ? 'Version antérieure' : updateBean.preparation.version.type.label}</span>
                     </div>
 
                     <!-- Feature update: rollback is not guaranteed -->

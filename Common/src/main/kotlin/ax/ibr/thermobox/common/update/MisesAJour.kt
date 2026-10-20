@@ -32,6 +32,8 @@ data class VersionDisponible(
     val migration: String?,
     /** Les notes annoncent une incompatibilité (base de données, configuration…). */
     val incompatible: Boolean,
+    /** Plus ancienne que la version installée : revenir dessus est un retour arrière. */
+    val anterieure: Boolean = false,
 )
 
 enum class NiveauControle { OK, INFO, AVERTISSEMENT, BLOQUANT }
@@ -100,8 +102,10 @@ data class EtatMisesAJour(
     val derniereVerification: Instant?,
     /** Dernière vérification échouée, null si elle a réussi. */
     val erreur: String?,
-    /** Plus récentes d'abord. */
+    /** Plus récentes que la version installée, les plus récentes d'abord. */
     val disponibles: List<VersionDisponible>,
+    /** Canal prerelease : versions plus anciennes, réinstallables (retour arrière). */
+    val anterieures: List<VersionDisponible>,
     val mode: ModeInstallation,
     val installation: Installation?,
     /** Version mise en place par l'autre composant, que celui-ci n'a pas encore pu appliquer. */

@@ -101,6 +101,7 @@ class UpdateServiceImpl(
             derniereVerification = derniereVerification,
             erreur = erreur,
             disponibles = disponibles(installee),
+            anterieures = anterieures(installee),
             mode = mode(),
             // The other program may have installed something since: the shared file wins.
             installation = listOfNotNull(installation, partagee).maxByOrNull { it.demarreeLe },
@@ -145,6 +146,29 @@ class UpdateServiceImpl(
         return if (installee == null) liste.take(10) else liste
     }
 
+    /**
+     * Prerelease channel: the versions older than the installed one stay installable, to go
+     * back after testing a nightly. Same series: corrective; older series: feature (risky).
+     */
+    private fun anterieures(installee: Version?): List<VersionDisponible> {
+        if (config.canal != Canal.PRERELEASE || installee == null) return emptyList()
+        return releases.asSequence()
+            .filter { !it.brouillon }
+            .mapNotNull { r -> Version.parse(r.tag)?.let { r to it } }
+            .filter { (_, v) -> v < installee }
+            .sortedByDescending { it.second }
+            .take(MAX_ANTERIEURES)
+            .map { (r, v) ->
+                VersionDisponible(
+                    version = v, type = v.typeDepuis(installee), titre = r.titre, notes = r.notes,
+                    publieeLe = r.publieeLe, page = r.page, artefacts = r.artefacts,
+                    migration = NotesDeVersion.migration(r.notes), incompatible = NotesDeVersion.incompatible(r.notes),
+                    anterieure = true,
+                )
+            }
+            .toList()
+    }
+
     private fun mode(): ModeInstallation {
         val composant = local ?: return ModeInstallation(false, "Le système de mise à jour n'est pas démarré sur ce serveur.")
         if (!dossier.inscriptible()) {
@@ -157,12 +181,16 @@ class UpdateServiceImpl(
 
     override fun preparer(tag: String): Preparation {
         val installee = installee()
-        val dispo = disponibles(installee).firstOrNull { it.version.tag == tag || it.version == Version.parse(tag) }
+        val dispo = (disponibles(installee) + anterieures(installee)).firstOrNull { it.version.tag == tag || it.version == Version.parse(tag) }
             ?: throw IllegalArgumentException("Version $tag inconnue, ou pas plus récente que la version installée")
         val v = dispo.version
         val controles = ArrayList<Controle>()
 
-        if (dispo.type == TypeMiseAJour.CORRECTIVE) {
+        if (dispo.anterieure) {
+            controles += Controle(NiveauControle.AVERTISSEMENT, "Retour à une version antérieure : $installee → $v",
+                "$installee a pu modifier la base de données : $v peut ne pas la comprendre. Si elle ne démarre pas " +
+                    "ou se comporte mal, restaurez la sauvegarde faite avant l'installation de $installee.")
+        } else if (dispo.type == TypeMiseAJour.CORRECTIVE) {
             controles += Controle(NiveauControle.OK, "Mise à jour corrective, recommandée : ${installee} → $v",
                 "Corrections de bugs et de sécurité de la série ${v.serie}, sans nouvelle fonctionnalité : la base de données " +
                     "n'est pas modifiée, et revenir à $installee reste possible.")
@@ -228,7 +256,8 @@ class UpdateServiceImpl(
             controles += Controle(NiveauControle.BLOQUANT, "Une installation est déjà en cours")
         }
 
-        val obligatoire = dispo.type == TypeMiseAJour.FONCTIONNELLE || dispo.migration != null || dispo.incompatible || installee == null
+        val obligatoire = dispo.type == TypeMiseAJour.FONCTIONNELLE || dispo.anterieure || dispo.migration != null ||
+            dispo.incompatible || installee == null
         controles += Controle(NiveauControle.INFO, "Sauvegarde de la base de données",
             (if (obligatoire) "Faite d'office avant l'installation" else "Facultative (une corrective ne modifie pas la base), faite avant l'installation si elle est cochée") +
                 ", dans ${dossier.sauvegardes}. Restauration : gunzip -c <fichier> | mysql -u <utilisateur> -p <base>.")
@@ -483,6 +512,7 @@ class UpdateServiceImpl(
             "Mise en place",
         )
         private const val MARGE_DISQUE = 50L * 1024 * 1024
+        private const val MAX_ANTERIEURES = 20
         private val DELAI_REDEMARRAGE: Duration = Duration.ofMinutes(10)
         private val HORODATAGE = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault())
 

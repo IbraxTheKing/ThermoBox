@@ -8,6 +8,7 @@ import ax.ibr.thermobox.common.update.NiveauControle
 import ax.ibr.thermobox.common.update.OptionsInstallation
 import ax.ibr.thermobox.common.update.Preparation
 import ax.ibr.thermobox.common.update.TypeMiseAJour
+import ax.ibr.thermobox.common.update.Version
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.thermobox.jsf.util.Markdown
@@ -100,6 +101,19 @@ class UpdateBean : Serializable {
     fun notes(texte: String?): String = Markdown.versHtml(texte)
 
     fun date(instant: Instant?): String = instant?.let { DATE.format(it) } ?: "jamais"
+
+    /** Colour of a version: stable (green), test for beta / rc (orange), nightly (violet). */
+    fun canal(v: Version): String = when (v.prerelease) {
+        null -> "stable"
+        "nightly" -> "nightly"
+        else -> "test"
+    }
+
+    fun canalLabel(v: Version): String = when (val p = v.prerelease) {
+        null -> "Stable"
+        "rc" -> "RC"
+        else -> p.replaceFirstChar { it.uppercase() }
+    }
 
     fun severiteType(type: TypeMiseAJour): String = if (type == TypeMiseAJour.CORRECTIVE) "success" else "warning"
 

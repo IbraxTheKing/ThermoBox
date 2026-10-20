@@ -131,7 +131,8 @@ var tbTheme = (function () {
     function toggle(button) {
         var mode = current() === 'dark' ? 'light' : 'dark';
         save(mode);
-        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches
+            || root.getAttribute('data-motion') === 'off') {
             apply(mode);
             return;
         }
@@ -178,7 +179,9 @@ if (window.matchMedia && matchMedia('(hover: none)').matches) {
  */
 var tbAnim = (function () {
     var root = document.documentElement;
-    var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // System setting, or animations turned off on the Préférences page
+    var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches
+        || root.getAttribute('data-motion') === 'off';
 
     // Dashboard ↔ salle: the card morphs into the page, nothing else should pop in.
     var carte = false;
@@ -429,6 +432,29 @@ var tbMaj = (function () {
                     .catch(function () { setTimeout(essai, 3000); });
             };
             setTimeout(essai, 8000);
+        }
+    };
+})();
+
+/* Préférences page: cookies read by PreferencesBean, applied at once without reloading. */
+var tbPrefs = (function () {
+    var root = document.documentElement;
+
+    function cookie(nom, valeur) {
+        document.cookie = nom + '=' + valeur + '; path=' + (root.getAttribute('data-ctx') || '/')
+            + '; max-age=' + (valeur ? 31536000 : 0) + '; SameSite=Lax';
+    }
+
+    return {
+        animations: function (on) {
+            cookie('thermobox-animations', on ? '' : 'off');
+            root.setAttribute('data-motion', on ? 'on' : 'off');
+            tbAnim.reduced = !on || matchMedia('(prefers-reduced-motion: reduce)').matches;
+        },
+        /** Shows the note of [id] when the system itself asks for less motion. */
+        signalerSysteme: function (id) {
+            var note = document.getElementById(id);
+            if (note && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) note.hidden = false;
         }
     };
 })();

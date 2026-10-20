@@ -1819,9 +1819,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-maj-sauvegarde { margin-top: 12px; font-size: .9rem; overflow-wrap: anywhere; }
 .tb-maj-sauvegarde .pi { margin-right: 4px; }
 
-/* Available versions: a coloured edge tells corrective from feature updates */
-.tb-maj-version-card { margin-top: 16px; border-left: 4px solid var(--tb-stable); }
-.tb-maj-version-card.tb-maj-FONCTIONNELLE { border-left-color: var(--tb-chauffe); }
+/* Available versions: the coloured edge gives the channel (see .tb-canal-*) */
+.tb-maj-version-card { margin-top: 16px; border-left: 4px solid var(--canal, var(--tb-stable)); }
 .tb-maj-version-card .tb-card-head { margin-bottom: 10px; }
 .tb-maj-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .tb-maj-type { margin: 0; color: var(--md-on-surface-variant); }
@@ -1881,6 +1880,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     .tb-maj-installee { align-items: flex-start; }
     .tb-maj-version { font-size: 1.6rem; }
     .tb-maj-version-card .tb-card-head .tb-spacer { display: none; }
+}
+
 /* ============================== Mobile refinement ==============================
    Focus: the building/salle tree, one-handed actions, safe areas and compact screens.
    These rules intentionally override only the responsive layer above.
@@ -2319,34 +2320,235 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
     }
 }
 
-/* Dashboard: tint the whole page according to the selected state filter.
-   The tint is deliberately soft so the cards remain readable; clearing the
-   filter automatically restores the default blue glass background. */
-:root:has(.tb-summary-chip.tb-chip-on.tb-ton-stable) body {
-    background:
-            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--tb-stable) 30%, transparent), transparent 68%),
-            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--tb-stable) 19%, transparent), transparent 70%),
-            var(--tb-bg);
+
+
+/* ============================== JSF polish v3 ============================== */
+
+/* Release channels: stable green, beta / rc orange, nightly violet */
+:root {
+    --tb-nightly: #7a4fd6;
+    --tb-nightly-container: #ece3ff;
+    --tb-on-nightly-container: #4b2a9c;
 }
-:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chauffe) body {
-    background:
-            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--tb-chauffe) 30%, transparent), transparent 68%),
-            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--tb-chauffe) 19%, transparent), transparent 70%),
-            var(--tb-bg);
+:root[data-theme="dark"] {
+    --tb-nightly: #c3a8ff;
+    --tb-nightly-container: rgba(110, 70, 200, .42);
+    --tb-on-nightly-container: #e8dcff;
 }
-:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chaud) body {
-    background:
-            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--md-error) 29%, transparent), transparent 68%),
-            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--md-error) 18%, transparent), transparent 70%),
-            var(--tb-bg);
+.tb-canal-stable  { --canal: var(--tb-stable);  --canal-container: var(--tb-stable-container);  --canal-on: var(--tb-on-stable-container); }
+.tb-canal-test    { --canal: var(--tb-chauffe); --canal-container: var(--tb-chauffe-container); --canal-on: var(--tb-on-chauffe-container); }
+.tb-canal-nightly { --canal: var(--tb-nightly); --canal-container: var(--tb-nightly-container); --canal-on: var(--tb-on-nightly-container); }
+.tb-canal {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px 0 9px;
+    border: 1px solid color-mix(in srgb, var(--canal) 40%, transparent);
+    border-radius: var(--tb-shape-xs);
+    background: var(--canal-container);
+    color: var(--canal-on);
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
-:root:has(.tb-summary-chip.tb-chip-on.tb-ton-inconnu) body {
+.tb-canal::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--canal); }
+.tb-maj-version-card .tb-maj-version { color: color-mix(in srgb, var(--canal) 55%, var(--md-on-surface)); }
+.tb-maj-type-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--tb-shape-xs);
+    color: var(--md-on-surface-variant);
+    font-size: .78rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+.tb-maj-anterieures { margin-top: 28px; }
+.tb-maj-anterieures > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: 750;
+    list-style: none;
+}
+.tb-maj-anterieures > summary::-webkit-details-marker { display: none; }
+.tb-maj-anterieures > summary::after { content: "\e902"; font-family: primeicons; font-size: .9rem; color: var(--md-on-surface-variant); transition: transform var(--tb-medium) var(--tb-ease); }
+.tb-maj-anterieures[open] > summary::after { transform: rotate(180deg); }
+.tb-maj-anterieures > p { margin: 10px 0 0; }
+
+/* "New version" notice: room around it, wherever it is included */
+.tb-banner.tb-maj-avis { margin: 4px 0 28px; }
+@media (max-width: 640px) { .tb-banner.tb-maj-avis { margin-bottom: 20px; } }
+
+/*
+ * Page tint: the state picked on the dashboard (filter chips) or the state of the salle shown
+ * tints the background. --tb-page-tone is registered so the tint fades from one colour to the
+ * next instead of jumping.
+ */
+@property --tb-page-tone {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: transparent;
+}
+:root body {
     background:
-            radial-gradient(70vmax 60vmax at 8% 0%, color-mix(in srgb, var(--md-outline) 24%, transparent), transparent 68%),
-            radial-gradient(60vmax 55vmax at 95% 100%, color-mix(in srgb, var(--md-outline) 15%, transparent), transparent 70%),
-            var(--tb-bg);
+        radial-gradient(75vmax 62vmax at 6% 0%, color-mix(in srgb, var(--tb-page-tone) 44%, transparent), transparent 68%),
+        radial-gradient(62vmax 56vmax at 96% 100%, color-mix(in srgb, var(--tb-page-tone) 30%, transparent), transparent 70%),
+        var(--tb-bg);
+    background-color: var(--md-surface);
+    background-attachment: fixed;
+    transition: --tb-page-tone .7s var(--tb-ease);
+}
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-stable) body,
+:root:has(.tb-hero-reading.tb-ton-stable) body { --tb-page-tone: var(--tb-stable); }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chauffe) body,
+:root:has(.tb-hero-reading.tb-ton-chauffe) body { --tb-page-tone: var(--tb-chauffe); }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-chaud) body,
+:root:has(.tb-hero-reading.tb-ton-chaud) body { --tb-page-tone: var(--md-error); }
+:root:has(.tb-summary-chip.tb-chip-on.tb-ton-inconnu) body,
+:root:has(.tb-hero-reading.tb-ton-inconnu) body { --tb-page-tone: var(--md-outline); }
+
+/*
+ * White flash between pages: while the next page is not painted yet, the browser shows the
+ * canvas, white by default. The canvas now has the page colour (also set inline in layout.xhtml,
+ * before this file loads).
+ */
+html { background-color: var(--md-surface); }
+
+/* Dashboard curves: shimmer while they load (DashboardBean.chargerCourbes) */
+.tb-spark-loading {
+    position: relative;
+    height: 96px;
+    margin: 18px -4px 0;
+    overflow: hidden;
+    border-radius: var(--tb-shape-lg);
+    background: color-mix(in srgb, var(--tone, var(--md-primary)) 7%, transparent);
+}
+.tb-spark-loading::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--tone, var(--md-primary)) 16%, transparent) 50%, transparent 80%);
+    transform: translateX(-100%);
+    animation: tb-shimmer 1.4s ease-in-out infinite;
+}
+/* A faint curve being drawn over and over, so the wait reads as "a curve is coming" */
+.tb-spark-loading svg { position: absolute; inset: 14px 4px; width: calc(100% - 8px); height: calc(100% - 28px); overflow: visible; }
+.tb-spark-loading path {
+    fill: none;
+    stroke: color-mix(in srgb, var(--tone, var(--md-primary)) 45%, transparent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 160;
+    vector-effect: non-scaling-stroke;
+    animation: tb-attente 1.6s ease-in-out infinite;
+}
+.tb-spark-loading .tb-spark-caption { top: 8px; left: 12px; color: var(--md-on-surface-variant); }
+@keyframes tb-shimmer { to { transform: translateX(100%); } }
+@keyframes tb-attente {
+    0% { stroke-dashoffset: 160; opacity: .3; }
+    50% { stroke-dashoffset: 0; opacity: 1; }
+    100% { stroke-dashoffset: -160; opacity: .3; }
+}
+/* Curves that just arrived draw themselves once */
+.tb-spark-new svg { animation: tb-draw .9s var(--tb-ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.tb-spark-new .tb-spark-dot { animation: tb-pop-in .4s var(--tb-spring) both; animation-delay: calc(.7s + var(--i, 0) * 40ms); }
+
+/* Preferences: animations turned off (cookie thermobox-animations, PreferencesBean) */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+}
+:root[data-motion="off"]::view-transition-group(*),
+:root[data-motion="off"]::view-transition-old(*),
+:root[data-motion="off"]::view-transition-new(*) { animation: none !important; }
+/* A paused shimmer would look broken: show a still placeholder */
+:root[data-motion="off"] .tb-spark-loading::before { display: none; }
+
+.tb-prefs { display: flex; flex-direction: column; gap: 4px; }
+.tb-pref {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid var(--md-outline-variant);
+}
+.tb-pref:first-child { border-top: 0; padding-top: 0; }
+.tb-pref-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.tb-pref-text strong { font-size: 1.05rem; }
+.tb-pref-note { margin-top: 6px; font-size: .88rem; color: var(--tb-on-chauffe-container); }
+
+/* Shell: settings button next to the theme toggle */
+.tb-prefs-btn { text-decoration: none; }
+.tb-prefs-btn.tb-prefs-on { background: var(--md-secondary-container); color: var(--md-on-surface); }
+
+/*
+ * Notch / Dynamic Island and rounded corners: content stays inside the safe area, in portrait
+ * and in landscape (viewport-fit=cover in layout.xhtml).
+ */
+.tb-rail { left: calc(12px + env(safe-area-inset-left)); }
+.tb-app .tb-main {
+    margin-left: calc(var(--tb-rail) + env(safe-area-inset-left) + max(0px, (100vw - var(--tb-rail) - 1480px) / 2));
+    padding-right: calc(40px + env(safe-area-inset-right));
+}
+:root body .ui-growl { right: calc(20px + env(safe-area-inset-right)); }
+
+/* Phones held sideways (iPhone: 844-932 px wide, ~390 high): compact rail, labels hidden */
+@media (min-width: 841px) and (max-height: 520px) {
+    :root { --tb-rail: 76px; }
+    .tb-rail { top: 8px; bottom: 8px; padding: 10px 0; gap: 4px; overflow-y: auto; scrollbar-width: none; }
+    .tb-rail-brand { margin-bottom: 4px; }
+    .tb-rail-brand .tb-logo { width: 38px; height: 38px; }
+    .tb-dests { gap: 2px; }
+    .tb-dest { width: 52px; padding: 4px 0; }
+    .tb-dest-label { display: none; }
+    .tb-rail-end { gap: 4px; }
+    .tb-rail-end .tb-icon-btn { width: 38px; height: 38px; }
+    .tb-rail-end .tb-avatar { width: 34px; height: 34px; font-size: .85rem; }
+    .tb-app .tb-main { padding-top: 16px; }
 }
 
-:root body {
-    transition: background-color .35s ease;
+/*
+ * Phones: the top bar was "sticky" inside its form, which is only as tall as the bar itself,
+ * so it scrolled away. Both bars are now fixed to the screen.
+ */
+@media (max-width: 840px) {
+    :root { --tb-topbar-h: calc(58px + env(safe-area-inset-top)); }
+    .tb-topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--tb-topbar-h);
+        padding: env(safe-area-inset-top) calc(8px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+    }
+    .tb-rail {
+        left: 0;
+        padding-left: calc(8px + env(safe-area-inset-left));
+        padding-right: calc(8px + env(safe-area-inset-right));
+    }
+    .tb-app .tb-main {
+        margin-left: 0;
+        padding-top: calc(var(--tb-topbar-h) + 16px);
+        padding-left: calc(16px + env(safe-area-inset-left));
+        padding-right: calc(16px + env(safe-area-inset-right));
+    }
+    :root body .ui-growl { top: calc(var(--tb-topbar-h) + 8px); left: calc(8px + env(safe-area-inset-left)); right: calc(8px + env(safe-area-inset-right)); }
+    /* Anchors and the scroll restore must not end up under the fixed bar */
+    html { scroll-padding-top: calc(var(--tb-topbar-h) + 8px); }
+}
+@media (max-width: 480px) {
+    .tb-app .tb-main {
+        padding-left: calc(12px + env(safe-area-inset-left));
+        padding-right: calc(12px + env(safe-area-inset-right));
+    }
 }

@@ -1,0 +1,40 @@
+<!-- A version on the updates page. Expects "v" (VersionDisponible). The colour follows the
+     channel: stable green, beta / rc orange, nightly violet. -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+    <article class="tb-card tb-maj-version-card tb-canal-#{updateBean.canal(v.version)}">
+        <div class="tb-card-head">
+            <div class="tb-maj-titre">
+                <strong class="tb-maj-version">#{v.version.tag}</strong>
+                <span class="tb-canal tb-canal-#{updateBean.canal(v.version)}">#{updateBean.canalLabel(v.version)}</span>
+                <span class="tb-maj-type-tag">#{v.anterieure ? 'Version antérieure' : v.type.label}</span>
+                <p:tag value="Recommandée" severity="success" icon="pi pi-thumbs-up"
+                       rendered="#{v.type eq 'CORRECTIVE' and not v.incompatible and not v.anterieure}"/>
+                <p:tag value="Incompatibilité annoncée" severity="danger" rendered="#{v.incompatible}"/>
+            </div>
+            <span class="tb-spacer"/>
+            <p:linkButton value="Sur GitHub" icon="pi pi-external-link" href="#{v.page}" target="_blank"
+                          styleClass="ui-button-flat"/>
+            <p:commandButton value="#{v.anterieure ? 'Réinstaller…' : 'Installer…'}" icon="pi pi-download"
+                             action="#{updateBean.preparer(v.version.tag)}"
+                             process="@this" update=":installForm" oncomplete="if (args &amp;&amp; args.ok) PF('installDlg').show()"
+                             disabled="#{updateBean.suivi}"
+                             styleClass="#{v.type eq 'CORRECTIVE' and not v.anterieure ? '' : 'tb-tonal'}"/>
+        </div>
+        <p class="tb-maj-type">
+            <h:outputText value="#{v.titre} · " rendered="#{v.titre ne v.version.tag}"/>
+            publiée le #{updateBean.date(v.publieeLe)}.
+            #{v.anterieure ? 'Plus ancienne que la version installée.' : v.type.description}
+        </p>
+        <h:panelGroup layout="block" styleClass="tb-maj-migration" rendered="#{v.migration ne null}">
+            <strong><i class="pi pi-exclamation-triangle"/> Opérations à prévoir</strong>
+            <h:outputText value="#{updateBean.notes(v.migration)}" escape="false"/>
+        </h:panelGroup>
+        <details class="tb-maj-notes">
+            <summary>Notes de version</summary>
+            <h:outputText value="#{updateBean.notes(v.notes)}" escape="false"/>
+        </details>
+    </article>
+</ui:composition>

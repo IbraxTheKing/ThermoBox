@@ -25,6 +25,8 @@ data class UpdateStatusDto(
     val latestPatch: AvailableVersionDto?,
     val latestFeature: AvailableVersionDto?,
     val available: List<AvailableVersionDto>,
+    /** Prerelease channel only: older versions that can be installed again. */
+    val olderVersions: List<AvailableVersionDto>,
     /** Whether this server can install by itself, and how; ADMIN only. */
     val automaticInstall: Boolean?,
     val installMode: String?,
@@ -43,6 +45,7 @@ data class UpdateStatusDto(
             latestPatch = e.corrective?.let { AvailableVersionDto.from(it) },
             latestFeature = e.fonctionnelle?.let { AvailableVersionDto.from(it) },
             available = e.disponibles.map { AvailableVersionDto.from(it) },
+            olderVersions = e.anterieures.map { AvailableVersionDto.from(it) },
             automaticInstall = e.mode.automatique.takeIf { admin },
             installMode = e.mode.detail.takeIf { admin },
             installation = e.installation?.takeIf { admin }?.let { InstallationDto.from(it) },
@@ -58,6 +61,10 @@ data class AvailableVersionDto(
     /** Corrective: bug and security fixes only, the database is untouched; installing is recommended. */
     val recommended: Boolean,
     val prerelease: Boolean,
+    /** stable, nightly, beta, rc… */
+    val channel: String,
+    /** Older than the installed version: installing it is a rollback. */
+    val older: Boolean,
     val title: String,
     val publishedAt: String?,
     val url: String,
@@ -69,7 +76,8 @@ data class AvailableVersionDto(
     companion object {
         fun from(v: VersionDisponible) = AvailableVersionDto(
             version = v.version.tag, type = v.type.name, typeLabel = v.type.label,
-            recommended = v.type == TypeMiseAJour.CORRECTIVE && !v.incompatible, prerelease = v.version.estPrerelease,
+            recommended = v.type == TypeMiseAJour.CORRECTIVE && !v.incompatible && !v.anterieure, prerelease = v.version.estPrerelease,
+            channel = v.version.canal, older = v.anterieure,
             title = v.titre, publishedAt = v.publieeLe?.toString(), url = v.page, notes = v.notes,
             migration = v.migration, incompatible = v.incompatible,
         )
