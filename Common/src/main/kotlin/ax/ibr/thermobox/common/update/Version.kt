@@ -20,6 +20,9 @@ class Version private constructor(
 
     val estPrerelease: Boolean get() = prerelease != null
 
+    /** Canal de publication : stable, nightly, beta, rc… */
+    val canal: String get() = prerelease ?: "stable"
+
     /** Série mensuelle, « 26.10 » : les versions d'une même série sont compatibles entre elles. */
     val serie: String get() = "$annee.${mois.toString().padStart(2, '0')}"
 

@@ -120,6 +120,12 @@ class DashboardBean : Serializable {
     private var tendances: Map<Long, Sparkline?> = emptyMap()
     private var tendancesCalculees: LocalDateTime? = null
 
+    /** First render: the cards show a placeholder until [chargerCourbes] has computed the curves. */
+    var courbesEnAttente: Boolean = true
+
+    /** True in the response that brings the curves: they draw themselves once (CSS tb-spark-new). */
+    var courbesNouvelles: Boolean = false
+
     val isVide: Boolean get() = toutes.isEmpty()
     val isAucunResultat: Boolean get() = toutes.isNotEmpty() && favoris.isEmpty() && groupes.isEmpty()
 
@@ -140,7 +146,8 @@ class DashboardBean : Serializable {
         // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
         val salles = Services.salles.getAllByType(Salle(null))
         val consignes = salles.associate { it.id to Services.climat.getConsigneEffective(it) }
-        chargerTendances(salles, consignes.mapValues { it.value?.consigne })
+        courbesNouvelles = false
+        if (!courbesEnAttente) chargerTendances(salles, consignes.mapValues { it.value?.consigne })
         toutes = salles.map { salle ->
             val chemin = Services.hierarchie.getChemin(salle)
             val mesures = Services.climat.getMesures(salle)
@@ -182,6 +189,13 @@ class DashboardBean : Serializable {
             salle.id!! to Sparkline.of(historique, debut, maintenant, consignes[salle.id]?.value)
         }
         tendancesCalculees = maintenant
+    }
+
+    /** p:remoteCommand run once the page is shown: computes the curves (a day of measures per salle). */
+    fun chargerCourbes() {
+        courbesEnAttente = false
+        refresh()
+        courbesNouvelles = true
     }
 
     /** "Actualiser": unlike the poll, also redraws the curves. */

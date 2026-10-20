@@ -217,6 +217,37 @@ class MisesAJourTest {
     }
 
     @Test
+    fun `canal prerelease, versions anterieures reinstallables`() = FauxGitHub().use { gh ->
+        gh.releases = "[${gh.publier("26.11.0-nightly.3", prerelease = true)},${gh.publier("26.11.0-nightly.2", prerelease = true)}," +
+            "${gh.publier("26.10.1")},${gh.publier("26.10.0")}]"
+        val config = configuration(gh).copy(canal = ax.ibr.thermobox.common.update.Canal.PRERELEASE)
+        val rest = Faux(Composant.REST)
+        val service = UpdateServiceImpl(config, sauvegarderBase = { f -> Files.writeString(f, "-- dump"); "dump" },
+            versionDuBuild = Version.parse("26.11.0-nightly.2"), javaDuServeur = 23, delaiBascule = Duration.ZERO)
+            .apply { demarrer(rest, planifier = false) }
+        val etat = service.verifier()
+        assertEquals(listOf("26.11.0-nightly.3"), etat.disponibles.map { it.version.tag })
+        assertEquals(listOf("26.10.1", "26.10.0"), etat.anterieures.map { it.version.tag })
+        assertTrue(etat.anterieures.all { it.anterieure })
+
+        val prep = service.preparer("26.10.1")
+        assertTrue(prep.sauvegardeObligatoire)
+        assertTrue(prep.confirmationRequise)
+        assertTrue(prep.controles.any { it.titre.startsWith("Retour à une version antérieure") })
+
+        service.installer("26.10.1", "admin", OptionsInstallation(sauvegarderBase = false, risquesAcceptes = true))
+        val i = attendre(service, ::finie)
+        assertEquals(EtatInstallation.REDEMARRAGE, i.etat, i.message)
+        assertEquals(EtatEtape.OK, i.etapes[0].etat)
+        Thread.sleep(200)
+        assertEquals(listOf("26.10.1"), rest.bascules)
+
+        // Stable channel: no older versions offered.
+        val stable = service(configuration(gh), Faux(Composant.REST), installee = "26.10.1")
+        assertTrue(stable.verifier().anterieures.isEmpty())
+    }
+
+    @Test
     fun `erreurs de GitHub remontees`() = FauxGitHub().use { gh ->
         gh.statut = 403
         val etat = service(configuration(gh), Faux(Composant.REST)).verifier()

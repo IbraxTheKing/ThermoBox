@@ -131,7 +131,8 @@ var tbTheme = (function () {
     function toggle(button) {
         var mode = current() === 'dark' ? 'light' : 'dark';
         save(mode);
-        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches
+            || root.getAttribute('data-motion') === 'off') {
             apply(mode);
             return;
         }
@@ -178,7 +179,9 @@ if (window.matchMedia && matchMedia('(hover: none)').matches) {
  */
 var tbAnim = (function () {
     var root = document.documentElement;
-    var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // System setting, or animations turned off on the Préférences page
+    var reduced = !window.matchMedia || matchMedia('(prefers-reduced-motion: reduce)').matches
+        || root.getAttribute('data-motion') === 'off';
 
     // Dashboard ↔ salle: the card morphs into the page, nothing else should pop in.
     var carte = false;
@@ -210,27 +213,38 @@ var tbAnim = (function () {
 })();
 
 var tbFlip = (function () {
-    var SELECTOR = '#dashForm\\:grille [data-flip]';
-    var avant = null, favoris = null;
+    var PAR_DEFAUT = '#dashForm\\:grille [data-flip]';
+    var selecteur = PAR_DEFAUT;
+    var avant = null, favoris = null, fantomes = null;
 
     return {
-        /** onstart: where every card is before the update. */
-        first: function () {
+        /**
+         * onstart: where every element is before the update. [sel]: the elements to follow
+         * (dashboard cards by default; users list, versions list…).
+         */
+        first: function (sel) {
             if (tbAnim.reduced) return;
+            selecteur = sel || PAR_DEFAUT;
             avant = {};
             favoris = {};
-            document.querySelectorAll(SELECTOR).forEach(function (el) {
+            fantomes = {};
+            document.querySelectorAll(selecteur).forEach(function (el) {
                 var id = el.getAttribute('data-flip');
-                avant[id] = el.getBoundingClientRect();
+                var r = el.getBoundingClientRect();
+                avant[id] = r;
                 favoris[id] = !!el.querySelector('.tb-fav-on');
+                // Kept to fade out the ones the update removes
+                if (r.bottom > 0 && r.top < innerHeight) fantomes[id] = el.cloneNode(true);
             });
         },
         /** oncomplete: from there to where they are now. */
         play: function () {
             if (!avant) return;
             var nouveaux = 0;
-            document.querySelectorAll(SELECTOR).forEach(function (el) {
+            var presents = {};
+            document.querySelectorAll(selecteur).forEach(function (el) {
                 var id = el.getAttribute('data-flip');
+                presents[id] = true;
                 var old = avant[id];
                 var now = el.getBoundingClientRect();
                 // The star just turned on spins in
@@ -250,7 +264,19 @@ var tbFlip = (function () {
                         { duration: 380, delay: Math.min(nouveaux++, 10) * 35, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
                 }
             });
-            avant = null;
+            // Removed elements: their copy fades out where they were
+            Object.keys(fantomes).forEach(function (id) {
+                if (presents[id]) return;
+                var r = avant[id], f = fantomes[id];
+                f.removeAttribute('id');
+                f.setAttribute('aria-hidden', 'true');
+                f.style.cssText += ';position:fixed;margin:0;pointer-events:none;z-index:5;view-transition-name:none;'
+                    + 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+                document.body.appendChild(f);
+                f.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.96)' }],
+                    { duration: 260, easing: 'ease-in', fill: 'forwards' }).finished.then(function () { f.remove(); });
+            });
+            avant = fantomes = null;
         }
     };
 })();
@@ -429,6 +455,51 @@ var tbMaj = (function () {
                     .catch(function () { setTimeout(essai, 3000); });
             };
             setTimeout(essai, 8000);
+        }
+    };
+})();
+
+/* Préférences page: cookies read by PreferencesBean, applied at once without reloading. */
+var tbPrefs = (function () {
+    var root = document.documentElement;
+
+    function cookie(nom, valeur) {
+        document.cookie = nom + '=' + valeur + '; path=' + (root.getAttribute('data-ctx') || '/')
+            + '; max-age=' + (valeur ? 31536000 : 0) + '; SameSite=Lax';
+    }
+
+    return {
+        animations: function (on) {
+            cookie('thermobox-animations', on ? '' : 'off');
+            root.setAttribute('data-motion', on ? 'on' : 'off');
+            tbAnim.reduced = !on || matchMedia('(prefers-reduced-motion: reduce)').matches;
+        },
+        /** Shows the note of [id] when the system itself asks for less motion. */
+        signalerSysteme: function (id) {
+            var note = document.getElementById(id);
+            if (note && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) note.hidden = false;
+        }
+    };
+})();
+
+/* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */
+var tbRail = (function () {
+    function fermer() {
+        var rail = document.querySelector('.tb-rail.tb-rail-open');
+        if (!rail) return;
+        rail.classList.remove('tb-rail-open');
+        var b = rail.querySelector('.tb-rail-more');
+        if (b) b.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('.tb-rail-end')) fermer();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fermer(); });
+    return {
+        basculer: function (bouton) {
+            var rail = bouton.closest('.tb-rail');
+            var ouvert = rail.classList.toggle('tb-rail-open');
+            bouton.setAttribute('aria-expanded', String(ouvert));
         }
     };
 })();

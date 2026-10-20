@@ -31,6 +31,28 @@ class UserBean : Serializable {
 
     val isCreating: Boolean get() = isNew(selected?.id)
 
+    var recherche: String = ""
+    /** Role chip picked, null for all. */
+    var roleFiltre: UserType? = null
+
+    /** Users matching the search and the role chip, by name. */
+    val visibles: List<User>
+        get() {
+            val mot = recherche.trim().lowercase()
+            return users
+                .filter { mot.isEmpty() || it.username.orEmpty().lowercase().contains(mot) }
+                .filter { roleFiltre == null || it.type == roleFiltre }
+                .sortedBy { it.username?.lowercase() }
+        }
+
+    fun nombre(role: UserType): Int = users.count { it.type == role }
+
+    fun basculerRole(role: UserType) {
+        roleFiltre = if (roleFiltre == role) null else role
+    }
+
+    fun initiale(user: User): String = user.username?.trim()?.firstOrNull()?.uppercase().orEmpty()
+
     @PostConstruct
     fun load() {
         users = Services.users.getAll()

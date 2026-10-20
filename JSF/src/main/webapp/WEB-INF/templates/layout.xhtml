@@ -6,6 +6,7 @@
       xmlns:ui="jakarta.faces.facelets"
       xmlns:p="http://primefaces.org/ui"
       data-theme="#{themeBean.mode}"
+      data-motion="#{preferencesBean.animations ? 'on' : 'off'}"
       data-ctx="#{request.contextPath}/">
 
 <ui:insert name="metadata"/>
@@ -15,6 +16,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <meta name="theme-color" content="#{themeBean.dark ? '#0f141c' : '#bccde2'}"/>
     <title>Thermobox – <ui:insert name="title"/></title>
+    <!-- Canvas colour before the stylesheet loads: no white flash between two pages -->
+    <style>html{background:#bccde2}html[data-theme="dark"]{background:#0f141c}</style>
     <!-- Loaded early: text measured before it arrives (scroll back to a card) would move -->
     <link rel="preload" href="#{resource['fonts/manrope-latin.woff2']}" as="font" type="font/woff2" crossorigin="anonymous"/>
     <h:outputStylesheet name="css/thermobox.css"/>
@@ -29,6 +32,10 @@
                 <span class="tb-logo" aria-hidden="true"/>Thermobox
             </h:link>
             <span class="tb-spacer"/>
+            <h:link outcome="/app/preferences" title="Préférences"
+                    styleClass="tb-icon-btn tb-prefs-btn #{view.viewId eq '/app/preferences.xhtml' ? 'tb-prefs-on' : ''}">
+                <i class="pi pi-sliders-v"/>
+            </h:link>
             <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
                     title="Changer de thème" aria-label="Changer de thème">
                 <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
@@ -79,17 +86,28 @@
             </div>
 
             <div class="tb-rail-end">
-                <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
-                        title="Changer de thème" aria-label="Changer de thème">
-                    <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+                <!-- Phones held sideways: little height, so these actions go behind one button -->
+                <button type="button" class="tb-icon-btn tb-rail-more" onclick="tbRail.basculer(this)"
+                        title="Plus d'options" aria-label="Plus d'options" aria-expanded="false">
+                    <i class="pi pi-ellipsis-h"/>
                 </button>
-                <h:link outcome="/app/profil"
-                        styleClass="tb-avatar #{view.viewId eq '/app/profil.xhtml' ? 'tb-avatar-on' : ''}"
-                        title="Mon profil (#{loginBean.currentUser.username})">
-                    #{loginBean.initiale}
-                </h:link>
-                <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
-                                 ajax="false" styleClass="ui-button-flat tb-logout"/>
+                <div class="tb-rail-extras">
+                    <h:link outcome="/app/preferences" title="Préférences"
+                            styleClass="tb-icon-btn tb-prefs-btn #{view.viewId eq '/app/preferences.xhtml' ? 'tb-prefs-on' : ''}">
+                        <i class="pi pi-sliders-v"/>
+                    </h:link>
+                    <button type="button" class="tb-icon-btn tb-theme-btn" onclick="tbTheme.toggle(this)"
+                            title="Changer de thème" aria-label="Changer de thème">
+                        <i class="pi pi-moon tb-if-light"/><i class="pi pi-sun tb-if-dark"/>
+                    </button>
+                    <h:link outcome="/app/profil"
+                            styleClass="tb-avatar #{view.viewId eq '/app/profil.xhtml' ? 'tb-avatar-on' : ''}"
+                            title="Mon profil (#{loginBean.currentUser.username})">
+                        #{loginBean.initiale}
+                    </h:link>
+                    <p:commandButton icon="pi pi-sign-out" title="Déconnexion" action="#{loginBean.logout}"
+                                     ajax="false" styleClass="ui-button-flat tb-logout"/>
+                </div>
             </div>
         </nav>
     </h:form>

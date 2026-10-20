@@ -53,6 +53,12 @@ class SalleBean : Serializable {
     /** Element whose actions are open in the bottom sheet (phones). */
     var selection: Noeud? = null
 
+    /** Phones: the bâtiment / étage whose content is listed (null: the top level). */
+    var dossierId: Long? = null
+
+    // Every node of the tree by id, for the phone list
+    private var index: Map<Long, TreeNode<Noeud>> = emptyMap()
+
     val kinds: List<SalleKind> = SalleKind.entries.toList()
     val isEditMode: Boolean get() = editingId != null
 
@@ -61,6 +67,40 @@ class SalleBean : Serializable {
         val racine = DefaultTreeNode<Noeud>()
         Services.hierarchie.getRacines().forEach { ajouter(it, racine, rattache = it.kind == SalleKind.BATIMENT) }
         arbre = racine
+        index = buildMap { indexer(racine, this) }
+        // The opened folder may have been deleted meanwhile.
+        if (dossierId != null && dossierId !in index) dossierId = null
+    }
+
+    private fun indexer(noeud: TreeNode<Noeud>, map: MutableMap<Long, TreeNode<Noeud>>) {
+        noeud.data?.salle?.id?.let { map[it] = noeud }
+        noeud.children.forEach { indexer(it, map) }
+    }
+
+    // ---------------------------------------------------------------- phones: one level at a time
+
+    val dossier: Noeud? get() = dossierId?.let { index[it]?.data }
+
+    /** Content of the opened folder (or the top level). */
+    val contenu: List<Noeud>
+        get() = ((dossierId?.let { index[it] } ?: arbre).children).mapNotNull { it.data }
+
+    /** From the top level down to the opened folder, for the breadcrumb. */
+    val chemin: List<Noeud>
+        get() = generateSequence(dossierId?.let { index[it] }) { it.parent }
+            .mapNotNull { it.data }.toList().asReversed()
+
+    fun nombreEnfants(n: Noeud): Int = n.salle.id?.let { index[it]?.childCount } ?: 0
+
+    /** Bâtiments and étages open in the list; salles and boîtiers open their page. */
+    fun estDossier(n: Noeud): Boolean = n.kind == SalleKind.BATIMENT || n.kind == SalleKind.ETAGE
+
+    fun ouvrir(id: Long?) {
+        dossierId = id?.takeIf { it in index }
+    }
+
+    fun remonter() {
+        dossierId = dossierId?.let { index[it]?.parent?.data?.salle?.id }
     }
 
     private fun ajouter(salle: Salle, parent: TreeNode<Noeud>, rattache: Boolean) {
