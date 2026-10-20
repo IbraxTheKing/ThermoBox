@@ -35,9 +35,12 @@
                         <span class="tb-crumb tb-crumb-kind">#{salleDetailBean.kindLabel}</span>
                         <ui:repeat value="#{salleDetailBean.ancetres}" var="a">
                             <i class="pi pi-angle-right"/>
-                            <h:link outcome="/app/salle" value="#{a.name}" styleClass="tb-crumb">
+                            <h:link outcome="/app/salle" value="#{a.name}" styleClass="tb-crumb"
+                                    rendered="#{salleDetailBean.accessible(a)}">
                                 <f:param name="id" value="#{a.id}"/>
                             </h:link>
+                            <h:outputText value="#{a.name}" styleClass="tb-crumb tb-crumb-off"
+                                          rendered="#{not salleDetailBean.accessible(a)}"/>
                         </ui:repeat>
                     </nav>
                     <!-- Transition : reçoit le nom de la carte du dashboard -->

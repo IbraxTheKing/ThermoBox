@@ -12,6 +12,7 @@ import ax.ibr.thermobox.common.services.ClimatService
 import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.HierarchieService
 import ax.ibr.thermobox.common.services.SalleImageService
+import ax.ibr.thermobox.common.services.AccesService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
 
 object BusinessFactory {
@@ -27,6 +28,8 @@ object BusinessFactory {
     private val climatServiceInstance: ClimatService by lazy { ClimatServiceImpl() }
     private val favoriServiceInstance: FavoriService by lazy { FavoriServiceImpl() }
     private val salleImageServiceInstance: SalleImageService by lazy { SalleImageServiceImpl() }
+
+    private val accesServiceInstance: AccesService by lazy { AccesServiceImpl() }
 
     private val updateServiceInstance: UpdateServiceImpl by lazy { UpdateServiceImpl() }
 
@@ -54,6 +57,9 @@ object BusinessFactory {
 
     /** Implementation type: the servers also call demarrer() / arreter() on it. */
     fun getUpdateService(): UpdateServiceImpl = updateServiceInstance
+
+    /** Who sees which bâtiments, étages and salles. */
+    fun getAccesService(): AccesService = accesServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
 }

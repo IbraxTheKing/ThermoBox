@@ -76,6 +76,9 @@ class SalleDetailBean : Serializable {
     val kindLabel: String get() = salle?.kind?.label.orEmpty()
     val isBoitier: Boolean get() = salle?.kind == SalleKind.BOITIER
 
+    /** Breadcrumb: an ancestor outside the user's accesses is shown as plain text, not as a link. */
+    fun accessible(s: Salle): Boolean = login.perimetre.peutVoir(s)
+
     /** Only salles go on the dashboard, so only they can be favourites. */
     val isSalleSimple: Boolean get() = salle?.kind == SalleKind.SALLE
 
@@ -85,8 +88,10 @@ class SalleDetailBean : Serializable {
     /** f:viewAction (appelé une seule fois, pas sur les postbacks) */
     fun load() {
         salle = id?.let { runCatching { Services.salles.getById(it) }.getOrNull() }
-            // A VIEWER gets the same "not found" page as for an unknown id.
+            // A VIEWER gets the same "not found" page as for an unknown id, and so does anyone
+            // for an element outside their accesses (even typed by hand in the URL).
             ?.takeUnless { it.kind == SalleKind.BOITIER && !login.canSeeBoitiers }
+            ?.takeIf { login.perimetre.peutVoir(it) }
         val s = salle ?: return
         ancetres = Services.hierarchie.getChemin(s)
         favori = s.id in favorisDe(login.currentUser)
@@ -100,6 +105,12 @@ class SalleDetailBean : Serializable {
     /** Appelé aussi par le p:poll. */
     fun refresh() {
         val s = salle ?: return
+        // Accesses withdrawn while the page was open: nothing more is shown.
+        if (!login.perimetre.peutVoir(s)) {
+            salle = null
+            Faces.warn("Vous n'avez plus accès à cet élément")
+            return
+        }
         mesures = Services.climat.getMesures(s)
         moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
         consigneEffective = Services.climat.getConsigneEffective(s)
@@ -111,6 +122,7 @@ class SalleDetailBean : Serializable {
 
     fun basculerFavori() {
         val s = salle ?: return
+        if (!login.require(login.perimetre.peutVoir(s))) return
         val user = login.currentUser ?: return
         try {
             favori = basculerFavoriEnBase(user, s)
@@ -185,7 +197,7 @@ class SalleDetailBean : Serializable {
     fun envoyerConsigne() {
         val s = salle ?: return
         val value = nouvelleConsigne ?: return
-        if (!login.require(login.canSetConsigne)) return
+        if (!login.require(login.canSetConsigne && login.perimetre.peutVoir(s))) return
 
         val envoi = try {
             Services.climat.envoyerConsigne(s, value, forcer)

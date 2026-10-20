@@ -199,6 +199,42 @@ Variables : `THERMOBOX_UPDATE_CHANNEL` (`stable` / `prerelease`), `THERMOBOX_UPD
 `THERMOBOX_GITHUB_TOKEN` (facultatif), `THERMOBOX_WAR_PATH` (WAR surveillé par Tomcat, s'il n'est
 pas à côté de l'application dépliée).
 
+## Accès aux bâtiments, étages et salles
+
+Un administrateur choisit ce que chaque utilisateur peut consulter : **Administration → Utilisateurs**,
+bouton **Accès** (clé) d'un utilisateur, ou `PUT /api/users/{id}/acces`.
+
+Règles :
+
+- un **ADMIN** voit et gère tout, quels que soient les accès enregistrés ;
+- un **GESTIONNAIRE** ou un **VIEWER** a soit accès à tout, soit seulement à des éléments choisis ;
+- un accès à un bâtiment ou à un étage couvre tout ce qu'il contient (étages, salles, boîtiers),
+  y compris ce qui y sera ajouté plus tard. Les accès s'additionnent, il n'y a pas de refus
+  explicite : aucune règle ne peut en contredire une autre ;
+- les bâtiments et étages qui contiennent un élément accessible sont visibles par leur nom seulement
+  (fil d'Ariane, arbre, regroupement de l'aperçu), sans leurs données : leur moyenne parlerait des
+  salles non autorisées. La moyenne d'un bâtiment sur l'aperçu est calculée sur les seules salles
+  accessibles ;
+- un GESTIONNAIRE n'envoie de consigne qu'aux éléments auxquels il a accès.
+
+Les accès sont vérifiés côté serveur à chaque requête, dans l'interface JSF comme dans l'API REST :
+listes, recherches, pages de détail, photos, températures, consignes. Un élément non autorisé
+répond comme un élément inexistant, même avec son identifiant tapé dans l'URL. Un changement
+d'accès s'applique dès la requête suivante.
+
+**Comptes existants et nouveaux comptes.** Les comptes créés avant cette fonctionnalité gardent
+l'accès à tout (rien ne change pour eux tant qu'un administrateur ne les limite pas). Un compte créé
+ensuite, y compris par l'inscription publique, n'a accès à rien tant qu'un administrateur ne lui en
+donne pas ; un ADMIN rétrogradé aussi. Les accès sont stockés dans deux nouvelles tables (`acces`,
+`acces_restreint`), créées au démarrage : la base existante n'a pas besoin de migration.
+
+API REST :
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/users/{id}/acces` | ADMIN, ou l'utilisateur lui-même : `{"restricted": true, "elements": [...]}` |
+| PUT | `/api/users/{id}/acces` | ADMIN : `{"restricted": true, "elements": [ids de bâtiments, étages, salles]}` |
+
 ## Notes importantes
 - Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.
 - Sécurité : Ne pas exposer les identifiants ou la clé JWT secrète dans un environnement public.

@@ -39,14 +39,25 @@ class TemperatureBean : Serializable {
 
     @PostConstruct
     fun load() {
-        temperatures = when (filtre) {
+        val acces = login.perimetre
+        // Only the temperatures of the salles / boxes the user may see.
+        temperatures = Services.acces.filtrerTemperatures(acces, when (filtre) {
             "consigne", "mesurer" -> Services.temperatures.getByType(sample(filtre)).orEmpty()
             else -> Services.temperatures.getAll()
-        }.sortedByDescending { it.date }
+        }).sortedByDescending { it.date }
 
-        moyenneConsigne = runCatching { Services.temperatures.getAverage(sample("consigne")) }.getOrNull()
-        moyenneMesure = runCatching { Services.temperatures.getAverage(sample("mesurer")) }.getOrNull()
+        moyenneConsigne = moyenne("consigne")
+        moyenneMesure = moyenne("mesurer")
     }
+
+    /** Average of a type; for a limited user, over their temperatures only. */
+    private fun moyenne(type: String): Temperature? = runCatching {
+        val acces = login.perimetre
+        if (acces.tout) return@runCatching Services.temperatures.getAverage(sample(type))
+        val valeurs = Services.acces.filtrerTemperatures(acces, Services.temperatures.getByType(sample(type)).orEmpty()).mapNotNull { it.value }
+        if (valeurs.isEmpty()) null else sample(type).apply { value = valeurs.average().toFloat() }
+    }.getOrNull()
+
 
     fun typeOf(t: Temperature): String = when (t) {
         is Consigne -> "Consigne"

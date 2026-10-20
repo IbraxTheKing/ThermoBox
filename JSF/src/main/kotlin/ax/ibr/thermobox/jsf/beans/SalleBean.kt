@@ -17,8 +17,18 @@ import org.primefaces.model.DefaultTreeNode
 import org.primefaces.model.TreeNode
 import java.io.Serializable
 
-/** One node of the structure tree. [temperature] is the box's last measure, or the average of the boxes below. */
-data class Noeud(val salle: Salle, val temperature: Float?, val boitiers: Int, val rattache: Boolean) : Serializable {
+/**
+ * One node of the structure tree. [temperature] is the box's last measure, or the average of the boxes below.
+ * [accessible] false: an étage / bâtiment shown only to place what the user may see below it
+ * (name only, no data, no page).
+ */
+data class Noeud(
+    val salle: Salle,
+    val temperature: Float?,
+    val boitiers: Int,
+    val rattache: Boolean,
+    val accessible: Boolean = true,
+) : Serializable {
     val kind: SalleKind get() = salle.kind
 
     val icon: String
@@ -65,7 +75,9 @@ class SalleBean : Serializable {
     @PostConstruct
     fun load() {
         val racine = DefaultTreeNode<Noeud>()
-        Services.hierarchie.getRacines().forEach { ajouter(it, racine, rattache = it.kind == SalleKind.BATIMENT) }
+        val acces = login.perimetre
+        Services.hierarchie.getRacines().filter { acces.estVisible(it) }
+            .forEach { ajouter(it, racine, rattache = it.kind == SalleKind.BATIMENT) }
         arbre = racine
         index = buildMap { indexer(racine, this) }
         // The opened folder may have been deleted meanwhile.
@@ -105,12 +117,14 @@ class SalleBean : Serializable {
 
     private fun ajouter(salle: Salle, parent: TreeNode<Noeud>, rattache: Boolean) {
         if (salle is Boitier && !login.canSeeBoitiers) return
+        if (!login.perimetre.estVisible(salle)) return
         val noeud = DefaultTreeNode(noeud(salle, rattache), parent)
         noeud.isExpanded = salle.kind != SalleKind.SALLE
         Services.hierarchie.getChildren(salle).forEach { ajouter(it, noeud, rattache = true) }
     }
 
     private fun noeud(salle: Salle, rattache: Boolean): Noeud {
+        if (!login.perimetre.peutVoir(salle)) return Noeud(salle, null, 0, rattache, accessible = false)
         val mesures = Services.climat.getMesures(salle)
         val temperature = if (salle is Boitier) mesures.firstOrNull()?.mesure?.value else Services.climat.getMoyenne(salle)
         return Noeud(salle, temperature, mesures.size, rattache)

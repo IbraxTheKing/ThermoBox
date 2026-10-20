@@ -2845,3 +2845,24 @@ html { background-color: var(--md-surface); }
 @media (min-width: 841px) {
     .tb-users { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
 }
+
+/* ============================== Accesses (users page) ============================== */
+
+.tb-user-acces {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--md-on-surface-variant);
+    font-size: .82rem;
+    overflow-wrap: anywhere;
+}
+.tb-user-acces .pi { font-size: .75rem; }
+.tb-acces-intro { margin: 0 0 12px; }
+.tb-acces-mode { margin-bottom: 8px; }
+:root body .tb-acces-mode td { padding: 4px 0; }
+:root body .tb-acces-mode .ui-radiobutton { margin-right: 10px; }
+.tb-acces-regle { margin: 8px 0 10px; font-size: .88rem; }
+:root body .ui-tree.tb-acces-arbre { max-height: min(46vh, 420px); overflow-y: auto; padding: 6px; box-shadow: none; }
+.tb-acces-noeud { display: inline-flex; align-items: baseline; gap: 8px; }
+.tb-acces-noeud .tb-muted { font-size: .8rem; }
+.tb-crumb.tb-crumb-off { cursor: default; }
