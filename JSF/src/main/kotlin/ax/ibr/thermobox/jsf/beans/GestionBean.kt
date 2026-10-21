@@ -61,8 +61,11 @@ class GestionBean : Serializable {
     var recherche: String = ""
     /** null: every kind */
     var type: SalleKind? = null
-    /** Only the elements off their consigne, or the boxes not attached. */
-    var aTraiter: Boolean = false
+    /**
+     * Only the elements off their consigne, or the boxes not attached. Not "aTraiter": its getter
+     * getATraiter() makes the EL property "ATraiter", unreachable as gestionBean.aTraiter.
+     */
+    var seulementATraiter: Boolean = false
 
     /** Consigne typed on each row, in the unit of the Préférences page (a map: EL gives no type, so any number). */
     var saisies: MutableMap<Long, Any?> = HashMap()
@@ -124,7 +127,7 @@ class GestionBean : Serializable {
             return lignes.filter { l ->
                 (type == null || l.kind == type) &&
                     (mot.isEmpty() || normaliser("${l.salle.name} ${l.chemin}").contains(mot)) &&
-                    (!aTraiter || l.etat == EtatSalle.EN_CHAUFFE || l.etat == EtatSalle.TROP_CHAUD || (l.boitier && !l.rattache))
+                    (!seulementATraiter || l.etat == EtatSalle.EN_CHAUFFE || l.etat == EtatSalle.TROP_CHAUD || (l.boitier && !l.rattache))
             }
         }
 
@@ -133,6 +136,8 @@ class GestionBean : Serializable {
 
     fun filtrerType(k: SalleKind?) {
         type = if (type == k) null else k
+        // "Tout": every element again
+        if (k == null) seulementATraiter = false
     }
 
     // ---------------------------------------------------------------- consignes (GESTIONNAIRE)

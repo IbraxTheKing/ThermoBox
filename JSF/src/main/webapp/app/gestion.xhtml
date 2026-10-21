@@ -45,7 +45,7 @@
 
             <h:panelGroup id="filtres" layout="block" styleClass="tb-summary">
                 <p:commandLink action="#{gestionBean.filtrerType(null)}" process="@this" update="table filtres"
-                               styleClass="tb-summary-chip #{gestionBean.type eq null and not gestionBean.aTraiter ? 'tb-chip-on' : ''}">
+                               styleClass="tb-summary-chip #{gestionBean.type eq null and not gestionBean.seulementATraiter ? 'tb-chip-on' : ''}">
                     <i class="pi pi-check tb-chip-check"/>Tout<span class="tb-chip-n">#{gestionBean.nombre(null)}</span>
                 </p:commandLink>
                 <ui:repeat value="#{gestionBean.types}" var="k">
@@ -55,8 +55,8 @@
                     </p:commandLink>
                 </ui:repeat>
                 <p:commandLink process="@this" update="table filtres"
-                               styleClass="tb-summary-chip tb-ton-chauffe #{gestionBean.aTraiter ? 'tb-chip-on' : ''}">
-                    <f:setPropertyActionListener target="#{gestionBean.aTraiter}" value="#{not gestionBean.aTraiter}"/>
+                               styleClass="tb-summary-chip tb-ton-chauffe #{gestionBean.seulementATraiter ? 'tb-chip-on' : ''}">
+                    <f:setPropertyActionListener target="#{gestionBean.seulementATraiter}" value="#{not gestionBean.seulementATraiter}"/>
                     <i class="pi pi-check tb-chip-check"/>À traiter<span class="tb-chip-n">#{gestionBean.nombreATraiter}</span>
                 </p:commandLink>
             </h:panelGroup>
