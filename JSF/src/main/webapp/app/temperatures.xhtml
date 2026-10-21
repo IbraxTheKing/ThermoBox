@@ -116,11 +116,13 @@
                                 </h:link>
                             </div>
                         </p:column>
-                        <p:column headerText="Actuelle" sortBy="#{l.actuelle}" styleClass="tb-col-num">
+                        <p:column headerText="Actuelle" sortBy="#{l.actuelle}" styleClass="tb-col-num tb-col-actuelle">
+                            <span class="tb-label-sm">Actuelle</span>
                             <strong>#{unite.t(l.actuelle)}</strong>
                             <span class="tb-state tb-state-sm">#{l.etat.label}</span>
                         </p:column>
-                        <p:column headerText="Consigne" sortBy="#{l.consigne}" styleClass="tb-col-num">
+                        <p:column headerText="Consigne" sortBy="#{l.consigne}" styleClass="tb-col-num tb-col-cons">
+                            <span class="tb-label-sm">Consigne</span>
                             #{unite.t(l.consigne)}
                             <span class="tb-ecart">#{unite.ecart(l.ecart)}</span>
                         </p:column>
@@ -128,6 +130,7 @@
                         <p:column headerText="Max" sortBy="#{l.max}" styleClass="tb-col-num tb-col-opt">#{unite.t(l.max)}</p:column>
                         <p:column headerText="Moyenne" sortBy="#{l.moyenne}" styleClass="tb-col-num tb-col-opt">#{unite.t(l.moyenne)}</p:column>
                         <p:column headerText="À la consigne" sortBy="#{l.dansLaCible}" styleClass="tb-col-cible">
+                            <span class="tb-label-sm">À la cible</span>
                             <span class="tb-cible" title="Part de la période à moins d'un demi-degré de la consigne actuelle">
                                 <span class="tb-cible-barre"><span style="width: #{l.dansLaCiblePourcent}%"/></span>
                                 #{l.dansLaCibleTexte}

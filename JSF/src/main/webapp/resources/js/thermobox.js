@@ -77,11 +77,18 @@ var tbCharts = (function () {
         o.interaction = { mode: 'index', intersect: false };
     }
 
+    // Phones: many curves would make a legend taller than the chart (the table below says which is which)
+    function legendeCompacte(o, n) {
+        if (n > 5 && matchMedia('(max-width: 640px)').matches) o.plugins.legend.display = false;
+    }
+
     return {
         /** PrimeFaces extender of the p:lineChart models (ChartBuilder). */
         extend: function (cfg) {
             styleOptions(cfg.config.options = cfg.config.options || {});
-            ((cfg.config.data || {}).datasets || []).forEach(styleDataset);
+            var series = (cfg.config.data || {}).datasets || [];
+            series.forEach(styleDataset);
+            legendeCompacte(cfg.config.options, series.length);
         },
         /** Redraws the charts already on the page after a theme change. */
         refresh: function () {
@@ -91,6 +98,7 @@ var tbCharts = (function () {
                 // The raw configuration: chart.options is a resolved proxy that must not be rewritten.
                 styleOptions(chart.config.options);
                 chart.data.datasets.forEach(styleDataset);
+                legendeCompacte(chart.config.options, chart.data.datasets.length);
                 chart.update('none');
             });
         }
