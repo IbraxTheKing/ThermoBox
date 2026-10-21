@@ -197,19 +197,45 @@ var tbAnim = (function () {
         setTimeout(function () { root.classList.remove('tb-entering'); }, 1600);
     }
 
+    /*
+     * Work that changes the page right after it loads (curves of the dashboard…) waits for the
+     * transition between pages to end: an AJAX update during the morph replaces the card being
+     * morphed, and the browser then cuts the animation short.
+     */
+    var revelee = !('onpagereveal' in window);   // no such event: nothing to wait for
+    var transition = null;
+    var enAttente = [];
+
+    function liberer() {
+        if (revelee) return;
+        revelee = true;
+        enAttente.splice(0).forEach(apresTransition);
+    }
+
+    function apresTransition(fn) {
+        if (!revelee) enAttente.push(fn);
+        else if (transition) transition.then(fn);
+        else fn();
+    }
+
     // Fired before the first paint, only by browsers with transitions between pages: Firefox
     // (no card morph) keeps the entrance.
     window.addEventListener('pagereveal', function (e) {
-        if (!e.viewTransition) return;
-        root.classList.add('tb-vt-in');
-        if (carte) {
-            root.classList.remove('tb-entering');
-            root.classList.add('tb-carte');
+        if (e.viewTransition) {
+            root.classList.add('tb-vt-in');
+            if (carte) {
+                root.classList.remove('tb-entering');
+                root.classList.add('tb-carte');
+            }
+            transition = e.viewTransition.finished.catch(function () { /* skipped: same as finished */ })
+                .then(function () { root.classList.remove('tb-vt-in'); transition = null; });
         }
-        e.viewTransition.finished.finally(function () { root.classList.remove('tb-vt-in'); });
+        liberer();
     });
+    // Safety net: a page shown without the event (old engine, restored page) must not wait forever.
+    setTimeout(liberer, 1500);
 
-    return { reduced: reduced };
+    return { reduced: reduced, apresTransition: apresTransition };
 })();
 
 var tbFlip = (function () {
