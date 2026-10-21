@@ -14,10 +14,9 @@ import ax.ibr.thermobox.common.services.HierarchieService
 import ax.ibr.thermobox.common.services.SalleImageService
 import ax.ibr.thermobox.common.services.AccesService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
+import ax.ibr.thermobox.business.config.ConfigDriver
 
 object BusinessFactory {
-
-    private const val MQTT: Boolean = false
 
     private val temperatureServiceInstance: TemperatureService by lazy { TemperatureServiceImpl() }
     private val salleServiceInstance: SalleService by lazy { SalleServiceImpl() }
@@ -34,7 +33,12 @@ object BusinessFactory {
     private val updateServiceInstance: UpdateServiceImpl by lazy { UpdateServiceImpl() }
 
     private val driverInstance: ProtocolDriver by lazy {
-        if (MQTT) MqttDriver() else SimulatedProtocolDriver()
+        // THERMOBOX_DRIVER / THERMOBOX_MQTT_* (see ConfigDriver)
+        val config = ConfigDriver.depuisEnvironnement()
+        when (config.type) {
+            ConfigDriver.TypeDriver.MQTT -> MqttDriver(config.urlMqtt, utilisateur = config.utilisateurMqtt, motDePasse = config.motDePasseMqtt)
+            ConfigDriver.TypeDriver.SIMULE -> SimulatedProtocolDriver()
+        }
     }
 
     fun getTemperatureService(): TemperatureService = temperatureServiceInstance
