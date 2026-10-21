@@ -16,7 +16,8 @@ fun main() {
 
     val config = ResourceConfig().packages(
         "ax.ibr.thermobox.restserver.resources",
-        "ax.ibr.thermobox.restserver.filters"
+        "ax.ibr.thermobox.restserver.filters",
+        "ax.ibr.thermobox.restserver.exceptions"
     )
 
     // Local development: localhost:8080. In Docker, set THERMOBOX_HTTP_HOST=0.0.0.0, otherwise the
