@@ -332,6 +332,8 @@ var tbWatch = (function () {
             document.querySelectorAll('[data-watch]').forEach(function (el) {
                 var old = avant[el.getAttribute('data-watch')];
                 if (old !== undefined && old !== el.textContent.replace(/\s+/g, '')) {
+                    var avantNombre = tbVie.lire(old);
+                    if (avantNombre) tbVie.defiler(el, avantNombre.valeur, 700);
                     el.animate([
                         { transform: 'translateY(6px)', opacity: .2, filter: 'blur(3px)' },
                         { transform: 'none', opacity: 1, filter: 'none' }
@@ -654,6 +656,181 @@ var tbComparaison = (function () {
             setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
         }
     };
+})();
+
+/*
+ * More motion, all of it skipped when animations are off (Préférences) or the system asks for
+ * less motion (tbAnim.reduced, read at the time of each effect):
+ * - numbers roll up to their value on arrival, and from the old to the new one when a refresh
+ *   changes them;
+ * - what is below the screen rises in when scrolled to;
+ * - cards follow the pointer (light and a slight tilt), presses leave a ripple;
+ * - lists (users, salles, versions, comparison table) come in one item after the other;
+ * - a thin bar at the top shows that the server is working (AJAX), and the button that asked spins.
+ */
+var tbVie = (function () {
+    var root = document.documentElement;
+    var NOMBRES = '.tb-temp-xl, .tb-temp-hero, .tb-temp-l';
+    var REVELES = '.tb-section, .tb-card, .tb-stat, .tb-user, .tb-drill-item, .tb-box, .tb-room, .tb-compare-table, .ui-card';
+    var LISTES = '.tb-users, .tb-drill-list, .tb-maj-versions, .tb-boxes, .tb-compare-table tbody, .tb-histo, .tb-stats';
+    var calme = function () { return tbAnim.reduced; };
+    var survol = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    // ---- numbers: the text node before the unit ("21,4" in <span>21,4<span class="tb-deg">°C</span></span>)
+    function texteNombre(el) {
+        for (var n = el.firstChild; n; n = n.nextSibling) {
+            if (n.nodeType === 3 && /\d/.test(n.nodeValue)) return n;
+        }
+        return null;
+    }
+
+    function lire(t) {
+        var m = /(-?\d+(?:,\d+)?)/.exec(t);
+        return m ? { valeur: parseFloat(m[1].replace(',', '.')), decimales: (m[1].split(',')[1] || '').length, avant: t.slice(0, m.index), apres: t.slice(m.index + m[1].length) } : null;
+    }
+
+    /** Rolls the number of [el] from [depuis] to its current value. */
+    function defiler(el, depuis, duree) {
+        var noeud = texteNombre(el);
+        var cible = noeud && lire(noeud.nodeValue);
+        if (!cible || depuis === cible.valeur || calme()) return;
+        var debut = performance.now();
+        var ecrire = function (v) {
+            noeud.nodeValue = cible.avant + v.toLocaleString('fr-FR', { minimumFractionDigits: cible.decimales, maximumFractionDigits: cible.decimales }) + cible.apres;
+        };
+        (function pas(maintenant) {
+            var t = Math.min(1, (maintenant - debut) / duree);
+            var e = 1 - Math.pow(1 - t, 4);
+            ecrire(depuis + (cible.valeur - depuis) * e);
+            if (t < 1) requestAnimationFrame(pas); else ecrire(cible.valeur);
+        })(debut);
+    }
+
+    function arrivee() {
+        // Back from a salle, the card's number morphs in: don't roll it as well
+        if (root.classList.contains('tb-carte')) return;
+        document.querySelectorAll(NOMBRES).forEach(function (el, i) {
+            var noeud = texteNombre(el), v = noeud && lire(noeud.nodeValue);
+            if (!v) return;
+            var ecart = Math.abs(v.valeur) < 10 && v.decimales === 0 ? v.valeur : Math.min(3, Math.abs(v.valeur));
+            setTimeout(function () { defiler(el, v.valeur - ecart, 900); }, 120 + Math.min(i, 12) * 45);
+        });
+    }
+
+    // ---- items below the screen rise in when reached
+    var observateur = 'IntersectionObserver' in window ? new IntersectionObserver(function (entrees) {
+        entrees.forEach(function (e) {
+            if (!e.isIntersecting) return;
+            e.target.classList.add('tb-reveal-in');
+            observateur.unobserve(e.target);
+        });
+    }, { rootMargin: '0px 0px -8% 0px' }) : null;
+
+    function reveler(racine) {
+        if (!observateur || calme()) return;
+        (racine || document).querySelectorAll(REVELES).forEach(function (el) {
+            if (el.classList.contains('tb-reveal') || el.closest('.ui-dialog')) return;
+            var r = el.getBoundingClientRect();
+            if (r.top < innerHeight) return; // already on screen: the page entrance handles it
+            el.classList.add('tb-reveal');
+            observateur.observe(el);
+        });
+    }
+
+    // ---- lists one item after the other (CSS uses --i)
+    function cascade(racine) {
+        (racine || document).querySelectorAll(LISTES).forEach(function (liste) {
+            Array.prototype.forEach.call(liste.children, function (el, i) { el.style.setProperty('--i', Math.min(i, 14)); });
+        });
+    }
+
+    // ---- light and tilt following the pointer
+    if (survol) {
+        document.addEventListener('pointermove', function (e) {
+            if (calme() || !e.target.closest) return;
+            var carte = e.target.closest('.tb-room, .tb-box, .tb-stat, .tb-maj-version-card');
+            if (!carte) return;
+            var r = carte.getBoundingClientRect();
+            var x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+            carte.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
+            carte.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+            carte.style.setProperty('--ry', ((x - .5) * 5).toFixed(2) + 'deg');
+            carte.style.setProperty('--rx', ((.5 - y) * 4).toFixed(2) + 'deg');
+            carte.classList.add('tb-suivi');
+        }, { passive: true });
+        // Opening a salle: the card morphs into the page, it must leave straight
+        document.addEventListener('click', function (e) {
+            var carte = e.target.closest && e.target.closest('.tb-suivi');
+            if (carte) carte.classList.remove('tb-suivi');
+        }, true);
+        document.addEventListener('pointerout', function (e) {
+            var carte = e.target.closest && e.target.closest('.tb-suivi');
+            if (carte && !carte.contains(e.relatedTarget)) carte.classList.remove('tb-suivi');
+        }, { passive: true });
+    }
+
+    // ---- ripple where a button is pressed
+    document.addEventListener('pointerdown', function (e) {
+        if (calme() || e.button !== 0 || !e.target.closest) return;
+        var el = e.target.closest('.ui-button, .tb-dest, .tb-summary-chip, .tb-section-toggle, .tb-icon-btn, .tb-drill-item > a, .tb-raw > summary');
+        if (!el || el.classList.contains('ui-state-disabled')) return;
+        var r = el.getBoundingClientRect();
+        var cadre = document.createElement('span');
+        cadre.className = 'tb-ripple-cadre';
+        var onde = document.createElement('span');
+        var taille = Math.max(r.width, r.height) * 2.2;
+        onde.className = 'tb-ripple';
+        onde.style.cssText = 'width:' + taille + 'px;height:' + taille + 'px;left:' + (e.clientX - r.left - taille / 2) + 'px;top:' + (e.clientY - r.top - taille / 2) + 'px';
+        cadre.appendChild(onde);
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        el.appendChild(cadre);
+        onde.animate([{ transform: 'scale(0)', opacity: .35 }, { transform: 'scale(1)', opacity: 0 }],
+            { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' }).finished.then(function () { cadre.remove(); });
+    }, { passive: true });
+
+    // ---- server at work: thin bar at the top (after 150 ms, quick answers show nothing), spinning button
+    var barre = null, enCours = 0, minuterie = null;
+    function barreHaut() {
+        if (!barre) {
+            barre = document.createElement('div');
+            barre.className = 'tb-busy-bar';
+            barre.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(barre);
+        }
+        return barre;
+    }
+    if (window.jQuery) {
+        jQuery(document).on('pfAjaxSend', function (e, xhr, settings) {
+            enCours++;
+            // PrimeFaces keeps the request's settings on the xhr (pfSettings.source: id or element)
+            var cfg = (xhr && xhr.pfSettings) || settings || {};
+            var source = cfg.source && (typeof cfg.source === 'string' ? document.getElementById(cfg.source) : cfg.source);
+            if (source && source.classList && source.classList.contains('tb-spin-on-busy')) source.classList.add('tb-busy');
+            clearTimeout(minuterie);
+            minuterie = setTimeout(function () { if (enCours > 0) barreHaut().classList.add('tb-busy-on'); }, 150);
+        });
+        jQuery(document).on('pfAjaxComplete', function () {
+            enCours = Math.max(0, enCours - 1);
+            document.querySelectorAll('.tb-busy').forEach(function (b) { b.classList.remove('tb-busy'); });
+            if (enCours === 0) {
+                clearTimeout(minuterie);
+                if (barre) barre.classList.remove('tb-busy-on');
+            }
+            // New content: same effects as on arrival (not the number roll: tbWatch handles changes)
+            cascade();
+            reveler();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        cascade();
+        if (calme()) return;
+        arrivee();
+        // After the entrance, so what is on screen doesn't wait for scrolling
+        setTimeout(function () { reveler(); }, 50);
+    });
+
+    return { defiler: defiler, lire: lire, texteNombre: texteNombre };
 })();
 
 /* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */

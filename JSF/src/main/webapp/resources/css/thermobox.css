@@ -2565,6 +2565,101 @@ html { background-color: var(--md-surface); }
 /* A paused shimmer would look broken: show a still placeholder */
 :root[data-motion="off"] .tb-spark-loading::before { display: none; }
 
+/* ============================== More motion (tbVie) ============================== */
+/* Only when the system doesn't ask for less motion; data-motion="off" stops all of it above. */
+@media (prefers-reduced-motion: no-preference) {
+    /* Below the screen: rises in when scrolled to */
+    .tb-reveal { opacity: 0; transform: translateY(22px) scale(.985); }
+    .tb-reveal.tb-reveal-in { opacity: 1; transform: none; transition: opacity .6s var(--tb-ease), transform .7s var(--tb-ease); }
+
+    /* Lists: one item after the other (--i set by tbVie.cascade) */
+    .tb-entering :is(.tb-users, .tb-drill-list, .tb-maj-versions, .tb-histo, .tb-compare-table tbody) > * {
+        animation: tb-rise .5s var(--tb-ease) both;
+        animation-delay: calc(.12s + var(--i, 0) * 40ms);
+    }
+    .tb-entering .tb-stats > * { animation: tb-rise-scale .55s var(--tb-ease) both; animation-delay: calc(.06s + var(--i, 0) * 60ms); }
+    .tb-entering .tb-cible-barre > span { animation: tb-grow 1s var(--tb-ease) both; animation-delay: calc(.4s + var(--i, 0) * 40ms); }
+    @keyframes tb-grow { from { transform: scaleX(0); } }
+
+    /* Cards follow the pointer: light under it, slight tilt (tbVie, mouse only) */
+    .tb-room, .tb-box, .tb-stat, .tb-maj-version-card { --mx: 50%; --my: 0%; }
+    :is(.tb-room, .tb-box, .tb-stat, .tb-maj-version-card)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        background: radial-gradient(420px circle at var(--mx) var(--my), color-mix(in srgb, var(--md-primary) 12%, transparent), transparent 55%);
+        opacity: 0;
+        transition: opacity .35s ease;
+        z-index: -1;   /* behind the content, above the card's own background (isolation) */
+    }
+    :is(.tb-room, .tb-box, .tb-stat, .tb-maj-version-card).tb-suivi::after { opacity: 1; }
+    .tb-box, .tb-stat, .tb-maj-version-card { position: relative; isolation: isolate; }
+    .tb-room.tb-suivi, .tb-box.tb-suivi {
+        transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+        transition: transform .15s ease-out, box-shadow var(--tb-fast) linear, border-color var(--tb-fast) linear;
+    }
+
+    /* Ripple where a button is pressed (tbVie) */
+    .tb-ripple-cadre { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 0; }
+    .tb-ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: 0; pointer-events: none; }
+
+    /* Server at work: a thin bar sweeping along the top of the screen */
+    .tb-busy-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        z-index: 2000;
+        pointer-events: none;
+        opacity: 0;
+        background: linear-gradient(90deg, transparent, var(--md-primary), color-mix(in srgb, var(--md-primary) 40%, #2bb3d1), transparent);
+        background-size: 40% 100%;
+        background-repeat: no-repeat;
+        transition: opacity .25s ease;
+    }
+    .tb-busy-bar.tb-busy-on { opacity: 1; animation: tb-balayage 1.1s ease-in-out infinite; }
+    @keyframes tb-balayage { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+    :root body .ui-button.tb-busy .ui-icon { animation: tb-tourne .8s linear infinite; }
+    @keyframes tb-tourne { to { transform: rotate(360deg); } }
+
+    /* A salle too hot calls for attention: its state dot breathes */
+    .tb-ton-chaud .tb-state::before { animation: tb-respire 1.8s ease-in-out infinite; }
+    @keyframes tb-respire { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--tone) 25%, transparent); } }
+
+    /* Empty states: the icon floats */
+    .tb-empty-icon { animation: tb-flotte 4s ease-in-out infinite; }
+    @keyframes tb-flotte { 50% { transform: translateY(-6px); } }
+
+    /* Navigation: icons lift under the pointer, the active one keeps a soft glow */
+    .tb-dest .tb-dest-icon { transition: transform .3s var(--tb-spring), background-color .2s; }
+    .tb-dest:hover .tb-dest-icon { transform: translateY(-2px) scale(1.06); }
+    .tb-icon-btn { transition: transform .3s var(--tb-spring), background-color .2s; }
+    .tb-icon-btn:hover { transform: rotate(-8deg) scale(1.08); }
+    .tb-icon-btn:active, :root body .ui-button:active { transform: scale(.94); }
+
+    /* Section icons and chips pop a little when pointed at */
+    .tb-section-toggle:hover .tb-section-icon { transform: scale(1.08) rotate(-4deg); }
+    .tb-section-icon { transition: transform .35s var(--tb-spring); }
+    .tb-summary-chip { transition: transform .25s var(--tb-spring), background-color .2s, border-color .2s, color .2s; }
+    .tb-summary-chip:hover { transform: translateY(-2px); }
+
+    /* Login and setup pages: the background drifts slowly */
+    .tb-public { background-size: 140% 140%; animation: tb-derive 26s ease-in-out infinite alternate; }
+    @keyframes tb-derive { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+    .tb-auth .tb-logo-xl { animation: tb-flotte 5s ease-in-out infinite; }
+
+    /* Collapsing sections: content fades with the fold */
+    .tb-section-body { transition: grid-template-rows var(--tb-medium) var(--tb-ease), opacity .3s ease; }
+    .tb-collapsed .tb-section-body { opacity: 0; }
+
+    /* Table rows: a line slides a little under the pointer */
+    :root body .tb-table tbody tr { transition: background-color .2s, transform .25s var(--tb-ease); }
+    :root body .tb-table tbody tr:hover { transform: translateX(3px); }
+}
+
 .tb-prefs { display: flex; flex-direction: column; gap: 4px; }
 .tb-pref {
     display: flex;
