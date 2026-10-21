@@ -78,12 +78,38 @@ class TemperatureResource {
         }
     }
 
+    /**
+     * Adds a measure ("mesurer") or a consigne ("consigne"): {"value": 21.5, "date": …}. The plain
+     * POST above can't say which one it is.
+     */
+    @POST
+    @Path("/type/{type}")
+    @RequiresRole("ADMIN")
+    fun addTyped(@PathParam("type") type: String, temperature: Temperature?): Response {
+        val sample = resolveSample(type) ?: return Response.status(Response.Status.NOT_FOUND).build()
+        val value = temperature?.value
+        if (temperature == null || value == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(mapOf("error" to "value is required")).build()
+        }
+        sample.value = value
+        sample.date = temperature.date ?: LocalDateTime.now()
+        return add(sample)
+    }
+
     @PUT
     @Path("/{id}")
     @RequiresRole("ADMIN")
     fun updateById(@PathParam("id") id: Long, temperature: Temperature) {
-        temperature.id = id
-        service.update(temperature)
+        // Changes the stored row, so a consigne stays a consigne and a measure a measure.
+        val existante = service.getById(id)
+        if (existante == null) {
+            temperature.id = id
+            service.update(temperature)
+            return
+        }
+        temperature.value?.let { existante.value = it }
+        temperature.date?.let { existante.date = it }
+        service.update(existante)
     }
 
     @DELETE

@@ -56,6 +56,7 @@ Toutes les routes sont préfixées par `/api`. Les requêtes nécessitent géné
 | `GET` | `/type/{type}` | Filtre par type (`consigne` ou `mesurer`). | ADMIN, GESTIONNAIRE, VIEWER |
 | `GET` | `/average/{type}` | Moyenne pour un type spécifique. | ADMIN, GESTIONNAIRE, VIEWER |
 | `POST` | `/` | Ajoute une mesure manuellement. | ADMIN |
+| `POST` | `/type/{type}` | Ajoute une mesure (`mesurer`) ou une consigne (`consigne`) : `{"value": 21.5, "date": "…"}`. | ADMIN |
 | `PUT` | `/{id}` | Met à jour une mesure existante. | ADMIN |
 | `DELETE` | `/{id}` | Supprime une mesure. | ADMIN |
 
@@ -68,6 +69,60 @@ Toutes les routes sont préfixées par `/api`. Les requêtes nécessitent géné
 | `PUT` | `/{id}` | Met à jour un profil utilisateur. | ADMIN, Owner |
 | `DELETE` | `/{id}` | Supprime un utilisateur. | ADMIN, Owner |
 | `GET` | `/username/{username}` | Recherche un utilisateur par son nom d'utilisateur. | ADMIN |
+| `GET` | `/{id}/acces` | Accès de l'utilisateur (tout, ou seulement certains éléments). | ADMIN, Owner |
+| `PUT` | `/{id}/acces` | Remplace les accès (`{"restricted": true, "elements": [ids]}`). | ADMIN |
+
+### 🗂 Groupes (`/api/groups`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Liste les groupes avec leurs membres et éléments. | ADMIN |
+| `GET` | `/{id}` | Un groupe. | ADMIN |
+| `POST` | `/` | Crée un groupe (`{"name", "description", "members": [ids], "elements": [ids]}`). | ADMIN |
+| `PUT` | `/{id}` | Remplace un groupe. | ADMIN |
+| `DELETE` | `/{id}` | Supprime un groupe (ses membres gardent leurs propres accès). | ADMIN |
+
+### 🌳 Hiérarchie (`/api/hierarchie`)
+*Bâtiment → (Étage) → Salle → Boîtier, tel que l'utilisateur connecté a le droit de le voir. Chaque élément porte son type (`BATIMENT`, `ETAGE`, `SALLE`, `BOITIER`) ; les dates sont des chaînes ISO-8601 (`2026-10-21T14:05:00`).*
+
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/arbre` | Tous les éléments visibles : parent, température (moyenne des boîtiers), consigne (héritée ou non), photo, favori. Les boîtiers seulement pour GESTIONNAIRE et ADMIN. | Authentifié |
+| `GET` | `/elements/{id}` | Un élément et ce que sa page affiche : ancêtres, enfants, mesure de chaque boîtier, salles contenues, consignes propres en dessous. | Authentifié |
+| `POST` | `/elements` | Crée un élément (`{"kind": "SALLE", "name": "…", "parentId": 4}`). | ADMIN |
+| `PUT` | `/elements/{id}` | Renomme et déplace (`{"name": "…", "parentId": 4}`, `null` pour détacher). | ADMIN |
+| `PUT` | `/elements/{id}/parent` | Déplace seulement (`{"parentId": 4}` ou `null`). | ADMIN |
+
+La suppression d'un élément reste `DELETE /api/salles/{id}`.
+
+### 🌡 Climat (`/api/climat`)
+*Températures à n'importe quel niveau : un étage ou un bâtiment agrège les boîtiers qu'il contient. Périodes en instants ISO-8601 : `?start=2026-10-20T08:00:00Z&end=2026-10-21T08:00:00Z`.*
+
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/{id}/historique?start=…&end=…` | Courbes de la période : une par boîtier (salle), une par salle (étage, bâtiment), la moyenne et les consignes. Un VIEWER n'a que la moyenne. | Authentifié |
+| `GET` | `/moyennes?ids=3,7&start=…&end=…` | Courbe moyenne de plusieurs éléments à la fois (`{"3": [points], "7": [points]}`). | Authentifié |
+| `PUT` | `/{id}/consigne` | Enregistre la consigne d'un bâtiment, d'un étage ou d'une salle et l'envoie à ses boîtiers (`{"value": 21.5, "force": false}`) ; ceux qui ont leur propre consigne la gardent, sauf `force`. | ADMIN, GESTIONNAIRE |
+
+### ⭐ Favoris (`/api/favoris`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Ids des salles épinglées par l'utilisateur. | Authentifié |
+| `PUT` | `/{id}` | Épingle une salle. | Authentifié |
+| `DELETE` | `/{id}` | Retire une salle des favoris. | Authentifié |
+
+### 🖼 Photos (`/api/salles/{id}/image`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/salles/{id}/image` | La photo (JPEG), avec `ETag`. | Authentifié |
+| `PUT` | `/api/salles/{id}/image` | Remplace la photo : le corps est l'image (JPEG, PNG, GIF ou BMP, 10 Mo max). | ADMIN |
+| `DELETE` | `/api/salles/{id}/image` | Retire la photo. | ADMIN |
+
+### 🎨 Réglages (`/api/reglages`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Réglages d'affichage communs à tous (`{"style": "verre"}` ou `"panneau"`). | Authentifié |
+| `PUT` | `/` | Change le style pour tout le monde. | ADMIN |
+
 
 ## 🚀 Exemple de requête (Envoi de consigne)
 Pour envoyer une nouvelle température cible à la salle ID `5` :
