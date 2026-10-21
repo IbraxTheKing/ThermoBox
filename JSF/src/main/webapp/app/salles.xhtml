@@ -14,6 +14,8 @@
                     <span class="tb-eyebrow">Organisation</span>
                     <h1>Bâtiments et salles</h1>
                 </div>
+                <p:linkButton value="Gérer en tableau" icon="pi pi-table" outcome="/app/gestion"
+                              rendered="#{loginBean.gestionnaire}" styleClass="tb-tonal tb-hide-sm"/>
                 <p:commandButton value="Nouveau bâtiment" icon="pi pi-plus" rendered="#{loginBean.admin}"
                                  action="#{salleBean.create('BATIMENT', null)}" process="@this"
                                  update=":salleDlgForm" oncomplete="PF('salleDlg').show()" styleClass="tb-btn-lg tb-fab"/>

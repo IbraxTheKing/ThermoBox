@@ -72,6 +72,11 @@
                     <span class="tb-dest-icon"><i class="pi pi-chart-line"/></span>
                     <span class="tb-dest-label">Mesures</span>
                 </h:link>
+                <h:link outcome="/app/gestion" rendered="#{loginBean.gestionnaire}"
+                        styleClass="tb-dest #{view.viewId eq '/app/gestion.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-sliders-h"/></span>
+                    <span class="tb-dest-label">Gérer</span>
+                </h:link>
                 <h:link outcome="/admin/users" rendered="#{loginBean.admin}"
                         styleClass="tb-dest #{view.viewId eq '/admin/users.xhtml' ? 'tb-dest-on' : ''}">
                     <span class="tb-dest-icon"><i class="pi pi-users"/></span>

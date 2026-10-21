@@ -1,0 +1,202 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
+
+    <ui:define name="metadata">
+        <f:metadata>
+            <f:viewAction action="#{gestionBean.verifier}"/>
+        </f:metadata>
+    </ui:define>
+
+    <ui:define name="title">Gestion des salles</ui:define>
+
+    <!-- GESTIONNAIRE: consignes; ADMIN: also create, rename, move, delete. One table for everything. -->
+    <ui:define name="content">
+        <h:form id="gestForm">
+            <header class="tb-page-head">
+                <div class="tb-page-title">
+                    <span class="tb-eyebrow">#{loginBean.admin ? 'Administration' : 'Gestionnaire'}</span>
+                    <h1>Gestion des salles</h1>
+                </div>
+                <p:commandButton value="Nouvel élément" icon="pi pi-plus" rendered="#{loginBean.admin}"
+                                 action="#{gestionBean.nouveau}" process="@this" update=":gestDlgForm"
+                                 oncomplete="PF('gestDlg').show()" styleClass="tb-btn-lg tb-fab"/>
+            </header>
+
+            <p class="tb-lead">
+                #{loginBean.admin
+                  ? 'Tous les bâtiments, étages, salles et boîtiers sur une page : consignes, noms, emplacements. Coche plusieurs lignes pour agir sur toutes à la fois.'
+                  : 'Les consignes de toutes vos salles sur une page. Coche plusieurs lignes pour leur envoyer la même consigne.'}
+            </p>
+
+            <div class="tb-toolbar">
+                <span class="ui-input-icon-left tb-search">
+                    <i class="pi pi-search"/>
+                    <p:inputText id="recherche" value="#{gestionBean.recherche}" placeholder="Rechercher un élément ou un emplacement…"
+                                 autocomplete="off" pt:type="search">
+                        <p:ajax event="keyup" delay="200" update="table" onstart="tbFlip.first('#gestForm\\:table [data-flip]')" oncomplete="tbFlip.play()"/>
+                    </p:inputText>
+                </span>
+            </div>
+
+            <h:panelGroup id="filtres" layout="block" styleClass="tb-summary">
+                <p:commandLink action="#{gestionBean.filtrerType(null)}" process="@this" update="table filtres"
+                               styleClass="tb-summary-chip #{gestionBean.type eq null and not gestionBean.aTraiter ? 'tb-chip-on' : ''}">
+                    <i class="pi pi-check tb-chip-check"/>Tout<span class="tb-chip-n">#{gestionBean.nombre(null)}</span>
+                </p:commandLink>
+                <ui:repeat value="#{gestionBean.types}" var="k">
+                    <p:commandLink action="#{gestionBean.filtrerType(k)}" process="@this" update=":gestForm:table :gestForm:filtres"
+                                   styleClass="tb-summary-chip #{gestionBean.type eq k ? 'tb-chip-on' : ''}">
+                        <i class="pi pi-check tb-chip-check"/>#{k.label}<span class="tb-chip-n">#{gestionBean.nombre(k)}</span>
+                    </p:commandLink>
+                </ui:repeat>
+                <p:commandLink process="@this" update="table filtres"
+                               styleClass="tb-summary-chip tb-ton-chauffe #{gestionBean.aTraiter ? 'tb-chip-on' : ''}">
+                    <f:setPropertyActionListener target="#{gestionBean.aTraiter}" value="#{not gestionBean.aTraiter}"/>
+                    <i class="pi pi-check tb-chip-check"/>À traiter<span class="tb-chip-n">#{gestionBean.nombreATraiter}</span>
+                </p:commandLink>
+            </h:panelGroup>
+
+            <!-- Actions on the ticked rows -->
+            <h:panelGroup id="groupe" layout="block" styleClass="tb-gest-groupe #{empty gestionBean.selection ? '' : 'tb-gest-groupe-on'}">
+                <span class="tb-gest-compte">
+                    <i class="pi pi-check-square"/>
+                    #{empty gestionBean.selection ? 'Coche des lignes pour agir sur plusieurs éléments' : gestionBean.selection.size().toString().concat(' sélectionné(s)')}
+                </span>
+                <ui:fragment rendered="#{not empty gestionBean.selection}">
+                    <div class="tb-gest-action">
+                        <p:spinner id="consigneGroupe" value="#{gestionBean.consigneGroupe}" buttons="horizontal"
+                                   min="#{unite.consigneMin}" max="#{unite.consigneMax}" stepFactor="#{unite.consigneStep}"
+                                   decimalPlaces="1" decimalSeparator="," suffix=" #{unite.symbole}" placeholder="Consigne"
+                                   styleClass="tb-stepper tb-stepper-sm"/>
+                        <div class="tb-switch-row" title="Remplacer aussi les consignes propres des éléments contenus">
+                            <p:toggleSwitch id="forcer" widgetVar="forcerGroupe" value="#{gestionBean.forcer}" styleClass="tb-switch"/>
+                            <span class="tb-switch-text" onclick="PF('forcerGroupe').toggle()">Forcer</span>
+                        </div>
+                        <p:commandButton value="Envoyer" icon="pi pi-send" action="#{gestionBean.appliquerSelection}"
+                                         process="@this consigneGroupe forcer" update="table groupe filtres" styleClass="tb-spin-on-busy"/>
+                    </div>
+                    <ui:fragment rendered="#{loginBean.admin}">
+                        <div class="tb-gest-action">
+                            <p:selectOneMenu id="cible" value="#{gestionBean.cibleId}" styleClass="tb-filter tb-gest-cible"
+                                             filter="true" filterMatchMode="contains">
+                                <f:selectItem itemLabel="Ne rattacher à rien" itemValue="#{null}"/>
+                                <f:selectItems value="#{gestionBean.ciblesPossibles}" var="c" itemLabel="#{gestionBean.libelle(c)}" itemValue="#{c.id}"/>
+                            </p:selectOneMenu>
+                            <p:commandButton value="Déplacer" icon="pi pi-arrow-right" action="#{gestionBean.deplacerSelection}"
+                                             process="@this cible" update="table groupe filtres" styleClass="tb-tonal"/>
+                        </div>
+                        <p:commandButton value="Supprimer" icon="pi pi-trash" action="#{gestionBean.supprimerSelection}"
+                                         process="@this" update="table groupe filtres" styleClass="ui-button-flat ui-button-danger">
+                            <p:confirm header="Supprimer" message="Supprimer les #{gestionBean.selection.size()} éléments sélectionnés ? Ce qu'ils contiennent est gardé, sans rattachement."
+                                       icon="pi pi-exclamation-triangle"/>
+                        </p:commandButton>
+                    </ui:fragment>
+                </ui:fragment>
+            </h:panelGroup>
+
+            <p:dataTable id="table" value="#{gestionBean.visibles}" var="l" rowKey="#{l.id}"
+                         selection="#{gestionBean.selection}" rowSelectMode="checkbox"
+                         rows="50" paginator="true" paginatorAlwaysVisible="false" paginatorPosition="bottom"
+                         emptyMessage="Aucun élément ne correspond" styleClass="tb-table tb-gest-table"
+                         rowStyleClass="tb-ton-#{l.etat.ton}">
+                <p:ajax event="rowSelectCheckbox" update=":gestForm:groupe"/>
+                <p:ajax event="rowUnselectCheckbox" update=":gestForm:groupe"/>
+                <p:ajax event="toggleSelect" update=":gestForm:groupe"/>
+
+                <p:column selectionMode="multiple" styleClass="tb-col-check"/>
+
+                <p:column headerText="Élément" sortBy="#{l.salle.name}" styleClass="tb-col-salle">
+                    <div class="tb-gest-nom" data-flip="g#{l.id}">
+                        <span class="tb-section-icon"><i class="pi #{l.icone}"/></span>
+                        <span class="tb-gest-nom-texte">
+                            <h:link outcome="/app/salle" title="Voir la page">
+                                <f:param name="id" value="#{l.id}"/>
+                                <strong>#{l.salle.name}</strong>
+                            </h:link>
+                            <span class="tb-muted">
+                                #{l.kind.label}
+                                <h:outputText value=" · #{l.chemin}" rendered="#{not empty l.chemin}"/>
+                            </span>
+                            <p:tag value="Non rattaché" severity="warning" rendered="#{not l.rattache}"/>
+                        </span>
+                    </div>
+                </p:column>
+
+                <p:column headerText="Température" sortBy="#{l.temperature}" styleClass="tb-col-num">
+                    <strong>#{unite.t(l.temperature)}</strong>
+                    <h:panelGroup styleClass="tb-state tb-state-sm" rendered="#{not l.boitier}">#{l.etat.label}</h:panelGroup>
+                    <h:panelGroup styleClass="tb-muted tb-gest-boitiers" rendered="#{not l.boitier and l.boitiers gt 0}">
+                        <i class="pi pi-wifi"/>#{l.boitiers}
+                    </h:panelGroup>
+                </p:column>
+
+                <p:column headerText="Consigne" sortBy="#{l.consigne}" styleClass="tb-col-consigne">
+                    <ui:fragment rendered="#{not l.boitier}">
+                        <span class="tb-gest-consigne-actuelle">
+                            #{unite.t(l.consigne)} #{unite.symbole}
+                            <h:outputText styleClass="tb-muted" value="héritée de #{l.heriteeDe}" rendered="#{l.heriteeDe ne null}"/>
+                        </span>
+                        <span class="tb-gest-consigne-saisie">
+                            <p:inputNumber id="saisie" value="#{gestionBean.saisies[l.id]}" decimalPlaces="1"
+                                           minValue="#{unite.consigneMin}" maxValue="#{unite.consigneMax}"
+                                           decimalSeparator="," thousandSeparator="" symbol=" #{unite.symbole}" symbolPosition="s"
+                                           placeholder="Nouvelle" styleClass="tb-gest-input"/>
+                            <p:commandButton icon="pi pi-send" title="Envoyer cette consigne à #{l.salle.name}"
+                                             action="#{gestionBean.appliquer(l)}" process="@this saisie"
+                                             update=":gestForm:table :gestForm:filtres" styleClass="ui-button-flat tb-spin-on-busy"/>
+                        </span>
+                    </ui:fragment>
+                    <h:outputText styleClass="tb-muted" value="Suit sa salle" rendered="#{l.boitier}"/>
+                </p:column>
+
+                <p:column headerText="Actions" styleClass="tb-col-actions" rendered="#{loginBean.admin}">
+                    <p:commandButton icon="pi pi-pencil" title="Renommer ou déplacer #{l.salle.name}" action="#{gestionBean.modifier(l)}"
+                                     process="@this" update=":gestDlgForm" oncomplete="PF('gestDlg').show()" styleClass="ui-button-flat"/>
+                    <p:commandButton icon="pi pi-trash" title="Supprimer #{l.salle.name}" action="#{gestionBean.supprimer(l)}"
+                                     process="@this" update=":gestForm:table :gestForm:groupe :gestForm:filtres"
+                                     styleClass="ui-button-flat ui-button-danger">
+                        <p:confirm header="Supprimer" message="Supprimer « #{l.salle.name} » ? Ce qu'il contient est gardé, sans rattachement."
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </p:column>
+            </p:dataTable>
+        </h:form>
+
+        <!-- Create / rename / move (ADMIN) -->
+        <p:dialog header="#{gestionBean.editionId eq null ? 'Nouvel élément' : 'Modifier'}" widgetVar="gestDlg" modal="true"
+                  resizable="false" responsive="true" width="440" rendered="#{loginBean.admin}">
+            <h:form id="gestDlgForm">
+                <div class="tb-field">
+                    <p:outputLabel for="kind" value="Type"/>
+                    <p:selectOneMenu id="kind" value="#{gestionBean.formKind}" disabled="#{gestionBean.editionId ne null}">
+                        <f:selectItems value="#{gestionBean.types}" var="k" itemLabel="#{k.label}" itemValue="#{k}"/>
+                        <p:ajax update="parent"/>
+                    </p:selectOneMenu>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="nom" value="Nom"/>
+                    <p:inputText id="nom" value="#{gestionBean.formNom}" required="true" requiredMessage="Nom obligatoire"/>
+                    <p:message for="nom"/>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="parent" value="Dans"/>
+                    <p:selectOneMenu id="parent" value="#{gestionBean.formParentId}" filter="true" filterMatchMode="contains">
+                        <f:selectItem itemLabel="Rien (non rattaché)" itemValue="#{null}"/>
+                        <f:selectItems value="#{gestionBean.parentsPossibles}" var="c" itemLabel="#{gestionBean.libelle(c)}" itemValue="#{c.id}"/>
+                    </p:selectOneMenu>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('gestDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{gestionBean.enregistrer}"
+                                     update="@form :gestForm:table :gestForm:filtres"
+                                     oncomplete="if (args &amp;&amp; args.saved) PF('gestDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+    </ui:define>
+</ui:composition>
