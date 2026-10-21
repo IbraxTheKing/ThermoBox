@@ -1173,34 +1173,6 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 
 /* ============================== Gestion page (GESTIONNAIRE, ADMIN) ============================== */
 
-/* Actions on the ticked rows: stays at the top while scrolling the table */
-.tb-gest-groupe {
-    position: sticky;
-    top: 12px;
-    z-index: 20;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px 18px;
-    margin-bottom: 16px;
-    padding: 12px 16px;
-    border: 1px dashed var(--md-outline-variant);
-    border-radius: var(--tb-shape-lg);
-    color: var(--md-on-surface-variant);
-    transition: background-color .3s, border-color .3s, box-shadow .3s;
-}
-.tb-gest-groupe.tb-gest-groupe-on {
-    border: 1px solid color-mix(in srgb, var(--md-primary) 35%, var(--tb-glass-line));
-    background: var(--tb-glass-solid);
-    box-shadow: var(--tb-glass-shadow);
-    color: var(--md-on-surface);
-}
-.tb-gest-groupe-on .tb-gest-compte { font-weight: 700; color: var(--md-primary); }
-.tb-gest-compte { display: inline-flex; align-items: center; gap: 8px; }
-.tb-gest-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-:root body .ui-selectonemenu.tb-gest-cible { min-width: 240px; max-width: 360px; height: 44px; }
-:root body .ui-selectonemenu.tb-gest-cible .ui-selectonemenu-label { line-height: 44px; padding-top: 0; padding-bottom: 0; }
-:root body .tb-stepper.tb-stepper-sm .ui-spinner-input { width: 7.5em; font-size: 1rem; height: 40px; }
 
 :root body .tb-gest-table td.tb-col-check, :root body .tb-gest-table th.tb-col-check { width: 48px; text-align: center; }
 :root body .tb-gest-table td.tb-col-salle { min-width: 240px; }
@@ -1215,9 +1187,73 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 :root body .tb-gest-table td.tb-col-consigne { min-width: 250px; }
 .tb-gest-consigne-actuelle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
 .tb-gest-consigne-actuelle .tb-muted { font-size: .8rem; }
-.tb-gest-consigne-saisie { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
-:root body .tb-gest-input .ui-inputnumber, :root body .tb-gest-input input { width: 8.5em; height: 36px; }
 .tb-gest-table tr.ui-state-highlight { background: color-mix(in srgb, var(--md-primary) 10%, transparent) !important; color: inherit !important; }
+
+.tb-gest-astuce { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: .88rem; }
+
+/* Actions on the ticked rows: a bar fixed at the bottom of the screen, sliding up when something is
+   ticked; the page itself never moves */
+.tb-barre {
+    position: fixed;
+    left: calc(var(--tb-rail) + 24px + max(0px, (100vw - var(--tb-rail) - 1480px) / 2));
+    right: 24px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 12px 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 10px 10px 20px;
+    border: 1px solid color-mix(in srgb, var(--md-primary) 30%, var(--tb-glass-line));
+    border-radius: var(--tb-shape-xl);
+    background: var(--tb-glass-solid);
+    box-shadow: 0 18px 50px rgba(20, 35, 60, .25);
+    -webkit-backdrop-filter: var(--tb-blur);
+    backdrop-filter: var(--tb-blur);
+    transform: translateY(calc(100% + 40px));
+    opacity: 0;
+    visibility: hidden;
+    transition: transform .45s var(--tb-ease), opacity .3s ease, visibility 0s .45s;
+}
+.tb-barre.tb-barre-on { transform: none; opacity: 1; visibility: visible; transition: transform .45s var(--tb-ease), opacity .3s ease; }
+.tb-barre-compte { flex: none; font-weight: 800; color: var(--md-primary); white-space: nowrap; }
+.tb-barre-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+:root body .ui-button.tb-barre-fermer { flex: none; }
+/* Room under the table for the bar */
+.tb-main:has(.tb-barre-on) { padding-bottom: 110px; }
+/* Its windows */
+:root body .ui-dialog.tb-petit-dialogue .ui-dialog-content p.tb-muted { margin: 0 0 14px; font-size: .9rem; }
+:root body .ui-dialog.tb-petit-dialogue .tb-switch-row { margin: 6px 0 4px; }
+
+/* A value with its unit and a send button, joined: the row consigne, the consigne of a selection */
+.tb-saisie {
+    display: inline-flex;
+    align-items: stretch;
+    height: 38px;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--tb-shape-md);
+    background: var(--tb-field);
+    overflow: hidden;
+    transition: border-color .2s, box-shadow .2s;
+}
+.tb-saisie:focus-within { border-color: var(--md-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 20%, transparent); }
+:root body .tb-saisie .tb-saisie-champ { display: flex; width: auto; height: auto; margin: 0; padding: 0; border: 0; background: transparent; }
+:root body .tb-saisie .tb-saisie-champ input {
+    width: 5.5em; height: 100%; min-height: 0; margin: 0; padding: 0 4px 0 12px;
+    border: 0; border-radius: 0; background: transparent; box-shadow: none;
+    font: inherit; font-variant-numeric: tabular-nums; text-align: right;
+}
+.tb-saisie-unite { display: grid; place-items: center; padding: 0 10px 0 2px; color: var(--md-on-surface-variant); font-size: .9rem; }
+:root body .tb-saisie .ui-button.tb-saisie-envoyer {
+    width: 40px; min-width: 40px; height: auto; min-height: 0; margin: 0; border: 0; border-left: 1px solid var(--md-outline-variant); border-radius: 0;
+    background: color-mix(in srgb, var(--md-primary) 10%, transparent); color: var(--md-primary); box-shadow: none;
+}
+:root body .tb-saisie .ui-button.tb-saisie-envoyer:hover { background: var(--md-primary); color: var(--md-on-primary, #fff); }
+.tb-saisie.tb-saisie-grande { height: 48px; font-size: 1.2rem; }
+:root body .tb-saisie.tb-saisie-grande .tb-saisie-champ input { width: 6em; }
+:root body .tb-saisie.tb-saisie-grande .ui-button.tb-saisie-envoyer { width: 48px; min-width: 48px; }
+.tb-col-consigne .tb-saisie { margin-top: 6px; }
 
 /* ADMIN: two tabs, the elements and the users */
 .tb-segmented.tb-gest-onglets { display: inline-flex; margin: 0 0 18px; }
@@ -1245,7 +1281,12 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 
 /* Phones: one block per element */
 @media (max-width: 840px) {
-    .tb-gest-groupe { top: calc(var(--tb-topbar-h, 58px) + 8px); }
+    .tb-barre { left: 8px; right: 8px; bottom: calc(86px + env(safe-area-inset-bottom)); padding: 8px 8px 8px 14px; flex-wrap: wrap; }
+    .tb-barre-actions { order: 3; flex-basis: 100%; }
+    .tb-barre-actions .ui-button { flex: none; }
+    .tb-barre-compte { flex: 1 1 auto; }
+    .tb-main:has(.tb-barre-on) { padding-bottom: 210px; }
+    :root body:has(.tb-barre-on) .ui-button.tb-fab { opacity: 0; pointer-events: none; }
     .tb-segmented.tb-gest-onglets { display: flex; }
     :root body .tb-gest-table.tb-droits-table tbody tr { grid-template-areas: "c n n" "c r r" "c x x" "c g g"; }
     :root body .tb-gest-table.tb-droits-table td.tb-col-role { grid-area: r; width: auto; }
@@ -2804,8 +2845,8 @@ html { background-color: var(--md-surface); }
     .tb-section-chevron { transition: transform var(--tb-fold) var(--tb-ease), background-color .2s; }
 
     /* Table rows: a line slides a little under the pointer */
-    :root body .tb-table tbody tr { transition: background-color .2s, transform .25s var(--tb-ease); }
-    :root body .tb-table tbody tr:hover { transform: translateX(3px); }
+    /* Table rows: only their colour changes under the pointer (a slide made the table scroll sideways) */
+    :root body .tb-table tbody tr { transition: background-color .2s; }
 }
 
 .tb-prefs { display: flex; flex-direction: column; gap: 4px; }

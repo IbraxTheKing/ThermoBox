@@ -75,57 +75,31 @@
                 </p:commandLink>
             </h:panelGroup>
 
-            <!-- Actions on the ticked rows -->
-            <h:panelGroup id="groupe" layout="block" styleClass="tb-gest-groupe #{empty gestionBean.selection ? '' : 'tb-gest-groupe-on'}">
-                <span class="tb-gest-compte">
-                    <i class="pi pi-check-square"/>
-                    #{empty gestionBean.selection ? 'Coche des lignes pour agir sur plusieurs éléments' : gestionBean.selection.size().toString().concat(' sélectionné(s)')}
-                </span>
-                <ui:fragment rendered="#{not empty gestionBean.selection}">
-                    <div class="tb-gest-action">
-                        <p:spinner id="consigneGroupe" value="#{gestionBean.consigneGroupe}" buttons="horizontal"
-                                   min="#{unite.consigneMin}" max="#{unite.consigneMax}" stepFactor="#{unite.consigneStep}"
-                                   decimalPlaces="1" decimalSeparator="," suffix=" #{unite.symbole}" placeholder="Consigne"
-                                   styleClass="tb-stepper tb-stepper-sm"/>
-                        <div class="tb-switch-row" title="Remplacer aussi les consignes propres des éléments contenus">
-                            <p:toggleSwitch id="forcer" widgetVar="forcerGroupe" value="#{gestionBean.forcer}" styleClass="tb-switch"/>
-                            <span class="tb-switch-text" onclick="PF('forcerGroupe').toggle()">Forcer</span>
-                        </div>
-                        <p:commandButton value="Envoyer" icon="pi pi-send" action="#{gestionBean.appliquerSelection}"
-                                         process="@this consigneGroupe forcer" update="table groupe filtres" styleClass="tb-spin-on-busy"/>
-                    </div>
-                    <ui:fragment rendered="#{loginBean.admin}">
-                        <div class="tb-gest-action">
-                            <p:selectOneMenu id="cible" value="#{gestionBean.cibleId}" styleClass="tb-filter tb-gest-cible"
-                                             filter="true" filterMatchMode="contains">
-                                <f:selectItem itemLabel="Ne rattacher à rien" itemValue="#{null}"/>
-                                <f:selectItems value="#{gestionBean.ciblesPossibles}" var="c" itemLabel="#{gestionBean.libelle(c)}" itemValue="#{c.id}"/>
-                            </p:selectOneMenu>
-                            <p:commandButton value="Déplacer" icon="pi pi-arrow-right" action="#{gestionBean.deplacerSelection}"
-                                             process="@this cible" update="table groupe filtres" styleClass="tb-tonal"/>
-                        </div>
-                        <div class="tb-gest-action">
-                            <p:selectCheckboxMenu id="accesUsers" value="#{gestionBean.accesUsers}" label="Utilisateurs"
-                                                  filter="true" filterMatchMode="contains" multiple="true" styleClass="tb-gest-multi"
-                                                  emptyLabel="Utilisateurs" updateLabel="true">
-                                <f:selectItems value="#{gestionBean.utilisateursLimitables}" var="u" itemLabel="#{u.username}" itemValue="#{u.id}"/>
-                            </p:selectCheckboxMenu>
-                            <p:selectCheckboxMenu id="accesGroupes" value="#{gestionBean.accesGroupes}" label="Groupes"
-                                                  multiple="true" styleClass="tb-gest-multi" emptyLabel="Groupes" updateLabel="true">
-                                <f:selectItems value="#{gestionBean.groupesExistants}" var="g" itemLabel="#{g.nom}" itemValue="#{g.id}"/>
-                            </p:selectCheckboxMenu>
-                            <p:commandButton value="Donner l'accès" icon="pi pi-lock-open" action="#{gestionBean.donnerAcces}"
-                                             process="@this accesUsers accesGroupes" update="groupe" styleClass="tb-tonal"/>
-                            <p:commandButton value="Retirer" icon="pi pi-lock" action="#{gestionBean.retirerAcces}"
-                                             process="@this accesUsers accesGroupes" update="groupe" styleClass="ui-button-flat"/>
-                        </div>
-                        <p:commandButton value="Supprimer" icon="pi pi-trash" action="#{gestionBean.supprimerSelection}"
-                                         process="@this" update="table groupe filtres" styleClass="ui-button-flat ui-button-danger">
-                            <p:confirm header="Supprimer" message="Supprimer les #{gestionBean.selection.size()} éléments sélectionnés ? Ce qu'ils contiennent est gardé, sans rattachement."
-                                       icon="pi pi-exclamation-triangle"/>
-                        </p:commandButton>
-                    </ui:fragment>
-                </ui:fragment>
+            <p class="tb-muted tb-gest-astuce">
+                <i class="pi pi-check-square"/> Coche des lignes pour agir sur plusieurs éléments à la fois : les actions
+                apparaissent en bas de l'écran.
+            </p>
+
+            <!-- Actions on the ticked rows: a bar fixed at the bottom of the screen (the page doesn't move),
+                 each action opens its own small window -->
+            <h:panelGroup id="barre" layout="block" styleClass="tb-barre #{empty gestionBean.selection ? '' : 'tb-barre-on'}"
+                          pt:aria-hidden="#{empty gestionBean.selection}">
+                <span class="tb-barre-compte">#{gestionBean.selection.size()} sélectionné(s)</span>
+                <div class="tb-barre-actions">
+                    <p:commandButton value="Consigne" icon="pi pi-sliders-h" type="button" onclick="PF('consigneGroupeDlg').show()"
+                                     styleClass="tb-tonal"/>
+                    <p:commandButton value="Déplacer" icon="pi pi-arrow-right" rendered="#{loginBean.admin}"
+                                     process="@this" update=":deplacerForm" oncomplete="PF('deplacerDlg').show()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Accès" icon="pi pi-key" rendered="#{loginBean.admin}"
+                                     process="@this" update=":accesGroupeForm" oncomplete="PF('accesGroupeDlg').show()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Supprimer" icon="pi pi-trash" rendered="#{loginBean.admin}" action="#{gestionBean.supprimerSelection}"
+                                     process="@this" update="table barre filtres" styleClass="ui-button-flat ui-button-danger">
+                        <p:confirm header="Supprimer" message="Supprimer les #{gestionBean.selection.size()} éléments sélectionnés ? Ce qu'ils contiennent est gardé, sans rattachement."
+                                   icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                </div>
+                <p:commandButton icon="pi pi-times" title="Tout décocher" action="#{gestionBean.toutDecocher}"
+                                 process="@this" update="table barre" styleClass="ui-button-flat tb-barre-fermer"/>
             </h:panelGroup>
 
             <p:dataTable id="table" value="#{gestionBean.visibles}" var="l" rowKey="#{l.id}"
@@ -134,9 +108,9 @@
                          rows="50" paginator="true" paginatorAlwaysVisible="false" paginatorPosition="bottom"
                          emptyMessage="Aucun élément ne correspond" styleClass="tb-table tb-gest-table"
                          rowStyleClass="tb-ton-#{l.etat.ton}">
-                <p:ajax event="rowSelectCheckbox" update=":gestForm:groupe"/>
-                <p:ajax event="rowUnselectCheckbox" update=":gestForm:groupe"/>
-                <p:ajax event="toggleSelect" update=":gestForm:groupe"/>
+                <p:ajax event="rowSelectCheckbox" update=":gestForm:barre"/>
+                <p:ajax event="rowUnselectCheckbox" update=":gestForm:barre"/>
+                <p:ajax event="toggleSelect" update=":gestForm:barre"/>
 
                 <!-- PrimeFaces 14: the checkbox column is selectionBox (selectionMode is on the table) -->
                 <p:column selectionBox="true" styleClass="tb-col-check"/>
@@ -172,14 +146,15 @@
                             #{unite.t(l.consigne)} #{unite.symbole}
                             <h:outputText styleClass="tb-muted" value="héritée de #{l.heriteeDe}" rendered="#{l.heriteeDe ne null}"/>
                         </span>
-                        <span class="tb-gest-consigne-saisie">
+                        <span class="tb-saisie" title="Nouvelle consigne pour #{l.salle.name}">
                             <p:inputNumber id="saisie" value="#{gestionBean.saisies[l.id]}" decimalPlaces="1"
                                            minValue="#{unite.consigneMin}" maxValue="#{unite.consigneMax}"
-                                           decimalSeparator="," thousandSeparator="" symbol=" #{unite.symbole}" symbolPosition="s"
-                                           placeholder="Nouvelle" styleClass="tb-gest-input"/>
+                                           decimalSeparator="," thousandSeparator="" placeholder="Nouvelle"
+                                           styleClass="tb-saisie-champ"/>
+                            <span class="tb-saisie-unite">#{unite.symbole}</span>
                             <p:commandButton icon="pi pi-send" title="Envoyer cette consigne à #{l.salle.name}"
                                              action="#{gestionBean.appliquer(l)}" process="@this saisie"
-                                             update=":gestForm:table :gestForm:filtres" styleClass="ui-button-flat tb-spin-on-busy"/>
+                                             update=":gestForm:table :gestForm:filtres" styleClass="tb-saisie-envoyer tb-spin-on-busy"/>
                         </span>
                     </ui:fragment>
                     <h:outputText styleClass="tb-muted" value="Suit sa salle" rendered="#{l.boitier}"/>
@@ -189,7 +164,7 @@
                     <p:commandButton icon="pi pi-pencil" title="Renommer ou déplacer #{l.salle.name}" action="#{gestionBean.modifier(l)}"
                                      process="@this" update=":gestDlgForm" oncomplete="PF('gestDlg').show()" styleClass="ui-button-flat"/>
                     <p:commandButton icon="pi pi-trash" title="Supprimer #{l.salle.name}" action="#{gestionBean.supprimer(l)}"
-                                     process="@this" update=":gestForm:table :gestForm:groupe :gestForm:filtres"
+                                     process="@this" update=":gestForm:table :gestForm:barre :gestForm:filtres"
                                      styleClass="ui-button-flat ui-button-danger">
                         <p:confirm header="Supprimer" message="Supprimer « #{l.salle.name} » ? Ce qu'il contient est gardé, sans rattachement."
                                    icon="pi pi-exclamation-triangle"/>
@@ -202,6 +177,125 @@
                 <ui:include src="/WEB-INF/includes/gestion-droits.xhtml"/>
             </ui:fragment>
         </h:form>
+
+        <!-- Actions of the bottom bar, each in a small window -->
+        <p:dialog header="Consigne pour la sélection" widgetVar="consigneGroupeDlg" modal="true" resizable="false"
+                  responsive="true" width="400" styleClass="tb-petit-dialogue">
+            <h:form id="consigneGroupeForm">
+                <p class="tb-muted">Les bâtiments, étages et salles sélectionnés la reçoivent ; les boîtiers suivent leur salle.</p>
+                <div class="tb-field">
+                    <p:outputLabel for="consigneGroupe" value="Consigne"/>
+                    <span class="tb-saisie tb-saisie-grande">
+                        <p:inputNumber id="consigneGroupe" value="#{gestionBean.consigneGroupe}" decimalPlaces="1"
+                                       minValue="#{unite.consigneMin}" maxValue="#{unite.consigneMax}"
+                                       decimalSeparator="," thousandSeparator="" required="true" requiredMessage="Indique une consigne"
+                                       styleClass="tb-saisie-champ"/>
+                        <span class="tb-saisie-unite">#{unite.symbole}</span>
+                    </span>
+                    <p:message for="consigneGroupe"/>
+                </div>
+                <div class="tb-switch-row">
+                    <p:toggleSwitch id="forcer" widgetVar="forcerGroupe" value="#{gestionBean.forcer}" styleClass="tb-switch"/>
+                    <span class="tb-switch-text" onclick="PF('forcerGroupe').toggle()">Remplacer aussi les consignes propres des éléments contenus</span>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('consigneGroupeDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Envoyer" icon="pi pi-send" action="#{gestionBean.appliquerSelection}"
+                                     update="@form :gestForm:table :gestForm:barre :gestForm:filtres"
+                                     oncomplete="if (args &amp;&amp; !args.validationFailed) PF('consigneGroupeDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog header="Déplacer la sélection" widgetVar="deplacerDlg" modal="true" resizable="false"
+                  responsive="true" width="440" styleClass="tb-petit-dialogue" rendered="#{loginBean.admin}">
+            <h:form id="deplacerForm">
+                <p class="tb-muted">Seules les destinations possibles pour tous les éléments sélectionnés sont proposées.</p>
+                <div class="tb-field">
+                    <p:outputLabel for="cible" value="Dans"/>
+                    <p:selectOneMenu id="cible" value="#{gestionBean.cibleId}" filter="true" filterMatchMode="contains" styleClass="tb-full">
+                        <f:selectItem itemLabel="Rien (non rattachés)" itemValue="#{null}"/>
+                        <f:selectItems value="#{gestionBean.ciblesPossibles}" var="c" itemLabel="#{gestionBean.libelle(c)}" itemValue="#{c.id}"/>
+                    </p:selectOneMenu>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('deplacerDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Déplacer" icon="pi pi-arrow-right" action="#{gestionBean.deplacerSelection}"
+                                     update="@form :gestForm:table :gestForm:barre :gestForm:filtres" oncomplete="PF('deplacerDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog header="Accès à la sélection" widgetVar="accesGroupeDlg" modal="true" resizable="false"
+                  responsive="true" width="460" styleClass="tb-petit-dialogue" rendered="#{loginBean.admin}">
+            <h:form id="accesGroupeForm">
+                <p class="tb-muted">Les éléments sélectionnés, avec tout ce qu'ils contiennent, pour ces utilisateurs et ces groupes.</p>
+                <div class="tb-field">
+                    <p:outputLabel for="accesUsers" value="Utilisateurs"/>
+                    <p:selectCheckboxMenu id="accesUsers" value="#{gestionBean.accesUsers}" filter="true" filterMatchMode="contains"
+                                          multiple="true" emptyLabel="Aucun" updateLabel="true" styleClass="tb-full">
+                        <f:selectItems value="#{gestionBean.utilisateursLimitables}" var="u" itemLabel="#{u.username}" itemValue="#{u.id}"/>
+                    </p:selectCheckboxMenu>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="accesGroupes" value="Groupes"/>
+                    <p:selectCheckboxMenu id="accesGroupes" value="#{gestionBean.accesGroupes}" multiple="true"
+                                          emptyLabel="Aucun" updateLabel="true" styleClass="tb-full">
+                        <f:selectItems value="#{gestionBean.groupesExistants}" var="g" itemLabel="#{g.nom}" itemValue="#{g.id}"/>
+                    </p:selectCheckboxMenu>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Retirer l'accès" icon="pi pi-lock" action="#{gestionBean.retirerAcces}"
+                                     update="@form" oncomplete="PF('accesGroupeDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Donner l'accès" icon="pi pi-lock-open" action="#{gestionBean.donnerAcces}"
+                                     update="@form" oncomplete="PF('accesGroupeDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- Bottom bar of the users tab: role, group -->
+        <p:dialog header="Rôle des utilisateurs sélectionnés" widgetVar="roleDlg" modal="true" resizable="false"
+                  responsive="true" width="400" styleClass="tb-petit-dialogue" rendered="#{loginBean.admin}">
+            <h:form id="roleForm">
+                <p class="tb-muted">Votre propre compte reste administrateur.</p>
+                <div class="tb-field">
+                    <p:outputLabel for="roleGroupe" value="Rôle"/>
+                    <p:selectOneMenu id="roleGroupe" value="#{droitsBean.roleGroupe}" required="true" requiredMessage="Choisis un rôle" styleClass="tb-full">
+                        <f:selectItem itemLabel="Choisir…" itemValue="#{null}" noSelectionOption="true"/>
+                        <f:selectItems value="#{droitsBean.roles}" var="r" itemLabel="#{r}" itemValue="#{r}"/>
+                    </p:selectOneMenu>
+                    <p:message for="roleGroupe"/>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('roleDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Appliquer" icon="pi pi-check" action="#{droitsBean.appliquerRoleSelection}"
+                                     update="@form :gestForm:users :gestForm:barreUsers :gestForm:groupes"
+                                     oncomplete="if (args &amp;&amp; !args.validationFailed) PF('roleDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog header="Groupe des utilisateurs sélectionnés" widgetVar="membresDlg" modal="true" resizable="false"
+                  responsive="true" width="420" styleClass="tb-petit-dialogue" rendered="#{loginBean.admin}">
+            <h:form id="membresForm">
+                <div class="tb-field">
+                    <p:outputLabel for="groupeCible" value="Groupe"/>
+                    <p:selectOneMenu id="groupeCible" value="#{droitsBean.groupeCibleId}" required="true" requiredMessage="Choisis un groupe" styleClass="tb-full">
+                        <f:selectItem itemLabel="Choisir…" itemValue="#{null}" noSelectionOption="true"/>
+                        <f:selectItems value="#{droitsBean.groupes}" var="g" itemLabel="#{g.groupe.nom}" itemValue="#{g.id}"/>
+                    </p:selectOneMenu>
+                    <p:message for="groupeCible"/>
+                </div>
+                <div class="tb-actions">
+                    <p:commandButton value="Retirer du groupe" icon="pi pi-user-minus" action="#{droitsBean.retirerDuGroupe}"
+                                     update="@form :gestForm:users :gestForm:groupes"
+                                     oncomplete="if (args &amp;&amp; !args.validationFailed) PF('membresDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Ajouter au groupe" icon="pi pi-user-plus" action="#{droitsBean.ajouterAuGroupe}"
+                                     update="@form :gestForm:users :gestForm:groupes"
+                                     oncomplete="if (args &amp;&amp; !args.validationFailed) PF('membresDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
 
         <!-- Group of users (ADMIN): name, members, elements it gives access to -->
         <p:dialog header="#{droitsBean.editionId eq null ? 'Nouveau groupe' : 'Modifier le groupe'}" widgetVar="groupeDlg" modal="true"

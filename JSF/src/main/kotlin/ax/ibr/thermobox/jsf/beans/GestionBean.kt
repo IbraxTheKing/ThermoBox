@@ -189,6 +189,11 @@ class GestionBean : Serializable {
         return refusees.isEmpty()
     }
 
+    /** × of the bottom bar. */
+    fun toutDecocher() {
+        selection = emptyList()
+    }
+
     fun ouvrirOnglet(o: String) {
         onglet = if (o == "droits" && login.isAdmin) "droits" else "salles"
     }

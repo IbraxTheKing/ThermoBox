@@ -27,50 +27,37 @@
             </span>
         </div>
 
-        <!-- Actions on the ticked users -->
-        <h:panelGroup id="groupeUsers" layout="block" styleClass="tb-gest-groupe #{empty droitsBean.selection ? '' : 'tb-gest-groupe-on'}">
-            <span class="tb-gest-compte">
-                <i class="pi pi-check-square"/>
-                #{empty droitsBean.selection ? 'Coche des utilisateurs pour changer leur rôle, leurs accès ou leurs groupes' : droitsBean.selection.size().toString().concat(' utilisateur(s) sélectionné(s)')}
-            </span>
-            <ui:fragment rendered="#{not empty droitsBean.selection}">
-                <div class="tb-gest-action">
-                    <p:selectOneMenu id="roleGroupe" value="#{droitsBean.roleGroupe}" styleClass="tb-filter tb-gest-cible">
-                        <f:selectItem itemLabel="Rôle…" itemValue="#{null}" noSelectionOption="true"/>
-                        <f:selectItems value="#{droitsBean.roles}" var="r" itemLabel="#{r}" itemValue="#{r}"/>
-                    </p:selectOneMenu>
-                    <p:commandButton value="Appliquer" icon="pi pi-check" action="#{droitsBean.appliquerRoleSelection}"
-                                     process="@this roleGroupe" update="users groupeUsers groupes" styleClass="tb-tonal"/>
-                </div>
-                <div class="tb-gest-action">
-                    <p:commandButton value="Tout voir" icon="pi pi-eye" action="#{droitsBean.accesSelection(true)}"
-                                     process="@this" update="users groupeUsers" styleClass="ui-button-flat"
-                                     title="Ils voient tout ThermoBox"/>
-                    <p:commandButton value="Limiter" icon="pi pi-lock" action="#{droitsBean.accesSelection(false)}"
-                                     process="@this" update="users groupeUsers" styleClass="ui-button-flat"
-                                     title="Ils ne voient que leurs accès et ceux de leurs groupes"/>
-                </div>
-                <div class="tb-gest-action">
-                    <p:selectOneMenu id="groupeCible" value="#{droitsBean.groupeCibleId}" styleClass="tb-filter tb-gest-cible">
-                        <f:selectItem itemLabel="Groupe…" itemValue="#{null}" noSelectionOption="true"/>
-                        <f:selectItems value="#{droitsBean.groupes}" var="g" itemLabel="#{g.groupe.nom}" itemValue="#{g.id}"/>
-                    </p:selectOneMenu>
-                    <p:commandButton value="Ajouter" icon="pi pi-user-plus" action="#{droitsBean.ajouterAuGroupe}"
-                                     process="@this groupeCible" update="users groupeUsers groupes" styleClass="tb-tonal"/>
-                    <p:commandButton value="Retirer" icon="pi pi-user-minus" action="#{droitsBean.retirerDuGroupe}"
-                                     process="@this groupeCible" update="users groupeUsers groupes" styleClass="ui-button-flat"/>
-                </div>
-                <p:commandButton value="Nouveau groupe avec eux" icon="pi pi-users" action="#{droitsBean.nouveauGroupe}"
+        <p class="tb-muted tb-gest-astuce">
+            <i class="pi pi-check-square"/> Coche des utilisateurs pour changer leur rôle, leurs accès ou leurs groupes :
+            les actions apparaissent en bas de l'écran.
+        </p>
+
+        <!-- Actions on the ticked users: fixed at the bottom of the screen, nothing moves -->
+        <h:panelGroup id="barreUsers" layout="block" styleClass="tb-barre #{empty droitsBean.selection ? '' : 'tb-barre-on'}"
+                      pt:aria-hidden="#{empty droitsBean.selection}">
+            <span class="tb-barre-compte">#{droitsBean.selection.size()} utilisateur(s)</span>
+            <div class="tb-barre-actions">
+                <p:commandButton value="Rôle" icon="pi pi-id-card" type="button" onclick="PF('roleDlg').show()" styleClass="tb-tonal"/>
+                <p:commandButton value="Tout voir" icon="pi pi-eye" action="#{droitsBean.accesSelection(true)}"
+                                 process="@this" update="users barreUsers" styleClass="ui-button-flat"
+                                 title="Ils voient tout ThermoBox"/>
+                <p:commandButton value="Limiter" icon="pi pi-lock" action="#{droitsBean.accesSelection(false)}"
+                                 process="@this" update="users barreUsers" styleClass="ui-button-flat"
+                                 title="Ils ne voient que leurs accès et ceux de leurs groupes"/>
+                <p:commandButton value="Groupe" icon="pi pi-users" type="button" onclick="PF('membresDlg').show()" styleClass="ui-button-flat"/>
+                <p:commandButton value="Nouveau groupe avec eux" icon="pi pi-plus" action="#{droitsBean.nouveauGroupe}"
                                  process="@this" update=":groupeDlgForm" oncomplete="PF('groupeDlg').show()" styleClass="ui-button-flat"/>
-            </ui:fragment>
+            </div>
+            <p:commandButton icon="pi pi-times" title="Tout décocher" action="#{droitsBean.toutDecocher}"
+                             process="@this" update="users barreUsers" styleClass="ui-button-flat tb-barre-fermer"/>
         </h:panelGroup>
 
         <p:dataTable id="users" value="#{droitsBean.visibles}" var="l" rowKey="#{l.id}"
                      selection="#{droitsBean.selection}" selectionMode="multiple" selectionRowMode="none"
                      emptyMessage="Aucun utilisateur ne correspond" styleClass="tb-table tb-gest-table tb-droits-table">
-            <p:ajax event="rowSelectCheckbox" update=":gestForm:groupeUsers"/>
-            <p:ajax event="rowUnselectCheckbox" update=":gestForm:groupeUsers"/>
-            <p:ajax event="toggleSelect" update=":gestForm:groupeUsers"/>
+            <p:ajax event="rowSelectCheckbox" update=":gestForm:barreUsers"/>
+            <p:ajax event="rowUnselectCheckbox" update=":gestForm:barreUsers"/>
+            <p:ajax event="toggleSelect" update=":gestForm:barreUsers"/>
 
             <p:column selectionBox="true" styleClass="tb-col-check"/>
 

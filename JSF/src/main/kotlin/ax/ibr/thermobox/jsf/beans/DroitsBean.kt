@@ -111,6 +111,11 @@ class DroitsBean : Serializable {
 
     fun estMoi(u: User): Boolean = login.isOwner(u)
 
+    /** × of the bottom bar. */
+    fun toutDecocher() {
+        selection = emptyList()
+    }
+
     // ---------------------------------------------------------------- one user
 
     /** Role chosen in the row's list. */
