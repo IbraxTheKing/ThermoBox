@@ -6,11 +6,7 @@
 
     <display-name>Thermobox</display-name>
 
-    <!-- Passer à Production en prod -->
-    <context-param>
-        <param-name>jakarta.faces.PROJECT_STAGE</param-name>
-        <param-value>Development</param-value>
-    </context-param>
+    <!-- jakarta.faces.PROJECT_STAGE comes from THERMOBOX_STAGE (Production by default), see ConfigJsf -->
     <!-- Server-side view state: the ViewState field then acts as an anti-CSRF token for every
          postback (with the SameSite=Strict JWT cookie, see AuthCookie). Keep it on "server". -->
     <context-param>
