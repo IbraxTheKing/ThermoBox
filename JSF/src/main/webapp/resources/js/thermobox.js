@@ -473,7 +473,7 @@ var tbSections = (function () {
             button.setAttribute('aria-expanded', String(!fold));
             save(replies().filter(function (k) { return k && k !== key; }).concat(fold ? [key] : []));
             clearTimeout(section.tbTimer);
-            section.tbTimer = setTimeout(function () { section.classList.remove('tb-section-anim'); }, 400);
+            section.tbTimer = setTimeout(function () { section.classList.remove('tb-section-anim'); }, 700);
         }
     };
 })();
@@ -693,7 +693,7 @@ var tbVie = (function () {
     function defiler(el, depuis, duree) {
         var noeud = texteNombre(el);
         var cible = noeud && lire(noeud.nodeValue);
-        if (!cible || depuis === cible.valeur || calme()) return;
+        if (!cible || depuis === cible.valeur || calme() || sansDefilement) return;
         var debut = performance.now();
         var ecrire = function (v) {
             noeud.nodeValue = cible.avant + v.toLocaleString('fr-FR', { minimumFractionDigits: cible.decimales, maximumFractionDigits: cible.decimales }) + cible.apres;
@@ -706,9 +706,11 @@ var tbVie = (function () {
         })(debut);
     }
 
+    // Not on the dashboard nor on a salle: their numbers are the main reading, they stay still
+    var sansDefilement = /\/app\/(dashboard|salle)\.xhtml$/.test(location.pathname);
+
     function arrivee() {
-        // Back from a salle, the card's number morphs in: don't roll it as well
-        if (root.classList.contains('tb-carte')) return;
+        if (sansDefilement || root.classList.contains('tb-carte')) return;
         document.querySelectorAll(NOMBRES).forEach(function (el, i) {
             var noeud = texteNombre(el), v = noeud && lire(noeud.nodeValue);
             if (!v) return;
@@ -754,8 +756,6 @@ var tbVie = (function () {
             var x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
             carte.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
             carte.style.setProperty('--my', (y * 100).toFixed(1) + '%');
-            carte.style.setProperty('--ry', ((x - .5) * 5).toFixed(2) + 'deg');
-            carte.style.setProperty('--rx', ((.5 - y) * 4).toFixed(2) + 'deg');
             carte.classList.add('tb-suivi');
         }, { passive: true });
         // Opening a salle: the card morphs into the page, it must leave straight
@@ -831,6 +831,52 @@ var tbVie = (function () {
     });
 
     return { defiler: defiler, lire: lire, texteNombre: texteNombre };
+})();
+
+/*
+ * <details> (raw history, release notes…): opens and closes by sliding, at the pace of the
+ * dashboard sections, instead of jumping.
+ */
+var tbPlis = (function () {
+    var DUREE = 600, COURBE = 'cubic-bezier(.2,.8,.2,1)';
+
+    function animer(details, ouvrir) {
+        var resume = details.querySelector(':scope > summary');
+        var ferme = resume.offsetHeight + parseFloat(getComputedStyle(details).paddingTop) + parseFloat(getComputedStyle(details).paddingBottom)
+            + parseFloat(getComputedStyle(details).borderTopWidth) + parseFloat(getComputedStyle(details).borderBottomWidth);
+        if (details.tbAnim) details.tbAnim.cancel();
+        if (ouvrir) details.open = true;
+        var plein = details.offsetHeight;
+        details.style.overflow = 'hidden';
+        var a = details.animate([{ height: (ouvrir ? ferme : plein) + 'px' }, { height: (ouvrir ? plein : ferme) + 'px' }],
+            { duration: DUREE, easing: COURBE });
+        details.tbAnim = a;
+        // The content fades in after the panel starts to open
+        Array.prototype.forEach.call(details.children, function (el) {
+            if (el === resume) return;
+            el.animate(ouvrir ? [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }]
+                : [{ opacity: 1 }, { opacity: 0 }], { duration: ouvrir ? DUREE : DUREE / 2, delay: ouvrir ? 120 : 0, easing: COURBE, fill: 'both' })
+                .finished.then(function (x) { x.cancel(); }, function () {});
+        });
+        a.finished.then(function () {
+            if (!ouvrir) details.open = false;
+            details.style.overflow = '';
+            details.tbAnim = null;
+        }, function () { /* cancelled by the next click */ });
+    }
+
+    document.addEventListener('click', function (e) {
+        var resume = e.target.closest && e.target.closest('details > summary');
+        if (!resume || tbAnim.reduced) return;
+        var details = resume.parentElement;
+        e.preventDefault();
+        // State asked by the last click (a click during the animation reverses it)
+        var ouvrir = !(details.tbOuvert === undefined ? details.open : details.tbOuvert);
+        details.tbOuvert = ouvrir;
+        animer(details, ouvrir);
+    });
+
+    return { animer: animer };
 })();
 
 /* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */

@@ -115,6 +115,8 @@
     --tb-spring: cubic-bezier(.3, 1.3, .5, 1);
     --tb-fast: .18s;
     --tb-medium: .35s;
+    /* Folding a section or a "details": slow enough to follow what moves */
+    --tb-fold: .6s;
 
     --tb-rail: 92px;
 }
@@ -217,6 +219,8 @@ html { -webkit-text-size-adjust: 100%; }
     background-color: var(--md-surface);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
+    /* Nothing (hover effect, animation) may make the whole page scroll sideways */
+    overflow-x: clip;
 }
 
 /* PrimeFaces widgets inherit the app font */
@@ -504,13 +508,13 @@ a:hover > .tb-logo { transform: rotate(-6deg) scale(1.05); }
 .tb-section-body {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows var(--tb-medium) var(--tb-ease);
+    transition: grid-template-rows var(--tb-fold) var(--tb-ease);
 }
 .tb-section-body > * { min-height: 0; }
 .tb-collapsed .tb-section-body { grid-template-rows: 0fr; }
 /* Hidden (and out of the tab order) once folded; clipped only while it moves, for the hover shadows */
 .tb-collapsed .tb-section-body > *, .tb-section-anim .tb-section-body > * { overflow: hidden; }
-.tb-collapsed .tb-section-body > * { visibility: hidden; transition: visibility 0s var(--tb-medium); }
+.tb-collapsed .tb-section-body > * { visibility: hidden; transition: visibility 0s var(--tb-fold); }
 .tb-collapsed .tb-section-title { margin-bottom: 0; }
 .tb-section-title { transition: margin-bottom var(--tb-medium) var(--tb-ease); }
 .tb-subtitle { margin: 28px 0 12px; font-size: 1.05rem; font-weight: 700; }
@@ -2581,7 +2585,8 @@ html { background-color: var(--md-surface); }
     .tb-entering .tb-cible-barre > span { animation: tb-grow 1s var(--tb-ease) both; animation-delay: calc(.4s + var(--i, 0) * 40ms); }
     @keyframes tb-grow { from { transform: scaleX(0); } }
 
-    /* Cards follow the pointer: light under it, slight tilt (tbVie, mouse only) */
+    /* Cards follow the pointer: a light under it (tbVie, mouse only). No tilt: a 3D transform made the
+       page scroll sideways and hid the blurred favourite button. */
     .tb-room, .tb-box, .tb-stat, .tb-maj-version-card { --mx: 50%; --my: 0%; }
     :is(.tb-room, .tb-box, .tb-stat, .tb-maj-version-card)::after {
         content: "";
@@ -2596,10 +2601,6 @@ html { background-color: var(--md-surface); }
     }
     :is(.tb-room, .tb-box, .tb-stat, .tb-maj-version-card).tb-suivi::after { opacity: 1; }
     .tb-box, .tb-stat, .tb-maj-version-card { position: relative; isolation: isolate; }
-    .tb-room.tb-suivi, .tb-box.tb-suivi {
-        transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
-        transition: transform .15s ease-out, box-shadow var(--tb-fast) linear, border-color var(--tb-fast) linear;
-    }
 
     /* Ripple where a button is pressed (tbVie) */
     .tb-ripple-cadre { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 0; }
@@ -2652,8 +2653,9 @@ html { background-color: var(--md-surface); }
     .tb-auth .tb-logo-xl { animation: tb-flotte 5s ease-in-out infinite; }
 
     /* Collapsing sections: content fades with the fold */
-    .tb-section-body { transition: grid-template-rows var(--tb-medium) var(--tb-ease), opacity .3s ease; }
-    .tb-collapsed .tb-section-body { opacity: 0; }
+    .tb-section-body { transition: grid-template-rows var(--tb-fold) var(--tb-ease), opacity .45s ease .1s; }
+    .tb-collapsed .tb-section-body { opacity: 0; transition: grid-template-rows var(--tb-fold) var(--tb-ease), opacity .3s ease; }
+    .tb-section-chevron { transition: transform var(--tb-fold) var(--tb-ease), background-color .2s; }
 
     /* Table rows: a line slides a little under the pointer */
     :root body .tb-table tbody tr { transition: background-color .2s, transform .25s var(--tb-ease); }
