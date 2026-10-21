@@ -229,9 +229,17 @@ var tbAnim = (function () {
         else fn();
     }
 
+    // Animations off (Préférences or system): no transition between pages at all, neither when
+    // leaving this page nor when arriving on the next one (the CSS @view-transition can't depend
+    // on a setting, so the transition is skipped from here).
+    window.addEventListener('pageswap', function (e) {
+        if (e.viewTransition && tbAnim.reduced) e.viewTransition.skipTransition();
+    });
+
     // Fired before the first paint, only by browsers with transitions between pages: Firefox
     // (no card morph) keeps the entrance.
     window.addEventListener('pagereveal', function (e) {
+        if (e.viewTransition && tbAnim.reduced) e.viewTransition.skipTransition();
         if (e.viewTransition) {
             root.classList.add('tb-vt-in');
             if (carte) {
@@ -534,66 +542,6 @@ var tbPrefs = (function () {
         signalerSysteme: function (id) {
             var note = document.getElementById(id);
             if (note && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) note.hidden = false;
-        }
-    };
-})();
-
-/*
- * Températures page: the chart of every salle. A colour of the table hides or shows its curve,
- * hovering a row brings its curve forward, and the points can be saved as a CSV file.
- */
-var tbComparaison = (function () {
-    function graphique() {
-        var canvas = document.querySelector('.tb-compare-card canvas');
-        return canvas && window.Chart && Chart.getChart ? Chart.getChart(canvas) : null;
-    }
-
-    // "#2160cc" → "#2160cc33": the other curves fade behind the one pointed at
-    function attenuer(couleur) {
-        return /^#[0-9a-f]{6}$/i.test(couleur) ? couleur + '30' : couleur;
-    }
-
-    return {
-        basculer: function (bouton, i) {
-            var g = graphique();
-            if (!g) return;
-            var visible = !g.isDatasetVisible(i);
-            g.setDatasetVisibility(i, visible);
-            g.update();
-            bouton.classList.toggle('tb-off', !visible);
-            bouton.setAttribute('aria-pressed', String(visible));
-        },
-        /** [i] in front, the others faded; -1: all back to normal. */
-        surligner: function (i) {
-            var g = graphique();
-            if (!g) return;
-            g.data.datasets.forEach(function (ds, j) {
-                ds.tbOrigine = ds.tbOrigine || ds.borderColor;
-                var couleur = i < 0 || i === j ? ds.tbOrigine : attenuer(ds.tbOrigine);
-                ds.borderColor = ds.pointBackgroundColor = couleur;
-                ds.borderWidth = i === j ? 4 : undefined;
-            });
-            g.update(tbAnim.reduced ? 'none' : undefined);
-        },
-        /** Points of the chart: one line per moment, one column per curve (French spreadsheet format). */
-        exporter: function () {
-            var g = graphique();
-            if (!g) return;
-            var unite = document.documentElement.getAttribute('data-unite') || '°C';
-            var cellule = function (t) { return '"' + String(t).replace(/"/g, '""') + '"'; };
-            var lignes = [['Moment'].concat(g.data.datasets.map(function (ds) { return ds.label + ' (' + unite + ')'; })).map(cellule).join(';')];
-            g.data.labels.forEach(function (label, k) {
-                lignes.push([cellule(label)].concat(g.data.datasets.map(function (ds) {
-                    var v = ds.data[k];
-                    return v === null || v === undefined ? '' : String(v).replace('.', ',');
-                })).join(';'));
-            });
-            var lien = document.createElement('a');
-            lien.href = URL.createObjectURL(new Blob(['\ufeff' + lignes.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
-            lien.download = 'thermobox-temperatures.csv';
-            document.body.appendChild(lien);
-            lien.click();
-            setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
         }
     };
 })();
