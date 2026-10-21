@@ -200,8 +200,9 @@ class UpdateServiceImpl(
                     "${installee?.let { "${it.serie}.x" } ?: "la version actuelle"} n'est pas garanti : il peut être impossible " +
                     "sans restaurer la sauvegarde de la base faite avant l'installation.")
             controles += Controle(NiveauControle.INFO, "Schéma de la base",
-                "Au démarrage, ThermoBox crée les tables manquantes mais ne modifie pas les tables existantes : " +
-                    "une colonne ajoutée ou renommée demande une migration, décrite dans les notes de version.")
+                "Au premier démarrage de $v, ses migrations de schéma s'appliquent automatiquement (Flyway). " +
+                    "Revenir ensuite à une version plus ancienne reste possible tant que ces migrations n'ont fait " +
+                    "qu'ajouter des tables ou des colonnes ; sinon, restaurez la sauvegarde.")
         }
         if (installee == null) {
             controles += Controle(NiveauControle.AVERTISSEMENT, "Version installée inconnue",

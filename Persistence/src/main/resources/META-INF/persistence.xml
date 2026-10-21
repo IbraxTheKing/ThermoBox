@@ -35,8 +35,9 @@
 
             <!-- URL, user and password come from environment variables (see PersistenceFactory). -->
 
+            <!-- The schema belongs to the Flyway migrations (db/migration, see MigrationsBase). -->
             <property name="jakarta.persistence.schema-generation.database.action"
-                      value="create"/>
+                      value="none"/>
 
         </properties>
 
