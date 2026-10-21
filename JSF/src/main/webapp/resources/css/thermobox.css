@@ -2827,6 +2827,34 @@ html { background-color: var(--md-surface); }
 .tb-pref-admin { margin-top: 16px; }
 .tb-pref-portee .pi { font-size: .8rem; margin-right: 4px; }
 
+/* Keyboard shortcuts: list (Préférences, "?" panel) */
+kbd {
+    display: inline-block; min-width: 1.8em; padding: 2px 7px; border-radius: 6px;
+    border: 1px solid var(--md-outline-variant); border-bottom-width: 2px;
+    background: var(--tb-field); color: var(--md-on-surface);
+    font: 700 .78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; text-align: center;
+}
+.tb-raccourcis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 8px 28px; margin-top: 8px; }
+.tb-raccourcis-groupe h3 { margin: 10px 0 6px; font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--md-on-surface-variant); }
+.tb-raccourcis-groupe dl { margin: 0; }
+.tb-raccourci { display: grid; grid-template-columns: minmax(4.5rem, max-content) 1fr; align-items: baseline; gap: 12px; padding: 6px 0; border-top: 1px solid var(--md-outline-variant); }
+.tb-raccourci dt { white-space: nowrap; }
+.tb-raccourci dd { margin: 0; font-size: .9rem; }
+/* "?" panel, over the page */
+.tb-aide-clavier {
+    position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 16px;
+    background: var(--md-scrim); animation: tb-fade-in .2s ease;
+}
+.tb-aide-boite {
+    width: min(760px, 100%); max-height: min(80vh, 640px); overflow: auto; padding: 20px 24px;
+    border: 1px solid var(--tb-glass-line); border-radius: var(--tb-shape-xl);
+    background: var(--tb-glass-solid); box-shadow: var(--tb-glass-shadow-hover);
+    animation: tb-dialog-in .3s var(--tb-ease);
+}
+.tb-aide-tete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; font-size: 1.1rem; }
+/* Phones and tablets: no keyboard, no list */
+@media (hover: none) and (pointer: coarse) { .tb-pref-clavier { display: none; } }
+
 /* Shell: settings button next to the theme toggle */
 .tb-prefs-btn { text-decoration: none; }
 .tb-prefs-btn.tb-prefs-on { background: var(--md-secondary-container); color: var(--md-on-surface); }

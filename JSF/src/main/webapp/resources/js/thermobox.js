@@ -898,6 +898,164 @@ var tbArbre = (function () {
     return {};
 })();
 
+/*
+ * Keyboard shortcuts. Never while typing in a field, nor with Ctrl / Alt / Cmd (the browser's
+ * own shortcuts stay). The list below is the only one: the "?" panel and the Préférences page are
+ * built from it. Turned off from the Préférences page (cookie thermobox-clavier=off).
+ */
+var tbClavier = (function () {
+    var root = document.documentElement;
+    var COOKIE = 'thermobox-clavier';
+
+    function actif() {
+        return !/(?:^|;\s*)thermobox-clavier=off/.test(document.cookie);
+    }
+
+    function page(nom) {
+        return new RegExp('/app/' + nom + '\\.xhtml$|/admin/' + nom + '\\.xhtml$').test(location.pathname);
+    }
+
+    function cliquer(sel) {
+        var el = document.querySelector(sel);
+        if (!el || el.disabled || el.classList.contains('ui-state-disabled')) return false;
+        el.click();
+        return true;
+    }
+
+    // Destination n of the navigation, as shown (Aperçu, Salles, Mesures, Gérer, Utilisateurs…)
+    function destination(n) {
+        var liens = document.querySelectorAll('.tb-rail .tb-dests a.tb-dest');
+        if (!liens[n - 1]) return false;
+        liens[n - 1].click();
+        return true;
+    }
+
+    function allerA(chemin) {
+        location.href = (root.getAttribute('data-ctx') || '/') + chemin;
+        return true;
+    }
+
+    var RACCOURCIS = [
+        { groupe: 'Partout', touches: ['1', '…', '6'], texte: 'Ouvrir la 1ʳᵉ à la 6ᵉ entrée du menu (Aperçu, Salles, Mesures…)',
+          cle: /^[1-6]$/, agir: function (e) { return destination(+e.key); } },
+        { groupe: 'Partout', touches: ['/'], texte: 'Aller au champ de recherche de la page',
+          cle: '/', agir: function () {
+              var champ = document.querySelector('.tb-search input, input[type=search]');
+              if (!champ) return false;
+              champ.focus();
+              champ.select();
+              return true;
+          } },
+        { groupe: 'Partout', touches: ['R'], texte: 'Actualiser les données de la page',
+          cle: 'r', agir: function () { return cliquer('.tb-page-head .ui-button[title="Actualiser"]'); } },
+        { groupe: 'Partout', touches: ['N'], texte: 'Action principale de la page (nouvel élément, nouvel utilisateur…)',
+          cle: 'n', agir: function () { return cliquer('.tb-page-head .tb-fab'); } },
+        { groupe: 'Partout', touches: ['T'], texte: 'Passer du thème clair au thème sombre',
+          cle: 't', agir: function () { return cliquer('.tb-theme-btn'); } },
+        { groupe: 'Partout', touches: ['P'], texte: 'Ouvrir les Préférences',
+          cle: 'p', agir: function () { return page('preferences') || allerA('app/preferences.xhtml'); } },
+        { groupe: 'Partout', touches: ['?'], texte: 'Afficher ou cacher cette liste',
+          cle: '?', agir: function () { basculerAide(); return true; } },
+        { groupe: 'Partout', touches: ['Échap'], texte: 'Fermer cette liste', cle: null },
+        { groupe: 'Page d\'une salle', touches: ['Espace'], texte: 'Revenir à l\'aperçu',
+          cle: ' ', si: function () { return page('salle'); },
+          agir: function () {
+              // Same way back as the arrow: from the dashboard, the card returns to its place
+              try {
+                  var ref = new URL(document.referrer);
+                  if (ref.origin === location.origin && /\/app\/dashboard\.xhtml$/.test(ref.pathname)) { history.back(); return true; }
+              } catch (err) { /* no referrer */ }
+              return cliquer('a.tb-back, .tb-back a') || allerA('app/dashboard.xhtml');
+          } },
+        { groupe: 'Page d\'une salle', touches: ['Retour arrière'], texte: 'Revenir à l\'aperçu (comme Espace)',
+          cle: 'Backspace', si: function () { return page('salle'); },
+          agir: function () { return cliquer('a.tb-back, .tb-back a') || allerA('app/dashboard.xhtml'); } },
+        { groupe: 'Page d\'une salle', touches: ['F'], texte: 'Ajouter aux favoris ou en retirer',
+          cle: 'f', si: function () { return page('salle'); }, agir: function () { return cliquer('.tb-page-head .tb-fav'); } },
+        { groupe: 'Aperçu', touches: ['F'], texte: 'Replier ou déplier toutes les sections sauf les favoris',
+          cle: 'f', si: function () { return page('dashboard'); },
+          agir: function () {
+              var sections = document.querySelectorAll('.tb-section[data-section]:not([data-section="favoris"]) .tb-section-toggle');
+              if (!sections.length) return false;
+              sections.forEach(function (b) { b.click(); });
+              return true;
+          } }
+    ];
+
+    function correspond(r, e) {
+        if (!r.cle || (r.si && !r.si())) return false;
+        return r.cle instanceof RegExp ? r.cle.test(e.key) : r.cle === e.key.toLowerCase() || r.cle === e.key;
+    }
+
+    function enSaisie(el) {
+        return el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)
+            || (el.closest && el.closest('.ui-selectonemenu-panel, .ui-selectcheckboxmenu-panel, .ui-datepicker')));
+    }
+
+    // ---- "?" panel
+    var aide = null;
+    function tableau() {
+        var groupes = {};
+        RACCOURCIS.forEach(function (r) { (groupes[r.groupe] = groupes[r.groupe] || []).push(r); });
+        return Object.keys(groupes).map(function (g) {
+            return '<section class="tb-raccourcis-groupe"><h3>' + g + '</h3><dl>' + groupes[g].map(function (r) {
+                return '<div class="tb-raccourci"><dt>' + r.touches.map(function (t) { return t === '…' ? '…' : '<kbd>' + t + '</kbd>'; }).join(' ')
+                    + '</dt><dd>' + r.texte + '</dd></div>';
+            }).join('') + '</dl></section>';
+        }).join('');
+    }
+
+    function basculerAide() {
+        if (aide) { fermerAide(); return; }
+        aide = document.createElement('div');
+        aide.className = 'tb-aide-clavier';
+        aide.setAttribute('role', 'dialog');
+        aide.setAttribute('aria-label', 'Raccourcis clavier');
+        aide.innerHTML = '<div class="tb-aide-boite"><div class="tb-aide-tete"><strong>Raccourcis clavier</strong>'
+            + '<button type="button" class="tb-icon-btn" aria-label="Fermer"><i class="pi pi-times"></i></button></div>'
+            + '<div class="tb-raccourcis">' + tableau() + '</div></div>';
+        aide.addEventListener('click', function (e) {
+            if (e.target === aide || (e.target.closest && e.target.closest('.tb-aide-tete button'))) fermerAide();
+        });
+        document.body.appendChild(aide);
+        aide.querySelector('button').focus();
+    }
+
+    function fermerAide() {
+        if (!aide) return;
+        aide.remove();
+        aide = null;
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && aide) { fermerAide(); e.preventDefault(); return; }
+        if (!actif() || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || enSaisie(e.target)) return;
+        // A dialog of the page is open: only "?" and Échap
+        var dialogue = document.querySelector('.ui-dialog[aria-hidden="false"], .ui-dialog.ui-overlay-visible');
+        // A focused button or link keeps Space / Enter for itself
+        if (e.key === ' ' && e.target.closest && e.target.closest('a, button, .ui-button, [role=button], [tabindex]:not(body)')) return;
+        for (var i = 0; i < RACCOURCIS.length; i++) {
+            var r = RACCOURCIS[i];
+            if (!correspond(r, e) || (dialogue && r.cle !== '?')) continue;
+            if (r.agir(e)) e.preventDefault();
+            return;
+        }
+    });
+
+    return {
+        /** Préférences page: the list in [id]. */
+        lister: function (id) {
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = tableau();
+        },
+        activer: function (on) {
+            document.cookie = COOKIE + '=' + (on ? '' : 'off') + '; path=' + (root.getAttribute('data-ctx') || '/')
+                + '; max-age=' + (on ? 0 : 31536000) + '; SameSite=Lax';
+        },
+        actif: actif
+    };
+})();
+
 /* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */
 var tbRail = (function () {
     function fermer() {

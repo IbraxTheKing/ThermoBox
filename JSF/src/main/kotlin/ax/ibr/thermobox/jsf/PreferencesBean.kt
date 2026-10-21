@@ -37,6 +37,9 @@ class PreferencesBean {
      */
     val teinte: Boolean by lazy { cookie(TEINTE_COOKIE) != "off" }
 
+    /** Keyboard shortcuts (tbClavier), on unless turned off (cookie thermobox-clavier). */
+    val clavier: Boolean by lazy { cookie("thermobox-clavier") != "off" }
+
     /** Look of the pages for everyone, chosen by an ADMIN: "verre" or "panneau" (layout.xhtml: data-style). */
     val style: String get() = ReglagesSite.style.code
 

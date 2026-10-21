@@ -70,6 +70,27 @@
                     <p class="tb-muted tb-pref-portee">Enregistré dans ce navigateur uniquement.</p>
                 </p:card>
 
+                <!-- Keyboard shortcuts: the list comes from tbClavier (thermobox.js), the only place they are defined -->
+                <p:card styleClass="tb-pref-admin tb-pref-clavier">
+                    <div class="tb-prefs">
+                        <div class="tb-pref">
+                            <span class="tb-section-icon"><i class="pi pi-desktop"/></span>
+                            <div class="tb-pref-text">
+                                <strong>Raccourcis clavier</strong>
+                                <span class="tb-muted">
+                                    Sur ordinateur : naviguer, chercher, revenir à l'aperçu… sans la souris.
+                                    <kbd>?</kbd> affiche cette liste depuis n'importe quelle page.
+                                </span>
+                            </div>
+                            <p:toggleSwitch id="clavier" widgetVar="clavierSwitch" value="#{preferencesBean.clavier}"
+                                            onchange="tbClavier.activer(PF('clavierSwitch').input.prop('checked'))"
+                                            styleClass="tb-switch"/>
+                        </div>
+                    </div>
+                    <div id="tbRaccourcis" class="tb-raccourcis"></div>
+                    <script>tbClavier.lister('tbRaccourcis');</script>
+                </p:card>
+
                 <!-- Every user's look, chosen by an ADMIN (ReglagesSite, data folder) -->
                 <p:card rendered="#{loginBean.admin}" styleClass="tb-pref-admin">
                     <div class="tb-prefs">
