@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.jsf.Services
+import ax.ibr.thermobox.jsf.util.Unite
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.basculerFavori as basculerFavoriEnBase
 import ax.ibr.thermobox.jsf.favorisDe
@@ -73,7 +74,7 @@ data class SalleResume(
 
     /** Écart à la consigne, ex. « +0,8° » (vide si pas de données). */
     val ecartLabel: String
-        get() = ecart?.let { String.format(Locale.FRANCE, "%+.1f°", it) } ?: ""
+        get() = Unite.courante().ecart(ecart)
 }
 
 /** Number of salles in a state, for the summary chips at the top of the dashboard. */

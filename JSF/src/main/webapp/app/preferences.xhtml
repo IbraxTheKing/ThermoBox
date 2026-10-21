@@ -15,7 +15,7 @@
                 </div>
             </header>
 
-            <!-- Saved in a cookie of this browser (PreferencesBean), applied at once by tbPrefs -->
+            <!-- Saved in cookies of this browser (PreferencesBean), applied at once by tbPrefs -->
             <h:form id="prefsForm">
                 <p:card>
                     <div class="tb-prefs">
@@ -24,8 +24,8 @@
                             <div class="tb-pref-text">
                                 <strong>Animations</strong>
                                 <span class="tb-muted">
-                                    Transitions entre les pages, apparition des cartes, tracé des courbes.
-                                    Désactivées, tout s'affiche directement.
+                                    Transitions entre les pages, apparition des cartes, tracé des courbes, chiffres qui
+                                    défilent, effets au survol. Désactivées, tout s'affiche directement.
                                 </span>
                                 <span class="tb-pref-note" id="tbMotionNote" hidden="hidden">
                                     Votre appareil demande déjà de réduire les animations : elles restent réduites.
@@ -35,8 +35,62 @@
                                             onchange="tbPrefs.animations(PF('animationsSwitch').input.prop('checked'))"
                                             styleClass="tb-switch"/>
                         </div>
+                        <div class="tb-pref">
+                            <span class="tb-section-icon"><i class="pi pi-palette"/></span>
+                            <div class="tb-pref-text">
+                                <strong>Couleurs selon l'état</strong>
+                                <span class="tb-muted">
+                                    La page prend la teinte de ce qui est affiché : verte pour une salle stable, orange en
+                                    chauffe, rouge trop chaude. Désactivées, les couleurs restent les mêmes partout.
+                                </span>
+                            </div>
+                            <p:toggleSwitch id="teinte" widgetVar="teinteSwitch" value="#{preferencesBean.teinte}"
+                                            onchange="tbPrefs.teinte(PF('teinteSwitch').input.prop('checked'))"
+                                            styleClass="tb-switch"/>
+                        </div>
+                        <div class="tb-pref">
+                            <span class="tb-section-icon"><i class="pi pi-sun"/></span>
+                            <div class="tb-pref-text">
+                                <strong>Unité des températures</strong>
+                                <span class="tb-muted">
+                                    Affichage et saisie des températures et des consignes. Elles restent enregistrées en
+                                    Celsius : les autres utilisateurs gardent leur unité.
+                                </span>
+                            </div>
+                            <div class="tb-segmented tb-unite" role="radiogroup" aria-label="Unité des températures">
+                                <button type="button" role="radio" aria-checked="#{not preferencesBean.fahrenheit}"
+                                        class="ui-button tb-unite-btn #{preferencesBean.fahrenheit ? '' : 'tb-seg-on'}"
+                                        onclick="tbPrefs.unite(false)">°C</button>
+                                <button type="button" role="radio" aria-checked="#{preferencesBean.fahrenheit}"
+                                        class="ui-button tb-unite-btn #{preferencesBean.fahrenheit ? 'tb-seg-on' : ''}"
+                                        onclick="tbPrefs.unite(true)">°F</button>
+                            </div>
+                        </div>
                     </div>
                     <p class="tb-muted tb-pref-portee">Enregistré dans ce navigateur uniquement.</p>
+                </p:card>
+
+                <!-- Every user's look, chosen by an ADMIN (ReglagesSite, data folder) -->
+                <p:card rendered="#{loginBean.admin}" styleClass="tb-pref-admin">
+                    <div class="tb-prefs">
+                        <div class="tb-pref">
+                            <span class="tb-section-icon"><i class="pi pi-th-large"/></span>
+                            <div class="tb-pref-text">
+                                <strong>Style panneau de configuration</strong>
+                                <span class="tb-muted">
+                                    Pour tous les utilisateurs : surfaces unies, sans effet de verre, de flou ni de fond
+                                    coloré, coins plus droits. Le thème clair ou sombre de chacun est conservé.
+                                </span>
+                            </div>
+                            <p:toggleSwitch id="panneau" value="#{preferencesBean.panneau}" styleClass="tb-switch">
+                                <p:ajax listener="#{preferencesBean.enregistrerStyle}" process="@this"
+                                        oncomplete="tbPrefs.style(args)"/>
+                            </p:toggleSwitch>
+                        </div>
+                    </div>
+                    <p class="tb-muted tb-pref-portee">
+                        <i class="pi pi-shield"/> Réglage administrateur : s'applique à tout le monde, sur tous les appareils.
+                    </p>
                 </p:card>
             </h:form>
             <script>tbPrefs.signalerSysteme('tbMotionNote');</script>

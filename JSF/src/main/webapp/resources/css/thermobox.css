@@ -1051,6 +1051,80 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 .tb-stat-primary .tb-deg { color: var(--md-primary); }
 .tb-stat-tertiary .tb-deg { color: var(--md-tertiary); }
 .tb-stat-label { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--md-on-surface-variant); }
+.tb-stat-note { margin-top: -8px; color: var(--md-on-surface-variant); font-size: .9rem; overflow-wrap: anywhere; }
+.tb-stat-chaud { background: linear-gradient(140deg, color-mix(in srgb, var(--md-error) 18%, transparent), transparent), var(--tb-glass); }
+.tb-stat-froid { background: linear-gradient(140deg, color-mix(in srgb, #2bb3d1 22%, transparent), transparent), var(--tb-glass); }
+.tb-stat-chaud .tb-deg { color: var(--md-error); }
+.tb-stat-froid .tb-deg { color: #2b9fd1; }
+.tb-compare .tb-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.tb-compare .tb-stat { gap: 14px; padding: 20px 22px; }
+
+/* Every salle on one chart */
+.tb-compare-card { margin-top: 0; }
+.tb-compare-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+:root body .tb-compare-tools .ui-selectonemenu.tb-filter { height: 44px; min-width: 220px; }
+:root body .tb-compare-tools .ui-selectonemenu.tb-filter .ui-selectonemenu-label { line-height: 44px; }
+.tb-chart.tb-chart-tall { height: clamp(320px, 52vh, 560px); }
+.tb-compare-hint { margin: 12px 0 0; font-size: .86rem; }
+:root body .ui-button.tb-text-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border: 0; border-radius: var(--tb-shape-sm); background: transparent; color: var(--md-primary);
+    font: inherit; font-weight: 700; cursor: pointer;
+}
+:root body .ui-button.tb-text-btn:hover { background: var(--md-secondary-container); }
+
+/* Comparison table: colour chip of the curve (click: hide / show it), figures aligned */
+.tb-compare-table { margin-top: 24px; }
+.tb-compare-nom { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tb-compare-nom a { display: flex; flex-direction: column; min-width: 0; color: inherit; text-decoration: none; }
+.tb-compare-nom a:hover strong { color: var(--md-primary); }
+.tb-compare-nom .tb-muted { font-size: .82rem; overflow-wrap: anywhere; }
+.tb-serie-chip {
+    flex: none; width: 18px; height: 18px; padding: 0; border-radius: 50%; cursor: pointer;
+    border: 3px solid var(--serie); background: var(--serie);
+    transition: background-color .2s, transform .2s var(--tb-spring);
+}
+.tb-serie-chip:hover { transform: scale(1.2); }
+.tb-serie-chip.tb-off { background: transparent; }
+:root body .tb-table td.tb-col-num, :root body .tb-table th.tb-col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tb-col-num .tb-state-sm { height: 22px; margin-left: 8px; font-size: .72rem; }
+.tb-ecart { margin-left: 6px; color: var(--md-on-surface-variant); font-size: .85rem; }
+.tb-cible { display: inline-flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tb-cible-barre { width: 72px; height: 6px; border-radius: 3px; background: var(--md-outline-variant); overflow: hidden; }
+.tb-cible-barre > span { display: block; height: 100%; border-radius: inherit; background: var(--tb-stable); transform-origin: left; }
+:root body .tb-table td.tb-col-salle { min-width: 220px; }
+:root body .tb-compare-table .tb-table table { table-layout: auto; }
+.tb-compare-nom strong { white-space: nowrap; }
+@media (max-width: 840px) {
+    :root body .tb-table .tb-col-opt { display: none; }
+    .tb-cible-barre { width: 40px; }
+}
+/* Phones: name, now, consigne, share at the consigne; the rest is on the chart */
+@media (max-width: 640px) {
+    .tb-compare .tb-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tb-compare .tb-stat { padding: 14px; gap: 8px; }
+    .tb-compare .tb-stat .tb-temp-l { font-size: 2rem; }
+    .tb-compare .tb-stat-label { font-size: .68rem; letter-spacing: .06em; }
+    .tb-compare .tb-stat-note { margin-top: 0; font-size: .8rem; }
+    :root body .tb-table td.tb-col-salle { min-width: 0; }
+    :root body .tb-compare-table .tb-table td, :root body .tb-compare-table .tb-table th { padding-left: 8px; padding-right: 8px; }
+    .tb-compare-nom { gap: 8px; }
+    :root body .tb-compare-table .ui-datatable-tablewrapper { overflow-x: auto; }
+    :root body .tb-compare-table .tb-table th { font-size: .68rem; }
+    .tb-compare-nom strong { white-space: normal; }
+    .tb-compare-nom .tb-muted, .tb-col-num .tb-state-sm, .tb-ecart, .tb-cible-barre { display: none; }
+}
+
+/* Raw history, folded */
+.tb-raw { padding: 0; }
+.tb-raw > summary { display: flex; align-items: center; gap: 14px; padding: 20px 24px; cursor: pointer; list-style: none; }
+.tb-raw > summary::-webkit-details-marker { display: none; }
+.tb-raw-title { display: flex; flex-direction: column; flex: 1 1 auto; }
+.tb-raw .tb-section-chevron { transition: transform .3s var(--tb-ease); }
+.tb-raw[open] .tb-section-chevron { transform: rotate(180deg); }
+.tb-raw-body { padding: 0 24px 24px; }
+.tb-raw-loading { position: relative; height: 120px; display: grid; place-items: center; border-radius: var(--tb-shape-lg); }
+.tb-raw-tools { margin-bottom: 12px; }
 
 /* ============================== Tree (buildings → boxes) ============================== */
 
@@ -2503,6 +2577,12 @@ html { background-color: var(--md-surface); }
 .tb-pref-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .tb-pref-text strong { font-size: 1.05rem; }
 .tb-pref-note { margin-top: 6px; font-size: .88rem; color: var(--tb-on-chauffe-container); }
+/* °C / °F: two plain buttons in the segmented style */
+:root body .tb-segmented .ui-button.tb-unite-btn { padding: 7px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+:root body .tb-segmented.tb-unite { flex: none; width: auto; }
+:root body .tb-segmented.tb-unite .ui-button { flex: none; }
+.tb-pref-admin { margin-top: 16px; }
+.tb-pref-portee .pi { font-size: .8rem; margin-right: 4px; }
 
 /* Shell: settings button next to the theme toggle */
 .tb-prefs-btn { text-decoration: none; }
@@ -2569,6 +2649,80 @@ html { background-color: var(--md-surface); }
 :root:has(.tb-summary-chip.tb-chip-on.tb-ton-chauffe), :root:has(.tb-hero-reading.tb-ton-chauffe) { --tb-mix: .6; --tb-hue: 70; --tb-sat: .75; }
 :root:has(.tb-summary-chip.tb-chip-on.tb-ton-chaud), :root:has(.tb-hero-reading.tb-ton-chaud) { --tb-mix: .55; --tb-hue: 25; --tb-sat: .65; }
 :root:has(.tb-summary-chip.tb-chip-on.tb-ton-inconnu), :root:has(.tb-hero-reading.tb-ton-inconnu) { --tb-mix: .6; --tb-sat: .1; }
+
+/* Préférences: "Couleurs selon l'état" off (data-teinte), or the control-panel style: the palette
+   stays the same on every page */
+:root:is([data-teinte="off"], [data-style="panneau"]) { --tb-mix: 0 !important; }
+:root:is([data-teinte="off"], [data-style="panneau"]) body { --tb-page-tone: transparent !important; }
+
+/*
+ * Control-panel style, chosen by an ADMIN for everyone (data-style="panneau", ReglagesSite):
+ * flat solid surfaces, thin borders, no blur, no coloured background, straighter corners.
+ * Light or dark still follows each user's toggle.
+ */
+:root[data-style="panneau"] {
+    --md-primary-container: #dbe6f7;
+    --md-secondary-container: #e6ebf1;
+    --md-surface: #eef1f5;
+    --md-surface-container-lowest: #ffffff;
+    --md-surface-container-low: #f7f9fb;
+    --md-surface-container: #f0f3f7;
+    --md-surface-container-high: #e8ecf1;
+    --md-surface-container-highest: #dfe4ea;
+    --md-on-surface: #1f2933;
+    --md-on-surface-variant: #52606d;
+    --md-outline: #7b8794;
+    --md-outline-variant: #d9dee5;
+    --tb-bg: linear-gradient(#eef1f5, #eef1f5);
+    --tb-glass: #ffffff;
+    --tb-glass-hover: #f9fbfd;
+    --tb-glass-solid: #ffffff;
+    --tb-glass-line: #d9dee5;
+    --tb-glass-hi: 0 0 0 transparent;
+    --tb-glass-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+    --tb-glass-shadow-hover: 0 2px 8px rgba(16, 24, 40, .09);
+    --tb-field: #ffffff;
+    --tb-field-hover: #f7f9fb;
+    --tb-tile: #f2f5f9;
+    --tb-blur: none;
+    --tb-brand: linear-gradient(#2160cc, #2160cc);
+    --tb-shape-xs: 4px;
+    --tb-shape-sm: 6px;
+    --tb-shape-md: 6px;
+    --tb-shape-lg: 8px;
+    --tb-shape-xl: 10px;
+    --tb-shape-xxl: 12px;
+}
+:root[data-style="panneau"][data-theme="dark"] {
+    --md-primary-container: #1d3561;
+    --md-secondary-container: #2a3038;
+    --md-surface: #16191e;
+    --md-surface-container-lowest: #111317;
+    --md-surface-container-low: #1b1f25;
+    --md-surface-container: #1f2329;
+    --md-surface-container-high: #262b32;
+    --md-surface-container-highest: #2e343c;
+    --md-on-surface: #e3e7ec;
+    --md-on-surface-variant: #a3adb8;
+    --md-outline: #6b7581;
+    --md-outline-variant: #2f353d;
+    --tb-bg: linear-gradient(#16191e, #16191e);
+    --tb-glass: #1f2329;
+    --tb-glass-hover: #252a31;
+    --tb-glass-solid: #1f2329;
+    --tb-glass-line: #2f353d;
+    --tb-glass-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --tb-glass-shadow-hover: 0 2px 8px rgba(0, 0, 0, .4);
+    --tb-field: #16191e;
+    --tb-field-hover: #1b1f25;
+    --tb-tile: #262b32;
+    --tb-brand: linear-gradient(#4f86f0, #4f86f0);
+    --tb-glass-hi: 0 0 0 transparent;
+    --tb-blur: none;
+}
+:root[data-style="panneau"] body * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+:root[data-style="panneau"] body { background-attachment: scroll; }
+:root[data-style="panneau"] .tb-hero-reading { background: var(--tb-glass); border-left: 4px solid var(--tone, var(--md-primary)); }
 
 /* Older browsers without relative colours keep the blue theme */
 @supports (color: oklch(from red l c h)) {

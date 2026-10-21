@@ -56,10 +56,8 @@
                         <span class="tb-muted">
                             #{salleBean.dossier.kind.label}
                             <h:outputText value=" · " rendered="#{salleBean.dossier.temperature ne null}"/>
-                            <h:outputText value="#{salleBean.dossier.temperature}" rendered="#{salleBean.dossier.temperature ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value=" °C" rendered="#{salleBean.dossier.temperature ne null}"/>
+                            <h:outputText value="#{unite.t(salleBean.dossier.temperature)}" rendered="#{salleBean.dossier.temperature ne null}"/>
+                            <h:outputText value=" #{unite.symbole}" rendered="#{salleBean.dossier.temperature ne null}"/>
                         </span>
                     </div>
                     <p:linkButton icon="pi pi-chart-line" title="Voir le détail" outcome="/app/salle" styleClass="ui-button-flat"
@@ -118,10 +116,8 @@
                         </span>
 
                         <span class="tb-node-temp">
-                            <h:outputText value="#{n.temperature}" rendered="#{n.temperature ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value=" °C" rendered="#{n.temperature ne null}"/>
+                            <h:outputText value="#{unite.t(n.temperature)}" rendered="#{n.temperature ne null}"/>
+                            <h:outputText value=" #{unite.symbole}" rendered="#{n.temperature ne null}"/>
                             <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
                             <h:outputText styleClass="tb-muted" value="#{n.boitiers} boîtier(s)"
                                           rendered="#{loginBean.canSeeBoitiers and n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
@@ -220,11 +216,8 @@
                             <span class="tb-muted">
                                 #{salleBean.selection.kind.label}
                                 <h:outputText value=" · " rendered="#{salleBean.selection.temperature ne null}"/>
-                                <h:outputText value="#{salleBean.selection.temperature}"
-                                              rendered="#{salleBean.selection.temperature ne null}">
-                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                </h:outputText>
-                                <h:outputText value=" °C" rendered="#{salleBean.selection.temperature ne null}"/>
+                                <h:outputText value="#{unite.t(salleBean.selection.temperature)}" rendered="#{salleBean.selection.temperature ne null}"/>
+                                <h:outputText value=" #{unite.symbole}" rendered="#{salleBean.selection.temperature ne null}"/>
                             </span>
                         </div>
                     </div>

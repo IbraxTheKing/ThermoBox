@@ -14,6 +14,7 @@ var tbCharts = (function () {
         ds.tbColor = ds.tbColor || ds.borderColor;
         var color = typeof ds.tbColor === 'string' && ds.tbColor.indexOf('--') === 0 ? css(ds.tbColor) : ds.tbColor;
         ds.borderColor = ds.backgroundColor = ds.pointBackgroundColor = color;
+        ds.tbOrigine = color;   // colour of the theme, for tbComparaison.surligner
         if (ds.tbColor === '--tb-serie-consigne') {
             ds.stepped = true;          // a consigne holds until the next one
             ds.borderDash = [8, 6];
@@ -54,11 +55,21 @@ var tbCharts = (function () {
                 }
             }
         };
+        var unite = root.getAttribute('data-unite') || '°C';
         o.scales.y = {
             grid: { color: grid, drawTicks: false },
             border: { display: false },
-            ticks: { color: text, font: font, padding: 10, maxTicksLimit: mobile ? 5 : 7 }
+            ticks: { color: text, font: font, padding: 10, maxTicksLimit: mobile ? 5 : 7,
+                callback: function (v) { return Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + '°'; } }
         };
+        o.plugins.tooltip.callbacks = {
+            label: function (ctx) {
+                if (ctx.parsed.y === null || ctx.parsed.y === undefined) return null;
+                return ' ' + ctx.dataset.label + ' : ' + ctx.parsed.y.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ' + unite;
+            }
+        };
+        // Lines draw from the left on arrival; no animation when motion is off
+        o.animation = tbAnim && tbAnim.reduced ? false : { duration: 900, easing: 'easeOutQuart' };
         o.elements = {
             point: { radius: 0, hoverRadius: 6, hitRadius: 12 },
             line: { tension: .4, borderWidth: mobile ? 2.5 : 3, borderCapStyle: 'round' }
@@ -500,10 +511,87 @@ var tbPrefs = (function () {
             root.setAttribute('data-motion', on ? 'on' : 'off');
             tbAnim.reduced = !on || matchMedia('(prefers-reduced-motion: reduce)').matches;
         },
+        /** Page tint following the state shown (stable salle → green…). */
+        teinte: function (on) {
+            cookie('thermobox-teinte', on ? '' : 'off');
+            root.setAttribute('data-teinte', on ? 'on' : 'off');
+        },
+        /** °C or °F: the values come from the server, so the page reloads. */
+        unite: function (fahrenheit) {
+            cookie('thermobox-unite', fahrenheit ? 'F' : '');
+            location.reload();
+        },
+        /** Look chosen by an ADMIN for everyone (saved on the server): applied here at once. */
+        style: function (args) {
+            if (!args || !args.style) return;
+            var appliquer = function () { root.setAttribute('data-style', args.style); tbCharts.refresh(); };
+            if (document.startViewTransition && !tbAnim.reduced) document.startViewTransition(appliquer);
+            else appliquer();
+        },
         /** Shows the note of [id] when the system itself asks for less motion. */
         signalerSysteme: function (id) {
             var note = document.getElementById(id);
             if (note && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) note.hidden = false;
+        }
+    };
+})();
+
+/*
+ * Températures page: the chart of every salle. A colour of the table hides or shows its curve,
+ * hovering a row brings its curve forward, and the points can be saved as a CSV file.
+ */
+var tbComparaison = (function () {
+    function graphique() {
+        var canvas = document.querySelector('.tb-compare-card canvas');
+        return canvas && window.Chart && Chart.getChart ? Chart.getChart(canvas) : null;
+    }
+
+    // "#2160cc" → "#2160cc33": the other curves fade behind the one pointed at
+    function attenuer(couleur) {
+        return /^#[0-9a-f]{6}$/i.test(couleur) ? couleur + '30' : couleur;
+    }
+
+    return {
+        basculer: function (bouton, i) {
+            var g = graphique();
+            if (!g) return;
+            var visible = !g.isDatasetVisible(i);
+            g.setDatasetVisibility(i, visible);
+            g.update();
+            bouton.classList.toggle('tb-off', !visible);
+            bouton.setAttribute('aria-pressed', String(visible));
+        },
+        /** [i] in front, the others faded; -1: all back to normal. */
+        surligner: function (i) {
+            var g = graphique();
+            if (!g) return;
+            g.data.datasets.forEach(function (ds, j) {
+                ds.tbOrigine = ds.tbOrigine || ds.borderColor;
+                var couleur = i < 0 || i === j ? ds.tbOrigine : attenuer(ds.tbOrigine);
+                ds.borderColor = ds.pointBackgroundColor = couleur;
+                ds.borderWidth = i === j ? 4 : undefined;
+            });
+            g.update(tbAnim.reduced ? 'none' : undefined);
+        },
+        /** Points of the chart: one line per moment, one column per curve (French spreadsheet format). */
+        exporter: function () {
+            var g = graphique();
+            if (!g) return;
+            var unite = document.documentElement.getAttribute('data-unite') || '°C';
+            var cellule = function (t) { return '"' + String(t).replace(/"/g, '""') + '"'; };
+            var lignes = [['Moment'].concat(g.data.datasets.map(function (ds) { return ds.label + ' (' + unite + ')'; })).map(cellule).join(';')];
+            g.data.labels.forEach(function (label, k) {
+                lignes.push([cellule(label)].concat(g.data.datasets.map(function (ds) {
+                    var v = ds.data[k];
+                    return v === null || v === undefined ? '' : String(v).replace('.', ',');
+                })).join(';'));
+            });
+            var lien = document.createElement('a');
+            lien.href = URL.createObjectURL(new Blob(['\ufeff' + lignes.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+            lien.download = 'thermobox-temperatures.csv';
+            document.body.appendChild(lien);
+            lien.click();
+            setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
         }
     };
 })();

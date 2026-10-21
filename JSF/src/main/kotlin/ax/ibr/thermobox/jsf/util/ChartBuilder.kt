@@ -13,7 +13,8 @@ object ChartBuilder {
     /** [color]: a CSS colour, or a custom property of the theme ("--name"), resolved by tbChartExtender. */
     data class Serie(val label: String, val points: List<Temperature>, val color: String)
 
-    fun build(series: List<Serie>): LineChartModel {
+    /** Values in Celsius, drawn in [unite] (the one of the Préférences page by default). */
+    fun build(series: List<Serie>, unite: Unite = Unite.courante()): LineChartModel {
         // Axe X commun à toutes les séries
         val dates = series.flatMap { s -> s.points.mapNotNull { it.date } }.distinct().sorted()
 
@@ -34,7 +35,7 @@ object ChartBuilder {
             dataSet.borderColor = serie.color
             dataSet.backgroundColor = serie.color
             dataSet.fill = false
-            dataSet.data = values
+            dataSet.data = values.map { v -> (v as Float?)?.let { Math.round(unite.depuisCelsius(it) * 10f) / 10f } }
             chartData.addChartDataSet(dataSet)
         }
 

@@ -124,10 +124,8 @@
                                 <span class="tb-section-meta">
                                     #{g.salles.size()} salle(s)
                                     <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
-                                    <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
-                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                    </h:outputText>
-                                    <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value="#{unite.t(g.moyenne)}" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value=" #{unite.symbole} en moyenne" rendered="#{g.moyenne ne null}"/>
                                 </span>
                                 <i class="pi pi-chevron-down tb-section-chevron"/>
                             </button>

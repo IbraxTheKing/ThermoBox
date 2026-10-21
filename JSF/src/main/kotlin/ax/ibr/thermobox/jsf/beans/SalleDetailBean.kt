@@ -16,6 +16,7 @@ import ax.ibr.thermobox.jsf.media.SalleImageServlet
 import ax.ibr.thermobox.jsf.util.ChartBuilder
 import ax.ibr.thermobox.jsf.util.ChartBuilder.Serie
 import ax.ibr.thermobox.jsf.util.Faces
+import ax.ibr.thermobox.jsf.util.Unite
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
@@ -24,7 +25,6 @@ import org.primefaces.model.charts.line.LineChartModel
 import java.io.Serializable
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Locale
 
 /**
  * Page détail d'un élément : moyenne de ses boîtiers, consigne, historique. Une salle montre
@@ -117,7 +117,11 @@ class SalleDetailBean : Serializable {
         consignesPropres = if (isBoitier) emptyList() else Services.climat.getConsignesPropres(s)
         if (isConteneur) salles = Services.hierarchie.getSalles(s).map { resumer(it) }
         // The spinner starts from the current consigne rather than from its minimum.
-        if (nouvelleConsigne == null) nouvelleConsigne = consigne?.value ?: CONSIGNE_PAR_DEFAUT
+        // Shown in the unit of the Préférences page (rounded to the step of the field)
+        if (nouvelleConsigne == null) nouvelleConsigne = (consigne?.value ?: CONSIGNE_PAR_DEFAUT).let { c ->
+            val u = Unite.courante()
+            if (u == Unite.FAHRENHEIT) Math.round(u.depuisCelsius(c)).toFloat() else c
+        }
     }
 
     fun basculerFavori() {
@@ -181,13 +185,13 @@ class SalleDetailBean : Serializable {
 
     /** « Étage 1 (19,0 °C), Everest (22,5 °C) » */
     val consignesPropresLabel: String
-        get() = consignesPropres.joinToString { String.format(Locale.FRANCE, "%s (%.1f °C)", it.source.name, it.consigne.value) }
+        get() = Unite.courante().let { u -> consignesPropres.joinToString { "${it.source.name} (${u.texte(it.consigne.value)} ${u.symbole})" } }
 
     /** Écart d'un boîtier à la moyenne de la salle, ex. « +0,4° ». */
     fun ecart(m: MesureBoitier): String {
         val valeur = m.mesure?.value ?: return ""
         val moy = moyenne ?: return ""
-        return String.format(Locale.FRANCE, "%+.1f°", valeur - moy)
+        return Unite.courante().ecart(valeur - moy)
     }
 
     /**
@@ -196,7 +200,10 @@ class SalleDetailBean : Serializable {
      */
     fun envoyerConsigne() {
         val s = salle ?: return
-        val value = nouvelleConsigne ?: return
+        val unite = Unite.courante()
+        // Entered in the unit of the Préférences page, stored in Celsius
+        val saisie = nouvelleConsigne ?: return
+        val value = Math.round(unite.versCelsius(saisie) * 10f) / 10f
         if (!login.require(login.canSetConsigne && login.perimetre.peutVoir(s))) return
 
         val envoi = try {
@@ -205,7 +212,7 @@ class SalleDetailBean : Serializable {
             Faces.error("Consigne refusée", e.message)
             return
         }
-        val titre = String.format(Locale.FRANCE, "Consigne de %.1f °C enregistrée", value)
+        val titre = "Consigne de ${unite.texte(value)} ${unite.symbole} enregistrée"
         val details = buildList {
             add(if (envoi.boitiers.isEmpty()) "aucun boîtier à prévenir" else "envoyée à ${envoi.boitiers.size} boîtier(s)")
             if (envoi.remplacees.isNotEmpty()) add("remplace celle de ${envoi.remplacees.joinToString { it.name.orEmpty() }}")
