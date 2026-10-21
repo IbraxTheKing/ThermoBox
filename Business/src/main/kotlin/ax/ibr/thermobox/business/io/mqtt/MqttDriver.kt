@@ -16,7 +16,9 @@ import kotlin.getValue
 
 class MqttDriver(
     private val brokerUrl: String = "tcp://localhost:1883",
-    private val clientId: String = "thermobox-${System.currentTimeMillis()}"
+    private val clientId: String = "thermobox-${System.currentTimeMillis()}",
+    private val utilisateur: String? = null,
+    private val motDePasse: String? = null,
 ) : ProtocolDriver() {
 
     private val client: MqttClient by lazy {
@@ -24,6 +26,8 @@ class MqttDriver(
             connect(MqttConnectOptions().apply {
                 isCleanSession = true
                 isAutomaticReconnect = true
+                utilisateur?.let { userName = it }
+                motDePasse?.let { password = it.toCharArray() }
             })
         }
     }

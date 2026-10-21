@@ -21,6 +21,14 @@ x-app-env: &app-env
   THERMOBOX_UPDATE_CHANNEL: ${THERMOBOX_UPDATE_CHANNEL:-stable}
   THERMOBOX_UPDATE_CHECK: ${THERMOBOX_UPDATE_CHECK:-true}
   THERMOBOX_GITHUB_TOKEN: ${THERMOBOX_GITHUB_TOKEN:-}
+  # Boîtiers : simule (par défaut) ou mqtt (avec le profil mqtt, ou un broker externe)
+  THERMOBOX_DRIVER: ${THERMOBOX_DRIVER:-simule}
+  THERMOBOX_MQTT_URL: ${THERMOBOX_MQTT_URL:-tcp://mosquitto:1883}
+  THERMOBOX_MQTT_USER: ${THERMOBOX_MQTT_USER:-}
+  THERMOBOX_MQTT_PASSWORD: ${THERMOBOX_MQTT_PASSWORD:-}
+  # Interface JSF : Production (par défaut) ou Development ; true derrière un proxy HTTPS
+  THERMOBOX_STAGE: ${THERMOBOX_STAGE:-Production}
+  THERMOBOX_HTTPS: ${THERMOBOX_HTTPS:-false}
 
 services:
 
@@ -121,9 +129,8 @@ services:
       retries: 6
       start_period: 90s
 
-  # Optionnel : le code utilise pour l'instant le driver simulé (BusinessFactory.MQTT = false)
-  # et MqttDriver vise tcp://localhost:1883 en dur. Ce broker est prêt pour le jour où
-  # l'URL passera par une variable d'environnement.
+  # Optionnel : broker pour de vrais boîtiers, avec THERMOBOX_DRIVER=mqtt dans .env
+  # (THERMOBOX_MQTT_URL vise ce service par défaut).
   mosquitto:
     profiles: ["mqtt"]
     image: eclipse-mosquitto:2.0

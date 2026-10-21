@@ -34,6 +34,31 @@ Pour lancer le serveur API, exécutez la classe principale du module `RestServer
 - URL : http://localhost:8080/
 - Préfixe API : /api
 
+## Configuration (variables d'environnement)
+
+Toute la configuration de production passe par des variables d'environnement : aucun secret ni
+réglage propre à une installation n'est dans le code ou dans les fichiers du projet. Avec Docker,
+elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `THERMOBOX_DB_URL` | `jdbc:mysql://localhost:3306/thermobox` | Base MySQL |
+| `THERMOBOX_DB_USER` / `THERMOBOX_DB_PASSWORD` | *obligatoires* | Identifiants de la base |
+| `THERMOBOX_DB_MIGRATE` | `true` | `false` : pas de migration de schéma au démarrage |
+| `THERMOBOX_JWT_SECRET` | *obligatoire* | Clé de signature des jetons (32 caractères minimum) |
+| `THERMOBOX_JWT_TTL_MINUTES` | `60` | Durée de vie d'un jeton |
+| `THERMOBOX_DRIVER` | `simule` | `simule` (boîtiers simulés) ou `mqtt` (vrais boîtiers) |
+| `THERMOBOX_MQTT_URL` | `tcp://localhost:1883` | Broker MQTT (`ssl://hôte:8883` pour TLS) |
+| `THERMOBOX_MQTT_USER` / `THERMOBOX_MQTT_PASSWORD` | *aucun* | Identifiants du broker, si demandés |
+| `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
+| `THERMOBOX_STAGE` | `Production` | Mode JSF ; `Development` affiche le détail des erreurs |
+| `THERMOBOX_HTTPS` | `false` | `true` derrière un proxy HTTPS : cookies toujours `Secure` |
+| `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour |
+| `THERMOBOX_UPDATE_CHANNEL` / `_CHECK` / `THERMOBOX_GITHUB_TOKEN` | `stable` / `true` / *aucun* | Mises à jour (voir plus bas) |
+
+Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée, un `THERMOBOX_STAGE`
+inconnu) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
+
 ## Architecture du Projet
 
 Le projet est structuré en modules Maven pour assurer une séparation des responsabilités :
