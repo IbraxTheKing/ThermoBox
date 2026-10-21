@@ -14,6 +14,7 @@ import ax.ibr.thermobox.common.services.HierarchieService
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.persistence.dataservices.AccesDataService
+import ax.ibr.thermobox.persistence.dataservices.GroupeDataService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -88,7 +89,17 @@ class AccesServiceTest {
     }))
 
     private val donnees = FauxAcces()
-    private val service = AccesServiceImpl(donnees, hierarchie, salles) { salleTemps }
+    /** Groups in memory: user id → elements of their groups. */
+    private val elementsDeGroupe = HashMap<Long, List<Salle>>()
+    private val fauxGroupes = Proxy.newProxyInstance(GroupeDataService::class.java.classLoader, arrayOf(GroupeDataService::class.java)) { _, m, args ->
+        when (m.name) {
+            "getElementsDesGroupesDe" -> elementsDeGroupe[(args[0] as User).id].orEmpty()
+            "oublierSalle", "oublierUtilisateur" -> Unit
+            else -> throw UnsupportedOperationException(m.name)
+        }
+    } as GroupeDataService
+
+    private val service = AccesServiceImpl(donnees, hierarchie, salles, groupes = { fauxGroupes }) { salleTemps }
 
     private fun user(id: Long, type: UserType) = User("u$id", "x", type).apply { this.id = id }
 
@@ -150,5 +161,21 @@ class AccesServiceTest {
         service.definir(u, true, listOf(s1))
         val visibles: List<Temperature> = service.filtrerTemperatures(service.perimetre(u), listOf(m1, m3))
         assertEquals(listOf(m1), visibles)
+    }
+
+    @Test
+    fun `les groupes ajoutent leurs acces a ceux de l'utilisateur`() {
+        val u = user(30, UserType.VIEWER)
+        service.definir(u, true, listOf(s1))
+        elementsDeGroupe[30L] = listOf(b)
+        val p = service.perimetre(u)
+        assertTrue(p.peutVoir(s1))
+        assertTrue(p.peutVoir(s3))       // through the group's bâtiment B
+        assertFalse(p.peutVoir(s2))
+
+        // A user who sees everything is not limited by a group
+        val tout = user(31, UserType.VIEWER)
+        elementsDeGroupe[31L] = listOf(s4)
+        assertTrue(service.perimetre(tout).tout)
     }
 }

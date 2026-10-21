@@ -24,6 +24,9 @@ interface AccesService {
     /** Elements granted to [user] directly (bâtiments, étages, salles). */
     fun getAutorisations(user: User): List<Salle>
 
+    /** Elements granted to [user] through their groups (GroupeService). */
+    fun getAutorisationsDesGroupes(user: User): List<Salle> = emptyList()
+
     /**
      * Replaces the accesses of [user]: unlimited, or limited to [salles] and their content.
      * @throws IllegalArgumentException for an ADMIN (always unlimited)

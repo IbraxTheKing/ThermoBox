@@ -22,7 +22,8 @@ data class Sparkline(
     val variation: Float?,
 ) : Serializable {
 
-    val variationLabel: String get() = variation?.let { String.format(Locale.FRANCE, "%+.1f° en 1 h", it) }.orEmpty()
+    /** « +0,4° en 1 h », in the unit of the Préférences page. */
+    val variationLabel: String get() = variation?.let { Unite.courante().ecart(it) + " en 1 h" }.orEmpty()
 
     /** pi-arrow-up-right, pi-arrow-down-right or pi-arrow-right */
     val variationIcon: String

@@ -15,8 +15,6 @@
 #    -> on ajoute jboss.as.jpa.managed=false dans le persistence.xml de base.jar :
 #       WildFly ne la gère plus, l'application la crée comme sous Tomcat.
 
-set -eu
-
 [ "$#" -eq 2 ] || { echo "usage: prepare-war.sh <entree.war> <sortie.war>" >&2; exit 2; }
 
 # Chemins absolus : le script change de répertoire pendant son exécution

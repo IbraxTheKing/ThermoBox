@@ -13,6 +13,7 @@ import ax.ibr.thermobox.common.services.FavoriService
 import ax.ibr.thermobox.common.services.HierarchieService
 import ax.ibr.thermobox.common.services.SalleImageService
 import ax.ibr.thermobox.common.services.AccesService
+import ax.ibr.thermobox.common.services.GroupeService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
 import ax.ibr.thermobox.business.config.ConfigDriver
 
@@ -64,6 +65,11 @@ object BusinessFactory {
 
     /** Who sees which bâtiments, étages and salles. */
     fun getAccesService(): AccesService = accesServiceInstance
+
+    private val groupeServiceInstance: GroupeService by lazy { GroupeServiceImpl() }
+
+    /** Groups of users and the accesses they give. */
+    fun getGroupeService(): GroupeService = groupeServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
 }

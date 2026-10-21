@@ -35,10 +35,7 @@
 
         <div class="tb-room-reading">
             <span class="tb-temp-xl" style="view-transition-name: salle-temp-#{r.salle.id}" data-watch="t#{r.salle.id}">
-                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
-                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                </h:outputText>
-                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+                #{unite.t(r.moyenne)}
                 <span class="tb-deg">°</span>
             </span>
             <div class="tb-room-badges">
@@ -79,11 +76,8 @@
         <div class="tb-room-foot">
             <span class="tb-consigne-pill" title="#{r.consigneTitre}">
                 <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
-                <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
-                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                </h:outputText>
-                <h:outputText value="—" rendered="#{r.consigne eq null}"/>
-                °C
+                #{unite.t(r.consigne.value)}
+                #{unite.symbole}
                 <b>#{r.ecartLabel}</b>
             </span>
             <span class="tb-room-meta">

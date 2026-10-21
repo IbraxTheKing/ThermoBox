@@ -53,7 +53,7 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
 | `THERMOBOX_STAGE` | `Production` | Mode JSF ; `Development` affiche le détail des erreurs |
 | `THERMOBOX_HTTPS` | `false` | `true` derrière un proxy HTTPS : cookies toujours `Secure` |
-| `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour |
+| `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour, style d'affichage choisi par un administrateur (`interface.properties`) |
 | `THERMOBOX_UPDATE_CHANNEL` / `_CHECK` / `THERMOBOX_GITHUB_TOKEN` | `stable` / `true` / *aucun* | Mises à jour (voir plus bas) |
 
 Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée, un `THERMOBOX_STAGE`
@@ -262,6 +262,14 @@ API REST :
 |---|---|---|
 | GET | `/api/users/{id}/acces` | ADMIN, ou l'utilisateur lui-même : `{"restricted": true, "elements": [...]}` |
 | PUT | `/api/users/{id}/acces` | ADMIN : `{"restricted": true, "elements": [ids de bâtiments, étages, salles]}` |
+| GET / POST | `/api/groups` | ADMIN : groupes ; `{"name", "description", "members": [ids], "elements": [ids]}` |
+| GET / PUT / DELETE | `/api/groups/{id}` | ADMIN : un groupe |
+
+**Groupes d'utilisateurs.** Un ADMIN crée des groupes (page Gérer → « Utilisateurs et groupes ») :
+chaque membre d'un groupe voit en plus les bâtiments, étages et salles du groupe, avec ce qu'ils
+contiennent. Les accès s'additionnent (les siens et ceux de tous ses groupes) ; un utilisateur qui
+voit tout n'est pas limité par ses groupes. Tables `groupe`, `groupe_membre`, `groupe_acces`
+(migration `V3__groupes.sql`).
 
 ## Notes importantes
 - Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.

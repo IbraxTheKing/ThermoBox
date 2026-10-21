@@ -33,9 +33,14 @@
                 </ui:repeat>
             </h:panelGroup>
 
-            <!-- The 24 h curves come in a second request, so the page shows without waiting for them -->
+            <!-- The 24 h curves come in a second request, so the page shows without waiting for them.
+                 Not before the end of the transition from a salle: replacing the grid during the card's
+                 morph would cut it short (tbAnim.apresTransition). -->
             <p:remoteCommand name="tbChargerCourbes" action="#{dashboardBean.chargerCourbes}" process="@this"
-                             update="grille" autoRun="#{dashboardBean.courbesEnAttente}"/>
+                             update="grille"/>
+            <ui:fragment rendered="#{dashboardBean.courbesEnAttente}">
+                <script>$(function () { tbAnim.apresTransition(function () { tbChargerCourbes(); }); });</script>
+            </ui:fragment>
 
             <!-- tbWatch: the temperatures that changed since the last refresh pulse once -->
             <p:poll interval="30" listener="#{dashboardBean.refresh}" process="@this" update="grille resume"
@@ -119,10 +124,8 @@
                                 <span class="tb-section-meta">
                                     #{g.salles.size()} salle(s)
                                     <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
-                                    <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
-                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                    </h:outputText>
-                                    <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value="#{unite.t(g.moyenne)}" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value=" #{unite.symbole} en moyenne" rendered="#{g.moyenne ne null}"/>
                                 </span>
                                 <i class="pi pi-chevron-down tb-section-chevron"/>
                             </button>

@@ -16,9 +16,7 @@
         </span>
     </span>
     <span class="tb-drill-temp">
-        <h:outputText value="#{n.temperature}" rendered="#{n.temperature ne null}">
-            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-        </h:outputText>
+        <h:outputText value="#{unite.t(n.temperature)}" rendered="#{n.temperature ne null}"/>
         <h:outputText value="°" rendered="#{n.temperature ne null}"/>
         <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
     </span>

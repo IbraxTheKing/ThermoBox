@@ -7,6 +7,9 @@
       xmlns:p="http://primefaces.org/ui"
       data-theme="#{themeBean.mode}"
       data-motion="#{preferencesBean.animations ? 'on' : 'off'}"
+      data-teinte="#{preferencesBean.teinte ? 'on' : 'off'}"
+      data-style="#{preferencesBean.style}"
+      data-unite="#{unite.symbole}"
       data-ctx="#{request.contextPath}/">
 
 <ui:insert name="metadata"/>
@@ -17,7 +20,7 @@
     <meta name="theme-color" content="#{themeBean.dark ? '#0f141c' : '#bccde2'}"/>
     <title>Thermobox – <ui:insert name="title"/></title>
     <!-- Canvas colour before the stylesheet loads: no white flash between two pages -->
-    <style>html{background:#bccde2}html[data-theme="dark"]{background:#0f141c}</style>
+    <style>html{background:#bccde2}html[data-theme="dark"]{background:#0f141c}html[data-style="panneau"]{background:#eef1f5}html[data-style="panneau"][data-theme="dark"]{background:#16191e}</style>
     <!-- Loaded early: text measured before it arrives (scroll back to a card) would move -->
     <link rel="preload" href="#{resource['fonts/manrope-latin.woff2']}" as="font" type="font/woff2" crossorigin="anonymous"/>
     <h:outputStylesheet name="css/thermobox.css"/>
@@ -68,6 +71,11 @@
                         styleClass="tb-dest #{view.viewId eq '/app/temperatures.xhtml' ? 'tb-dest-on' : ''}">
                     <span class="tb-dest-icon"><i class="pi pi-chart-line"/></span>
                     <span class="tb-dest-label">Mesures</span>
+                </h:link>
+                <h:link outcome="/app/gestion" rendered="#{loginBean.gestionnaire}"
+                        styleClass="tb-dest #{view.viewId eq '/app/gestion.xhtml' ? 'tb-dest-on' : ''}">
+                    <span class="tb-dest-icon"><i class="pi pi-sliders-h"/></span>
+                    <span class="tb-dest-label">Gérer</span>
                 </h:link>
                 <h:link outcome="/admin/users" rendered="#{loginBean.admin}"
                         styleClass="tb-dest #{view.viewId eq '/admin/users.xhtml' ? 'tb-dest-on' : ''}">

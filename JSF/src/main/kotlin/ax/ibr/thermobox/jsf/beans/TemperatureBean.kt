@@ -6,8 +6,8 @@ import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Faces
+import ax.ibr.thermobox.jsf.util.Unite
 import ax.ibr.utils.exceptions.AlreadyExistsException
-import jakarta.annotation.PostConstruct
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
@@ -37,8 +37,15 @@ class TemperatureBean : Serializable {
 
     val isEditMode: Boolean get() = editing != null
 
-    @PostConstruct
+    /** The raw history is read only once its section is opened (every temperature of the base). */
+    var charge: Boolean = false
+
+    fun ouvrir() {
+        if (!charge) load()
+    }
+
     fun load() {
+        charge = true
         val acces = login.perimetre
         // Only the temperatures of the salles / boxes the user may see.
         temperatures = Services.acces.filtrerTemperatures(acces, when (filtre) {
@@ -75,13 +82,14 @@ class TemperatureBean : Serializable {
     fun edit(t: Temperature) {
         editing = t
         formType = if (t is Consigne) "consigne" else "mesurer"
-        formValue = t.value
+        formValue = t.value?.let { Unite.courante().depuisCelsius(it) }
         formDate = t.date
     }
 
     fun save() {
         if (!login.require(login.isAdmin)) return
-        val value = formValue ?: return
+        // Entered in the unit of the Préférences page, stored in Celsius
+        val value = formValue?.let { Math.round(Unite.courante().versCelsius(it) * 10f) / 10f } ?: return
         val date = formDate ?: return
         try {
             val t = editing

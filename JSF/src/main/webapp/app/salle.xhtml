@@ -80,11 +80,8 @@
                     </span>
                     <span class="tb-temp-hero" style="view-transition-name: salle-temp-#{salleDetailBean.salle.id}"
                           data-watch="moyenne">
-                        <h:outputText value="#{salleDetailBean.moyenne}" rendered="#{salleDetailBean.moyenne ne null}">
-                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                        </h:outputText>
-                        <h:outputText value="—" rendered="#{salleDetailBean.moyenne eq null}"/>
-                        <span class="tb-deg">°C</span>
+                        #{unite.t(salleDetailBean.moyenne)}
+                        <span class="tb-deg">#{unite.symbole}</span>
                     </span>
                     <div class="tb-hero-row">
                         <span class="tb-state">#{salleDetailBean.etat.label}</span>
@@ -101,12 +98,8 @@
                     <div class="tb-hero-consigne">
                         <span>Consigne</span>
                         <strong data-watch="consigne">
-                            <h:outputText value="#{salleDetailBean.consigne.value}"
-                                          rendered="#{salleDetailBean.consigne ne null}">
-                                <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                            </h:outputText>
-                            <h:outputText value="—" rendered="#{salleDetailBean.consigne eq null}"/>
-                            °C
+                            #{unite.t(salleDetailBean.consigne.value)}
+                            #{unite.symbole}
                         </strong>
                         <h:outputText styleClass="tb-hero-meta" value="#{salleDetailBean.consigne.date}"
                                       rendered="#{salleDetailBean.consigne ne null}">
@@ -169,8 +162,9 @@
                 </div>
                 <div class="tb-consigne-form">
                     <p:spinner id="consigneInput" value="#{salleDetailBean.nouvelleConsigne}" buttons="horizontal"
-                               min="5" max="35" stepFactor="0.5" decimalPlaces="1" decimalSeparator=","
-                               suffix=" °C" required="true" requiredMessage="Indique une température"
+                               min="#{unite.consigneMin}" max="#{unite.consigneMax}" stepFactor="#{unite.consigneStep}"
+                               decimalPlaces="1" decimalSeparator=","
+                               suffix=" #{unite.symbole}" required="true" requiredMessage="Indique une température"
                                styleClass="tb-stepper"/>
                     <p:commandButton value="Envoyer" icon="pi pi-send"
                                      action="#{salleDetailBean.envoyerConsigne}"
@@ -226,10 +220,7 @@
                             <f:param name="id" value="#{m.boitier.id}"/>
                             <span class="tb-box-name"><i class="pi pi-wifi"/>#{m.boitier.name}</span>
                             <span class="tb-temp-l" data-watch="b#{m.boitier.id}">
-                                <h:outputText value="#{m.mesure.value}" rendered="#{m.mesure ne null}">
-                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                </h:outputText>
-                                <h:outputText value="—" rendered="#{m.mesure eq null}"/>
+                                #{unite.t(m.mesure.value)}
                                 <span class="tb-deg">°</span>
                             </span>
                             <span class="tb-box-meta">
@@ -262,20 +253,14 @@
                             <f:param name="id" value="#{r.salle.id}"/>
                             <span class="tb-box-name"><i class="pi pi-home"/>#{r.salle.name}</span>
                             <span class="tb-temp-l" data-watch="s#{r.salle.id}">
-                                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
-                                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                </h:outputText>
-                                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+                                #{unite.t(r.moyenne)}
                                 <span class="tb-deg">°</span>
                             </span>
                             <span class="tb-box-meta">
                                 <span class="tb-state">#{r.etat.label}</span>
                                 <span title="#{r.consigneTitre}">
                                     <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
-                                    <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
-                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                    </h:outputText>
-                                    <h:outputText value="—" rendered="#{r.consigne eq null}"/> °C
+                                    #{unite.t(r.consigne.value)} #{unite.symbole}
                                 </span>
                             </span>
                         </h:link>
@@ -331,9 +316,7 @@
                         </h:outputText>
                     </p:column>
                     <p:column headerText="Consigne">
-                        <h:outputText value="#{c.value}">
-                            <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                        </h:outputText> °C
+                        #{unite.t(c.value)} #{unite.symbole}
                     </p:column>
                 </p:dataTable>
             </h:panelGroup>

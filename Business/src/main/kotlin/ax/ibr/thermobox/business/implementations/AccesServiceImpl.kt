@@ -10,6 +10,7 @@ import ax.ibr.thermobox.common.services.HierarchieService
 import ax.ibr.thermobox.common.services.SalleService
 import ax.ibr.thermobox.common.services.SalleTempAttrService
 import ax.ibr.thermobox.persistence.dataservices.AccesDataService
+import ax.ibr.thermobox.persistence.dataservices.GroupeDataService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 
 /** See [AccesService] for the rules. */
@@ -17,12 +18,16 @@ class AccesServiceImpl(
     private val acces: AccesDataService = PersistenceFactory.getAccesDataService(),
     private val hierarchie: HierarchieService = BusinessFactory.getHierarchieService(),
     private val salles: SalleService = BusinessFactory.getSalleService(),
+    /** Groups of users; read only when needed (tests pass their own). */
+    private val groupes: () -> GroupeDataService = { PersistenceFactory.getGroupeDataService() },
     private val salleTemps: () -> SalleTempAttrService = { BusinessFactory.getSalleTempAttrService() },
 ) : AccesService {
 
     override fun estRestreint(user: User): Boolean = user.type != UserType.ADMIN && acces.estRestreint(user)
 
     override fun getAutorisations(user: User): List<Salle> = acces.getByUser(user).map { it.salle }
+
+    override fun getAutorisationsDesGroupes(user: User): List<Salle> = groupes().getElementsDesGroupesDe(user)
 
     override fun definir(user: User, restreint: Boolean, salles: Collection<Salle>) {
         require(user.type != UserType.ADMIN || !restreint) { "Un administrateur a toujours accès à tout" }
@@ -41,7 +46,8 @@ class AccesServiceImpl(
         if (!estRestreint(user)) return Perimetre.TOUT
         val accessibles = HashSet<Long>()
         val visibles = HashSet<Long>()
-        for (salle in getAutorisations(user)) {
+        // Own accesses and those of the user's groups add up
+        for (salle in getAutorisations(user) + getAutorisationsDesGroupes(user)) {
             descendre(salle, accessibles)
             hierarchie.getChemin(salle).mapNotNullTo(visibles) { it.id }
         }
@@ -62,7 +68,13 @@ class AccesServiceImpl(
         return temperatures.filter { it.id in autorisees }
     }
 
-    override fun oublierSalle(salle: Salle) = acces.supprimerPourSalle(salle)
+    override fun oublierSalle(salle: Salle) {
+        acces.supprimerPourSalle(salle)
+        groupes().oublierSalle(salle)
+    }
 
-    override fun oublierUtilisateur(user: User) = acces.supprimerPourUtilisateur(user)
+    override fun oublierUtilisateur(user: User) {
+        acces.supprimerPourUtilisateur(user)
+        groupes().oublierUtilisateur(user)
+    }
 }
