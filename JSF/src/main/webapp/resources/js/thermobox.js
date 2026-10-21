@@ -879,6 +879,69 @@ var tbPlis = (function () {
     return { animer: animer };
 })();
 
+/*
+ * Tree of salles.xhtml: a click anywhere on a row (not on its buttons) opens or closes it, and its
+ * content slides open or shut instead of appearing at once. PrimeFaces still does the toggling
+ * (state, icons); for a close, it is asked once the slide is over.
+ */
+var tbArbre = (function () {
+    var DUREE = 450, COURBE = 'cubic-bezier(.2,.8,.2,1)';
+    var FERME = 'ui-icon-triangle-1-e';   // PrimeFaces' collapsed icon class
+
+    function glisser(enfants, ouvrir) {
+        var h = enfants.scrollHeight;
+        enfants.style.overflow = 'hidden';
+        var a = enfants.animate([{ height: (ouvrir ? 0 : h) + 'px', opacity: ouvrir ? 0 : 1 },
+            { height: (ouvrir ? h : 0) + 'px', opacity: ouvrir ? 1 : 0 }], { duration: DUREE, easing: COURBE, fill: ouvrir ? 'none' : 'forwards' });
+        if (ouvrir) {
+            // The rows come in one after the other
+            Array.prototype.forEach.call(enfants.querySelectorAll(':scope > li.ui-treenode'), function (li, i) {
+                li.animate([{ opacity: 0, transform: 'translateX(-10px)' }, { opacity: 1, transform: 'none' }],
+                    { duration: 380, delay: 60 + Math.min(i, 10) * 35, easing: COURBE, fill: 'backwards' });
+            });
+        }
+        return a;
+    }
+
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t.closest || !t.closest('.ui-tree.tb-tree')) return;
+        var bascule = t.closest('.ui-tree-toggler');
+        if (!bascule) {
+            // A row: its toggler does the work (buttons, links and fields keep their own click)
+            var ligne = t.closest('.ui-treenode-content');
+            if (!ligne || t.closest('a, button, input, .ui-button, .ui-chkbox, .tb-node-actions')) return;
+            var b = ligne.querySelector(':scope > .ui-tree-toggler');
+            if (b) b.click();
+            return;
+        }
+        if (bascule.tbLaisser || tbAnim.reduced) return;
+        var enfants = bascule.closest('li.ui-treenode').querySelector(':scope > .ui-treenode-children');
+        if (!enfants || enfants.tbAnim) return;
+        if (bascule.classList.contains(FERME)) {
+            // Opening: PrimeFaces shows the content during this click, then it slides open
+            setTimeout(function () {
+                var a = enfants.tbAnim = glisser(enfants, true);
+                a.finished.finally(function () { enfants.style.overflow = ''; enfants.tbAnim = null; });
+            });
+            return;
+        }
+        // Closing: slide shut first, then let PrimeFaces hide it
+        e.stopPropagation();
+        var a = enfants.tbAnim = glisser(enfants, false);
+        a.finished.then(function () {
+            bascule.tbLaisser = true;
+            bascule.click();
+            bascule.tbLaisser = false;
+            a.cancel();
+            enfants.style.overflow = '';
+            enfants.tbAnim = null;
+        });
+    }, true);
+
+    return {};
+})();
+
 /* Phones held sideways: the theme / preferences / profile / logout panel of the rail ("…"). */
 var tbRail = (function () {
     function fermer() {
