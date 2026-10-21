@@ -18,6 +18,7 @@ import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.backup.ResultatSauvegarde
 import ax.ibr.thermobox.persistence.backup.SauvegardeBase
+import ax.ibr.thermobox.persistence.migration.MigrationsBase
 import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
 import java.nio.file.Path
@@ -28,7 +29,13 @@ object PersistenceFactory {
     private const val PU: String = "thermoboxPU"
     private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
-    private val emfHolder = lazy { Persistence.createEntityManagerFactory(PU, databaseProperties()) }
+    // Schema migrations first: JPA only maps the tables, it never creates or alters them.
+    private val emfHolder = lazy {
+        if (MigrationsBase.actives()) {
+            MigrationsBase.migrer(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
+        }
+        Persistence.createEntityManagerFactory(PU, databaseProperties())
+    }
     private val emf: EntityManagerFactory by emfHolder
 
     private val userService: UserDataService by lazy {

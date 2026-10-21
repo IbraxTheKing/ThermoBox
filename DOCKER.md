@@ -54,7 +54,9 @@ Si vous la modifiez, modifiez-la dans les trois.
 - **MQTT.** `BusinessFactory.MQTT = false` (driver simulé) et `MqttDriver` vise `tcp://localhost:1883` en dur :
   Mosquitto est optionnel tant que l'URL ne passe pas par une variable d'environnement.
 - **Mode développement.** `web.xml` est en `PROJECT_STAGE=Development` : à passer en `Production` pour un
-  déploiement réel. Les `schema-generation ... create` de `persistence.xml` sont à revoir pour la prod.
+  déploiement réel.
+- **Schéma.** Créé et mis à jour au démarrage par les migrations Flyway (voir le README, « Migrations de
+  schéma ») : rien à faire à la main, même sur une base existante.
 
 ## Mises à jour depuis l'interface
 
