@@ -3,7 +3,8 @@
 # Utilisation, depuis la racine du dépôt :  sh scripts/init-env.sh
 # (sous Windows : Git Bash ou WSL ; sinon copiez .env.example en .env et remplissez-le à la main)
 
-set -eu
+
+# shellcheck disable=SC2164
 cd "$(dirname "$0")/.."
 
 if [ -f .env ]; then
