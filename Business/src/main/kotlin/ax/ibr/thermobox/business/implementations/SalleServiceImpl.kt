@@ -50,6 +50,8 @@ class SalleServiceImpl(
             favoris.getBySalle(t).forEach { favoris.remove(it) }
             images.getBySalle(t)?.let { images.remove(it) }
             acces.supprimerPourSalle(t)
+            // …and the groups that gave access to it
+            PersistenceFactory.getGroupeDataService().oublierSalle(t)
         }
         links.getBySalle(t).forEach { links.remove(it) }
         history.getBySalle(t).orEmpty().forEach { history.remove(it) }

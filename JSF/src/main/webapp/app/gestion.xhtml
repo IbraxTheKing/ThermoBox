@@ -22,11 +22,25 @@
                     <span class="tb-eyebrow">#{loginBean.admin ? 'Administration' : 'Gestionnaire'}</span>
                     <h1>Gestion des salles</h1>
                 </div>
-                <p:commandButton value="Nouvel élément" icon="pi pi-plus" rendered="#{loginBean.admin}"
+                <p:commandButton value="Nouveau groupe" icon="pi pi-users" rendered="#{loginBean.admin and gestionBean.onglet eq 'droits'}"
+                                 action="#{droitsBean.nouveauGroupe}" process="@this" update=":groupeDlgForm"
+                                 oncomplete="PF('groupeDlg').show()" styleClass="tb-btn-lg tb-fab"/>
+                <p:commandButton value="Nouvel élément" icon="pi pi-plus" rendered="#{loginBean.admin and gestionBean.onglet eq 'salles'}"
                                  action="#{gestionBean.nouveau}" process="@this" update=":gestDlgForm"
                                  oncomplete="PF('gestDlg').show()" styleClass="tb-btn-lg tb-fab"/>
             </header>
 
+            <!-- ADMIN: the elements, or the users and their groups -->
+            <h:panelGroup layout="block" styleClass="tb-segmented tb-gest-onglets" rendered="#{loginBean.admin}"
+                          pt:role="tablist">
+                <p:commandButton value="Salles et bâtiments" icon="pi pi-building" action="#{gestionBean.ouvrirOnglet('salles')}"
+                                 process="@this" update="@form" styleClass="#{gestionBean.onglet eq 'salles' ? 'tb-seg-on' : ''}"/>
+                <p:commandButton value="Utilisateurs et groupes" icon="pi pi-users" action="#{gestionBean.ouvrirOnglet('droits')}"
+                                 actionListener="#{droitsBean.chargerSiBesoin}"
+                                 process="@this" update="@form" styleClass="#{gestionBean.onglet eq 'droits' ? 'tb-seg-on' : ''}"/>
+            </h:panelGroup>
+
+            <h:panelGroup id="ongletSalles" layout="block" rendered="#{gestionBean.onglet eq 'salles'}">
             <p class="tb-lead">
                 #{loginBean.admin
                   ? 'Tous les bâtiments, étages, salles et boîtiers sur une page : consignes, noms, emplacements. Coche plusieurs lignes pour agir sur toutes à la fois.'
@@ -90,6 +104,21 @@
                             <p:commandButton value="Déplacer" icon="pi pi-arrow-right" action="#{gestionBean.deplacerSelection}"
                                              process="@this cible" update="table groupe filtres" styleClass="tb-tonal"/>
                         </div>
+                        <div class="tb-gest-action">
+                            <p:selectCheckboxMenu id="accesUsers" value="#{gestionBean.accesUsers}" label="Utilisateurs"
+                                                  filter="true" filterMatchMode="contains" multiple="true" styleClass="tb-gest-multi"
+                                                  emptyLabel="Utilisateurs" updateLabel="true">
+                                <f:selectItems value="#{gestionBean.utilisateursLimitables}" var="u" itemLabel="#{u.username}" itemValue="#{u.id}"/>
+                            </p:selectCheckboxMenu>
+                            <p:selectCheckboxMenu id="accesGroupes" value="#{gestionBean.accesGroupes}" label="Groupes"
+                                                  multiple="true" styleClass="tb-gest-multi" emptyLabel="Groupes" updateLabel="true">
+                                <f:selectItems value="#{gestionBean.groupesExistants}" var="g" itemLabel="#{g.nom}" itemValue="#{g.id}"/>
+                            </p:selectCheckboxMenu>
+                            <p:commandButton value="Donner l'accès" icon="pi pi-lock-open" action="#{gestionBean.donnerAcces}"
+                                             process="@this accesUsers accesGroupes" update="groupe" styleClass="tb-tonal"/>
+                            <p:commandButton value="Retirer" icon="pi pi-lock" action="#{gestionBean.retirerAcces}"
+                                             process="@this accesUsers accesGroupes" update="groupe" styleClass="ui-button-flat"/>
+                        </div>
                         <p:commandButton value="Supprimer" icon="pi pi-trash" action="#{gestionBean.supprimerSelection}"
                                          process="@this" update="table groupe filtres" styleClass="ui-button-flat ui-button-danger">
                             <p:confirm header="Supprimer" message="Supprimer les #{gestionBean.selection.size()} éléments sélectionnés ? Ce qu'ils contiennent est gardé, sans rattachement."
@@ -100,7 +129,8 @@
             </h:panelGroup>
 
             <p:dataTable id="table" value="#{gestionBean.visibles}" var="l" rowKey="#{l.id}"
-                         selection="#{gestionBean.selection}" rowSelectMode="checkbox"
+                         selection="#{gestionBean.selection}"
+                         selectionMode="multiple" selectionRowMode="none"
                          rows="50" paginator="true" paginatorAlwaysVisible="false" paginatorPosition="bottom"
                          emptyMessage="Aucun élément ne correspond" styleClass="tb-table tb-gest-table"
                          rowStyleClass="tb-ton-#{l.etat.ton}">
@@ -108,7 +138,8 @@
                 <p:ajax event="rowUnselectCheckbox" update=":gestForm:groupe"/>
                 <p:ajax event="toggleSelect" update=":gestForm:groupe"/>
 
-                <p:column selectionMode="multiple" styleClass="tb-col-check"/>
+                <!-- PrimeFaces 14: the checkbox column is selectionBox (selectionMode is on the table) -->
+                <p:column selectionBox="true" styleClass="tb-col-check"/>
 
                 <p:column headerText="Élément" sortBy="#{l.salle.name}" styleClass="tb-col-salle">
                     <div class="tb-gest-nom" data-flip="g#{l.id}">
@@ -165,7 +196,52 @@
                     </p:commandButton>
                 </p:column>
             </p:dataTable>
+            </h:panelGroup>
+
+            <ui:fragment rendered="#{loginBean.admin and gestionBean.onglet eq 'droits'}">
+                <ui:include src="/WEB-INF/includes/gestion-droits.xhtml"/>
+            </ui:fragment>
         </h:form>
+
+        <!-- Group of users (ADMIN): name, members, elements it gives access to -->
+        <p:dialog header="#{droitsBean.editionId eq null ? 'Nouveau groupe' : 'Modifier le groupe'}" widgetVar="groupeDlg" modal="true"
+                  resizable="false" responsive="true" width="560" rendered="#{loginBean.admin}" styleClass="tb-acces-dialog">
+            <h:form id="groupeDlgForm">
+                <div class="tb-field">
+                    <p:outputLabel for="gnom" value="Nom"/>
+                    <p:inputText id="gnom" value="#{droitsBean.formNom}" required="true" requiredMessage="Nom obligatoire" maxlength="100"/>
+                    <p:message for="gnom"/>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="gdesc" value="Description (facultative)"/>
+                    <p:inputText id="gdesc" value="#{droitsBean.formDescription}" maxlength="255"/>
+                </div>
+                <div class="tb-field">
+                    <p:outputLabel for="gmembres" value="Membres"/>
+                    <p:selectCheckboxMenu id="gmembres" value="#{droitsBean.formMembres}" multiple="true" filter="true"
+                                          filterMatchMode="contains" emptyLabel="Aucun membre" updateLabel="true" styleClass="tb-full">
+                        <f:converter converterId="jakarta.faces.Long"/>
+                        <f:selectItems value="#{droitsBean.users}" var="u" itemLabel="#{u.user.username} (#{u.user.type})" itemValue="#{u.id}"/>
+                    </p:selectCheckboxMenu>
+                </div>
+                <p class="tb-muted tb-acces-regle">
+                    Ses membres voient en plus ce qui est coché, avec tout ce que cela contient (sauf ceux qui voient déjà tout).
+                </p>
+                <p:tree value="#{droitsBean.formArbre}" var="s" selectionMode="checkbox"
+                        selection="#{droitsBean.formSelection}" propagateSelectionDown="true"
+                        propagateSelectionUp="false" styleClass="tb-tree tb-acces-arbre">
+                    <p:treeNode>
+                        <span class="tb-acces-noeud">#{s.name}<span class="tb-muted">#{droitsBean.libelleType(s)}</span></span>
+                    </p:treeNode>
+                </p:tree>
+                <div class="tb-actions">
+                    <p:commandButton value="Annuler" type="button" onclick="PF('groupeDlg').hide()" styleClass="ui-button-flat"/>
+                    <p:commandButton value="Enregistrer" icon="pi pi-check" action="#{droitsBean.enregistrerGroupe}"
+                                     process="@form" update="@form :gestForm"
+                                     oncomplete="if (args &amp;&amp; args.saved) PF('groupeDlg').hide()"/>
+                </div>
+            </h:form>
+        </p:dialog>
 
         <!-- Create / rename / move (ADMIN) -->
         <p:dialog header="#{gestionBean.editionId eq null ? 'Nouvel élément' : 'Modifier'}" widgetVar="gestDlg" modal="true"

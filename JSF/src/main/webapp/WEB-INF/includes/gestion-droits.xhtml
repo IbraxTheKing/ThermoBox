@@ -1,0 +1,146 @@
+<!-- "Utilisateurs et groupes" tab of gestion.xhtml (ADMIN), inside gestForm. -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
+    <p class="tb-lead">
+        Rôles et accès de plusieurs utilisateurs à la fois, et groupes : chaque membre d'un groupe voit en plus les
+        bâtiments, étages et salles du groupe. Un utilisateur qui voit tout n'est pas limité par ses groupes.
+    </p>
+
+    <section class="tb-section">
+        <h2 class="tb-section-title">
+            <span class="tb-section-icon"><i class="pi pi-user"/></span>
+            Utilisateurs
+            <span class="tb-section-meta">#{droitsBean.users.size()}</span>
+        </h2>
+
+        <div class="tb-toolbar">
+            <span class="ui-input-icon-left tb-search">
+                <i class="pi pi-search"/>
+                <p:inputText id="rechercheUsers" value="#{droitsBean.recherche}" placeholder="Rechercher un utilisateur ou un groupe…"
+                             autocomplete="off" pt:type="search">
+                    <p:ajax event="keyup" delay="200" update="users"/>
+                </p:inputText>
+            </span>
+        </div>
+
+        <!-- Actions on the ticked users -->
+        <h:panelGroup id="groupeUsers" layout="block" styleClass="tb-gest-groupe #{empty droitsBean.selection ? '' : 'tb-gest-groupe-on'}">
+            <span class="tb-gest-compte">
+                <i class="pi pi-check-square"/>
+                #{empty droitsBean.selection ? 'Coche des utilisateurs pour changer leur rôle, leurs accès ou leurs groupes' : droitsBean.selection.size().toString().concat(' utilisateur(s) sélectionné(s)')}
+            </span>
+            <ui:fragment rendered="#{not empty droitsBean.selection}">
+                <div class="tb-gest-action">
+                    <p:selectOneMenu id="roleGroupe" value="#{droitsBean.roleGroupe}" styleClass="tb-filter tb-gest-cible">
+                        <f:selectItem itemLabel="Rôle…" itemValue="#{null}" noSelectionOption="true"/>
+                        <f:selectItems value="#{droitsBean.roles}" var="r" itemLabel="#{r}" itemValue="#{r}"/>
+                    </p:selectOneMenu>
+                    <p:commandButton value="Appliquer" icon="pi pi-check" action="#{droitsBean.appliquerRoleSelection}"
+                                     process="@this roleGroupe" update="users groupeUsers groupes" styleClass="tb-tonal"/>
+                </div>
+                <div class="tb-gest-action">
+                    <p:commandButton value="Tout voir" icon="pi pi-eye" action="#{droitsBean.accesSelection(true)}"
+                                     process="@this" update="users groupeUsers" styleClass="ui-button-flat"
+                                     title="Ils voient tout ThermoBox"/>
+                    <p:commandButton value="Limiter" icon="pi pi-lock" action="#{droitsBean.accesSelection(false)}"
+                                     process="@this" update="users groupeUsers" styleClass="ui-button-flat"
+                                     title="Ils ne voient que leurs accès et ceux de leurs groupes"/>
+                </div>
+                <div class="tb-gest-action">
+                    <p:selectOneMenu id="groupeCible" value="#{droitsBean.groupeCibleId}" styleClass="tb-filter tb-gest-cible">
+                        <f:selectItem itemLabel="Groupe…" itemValue="#{null}" noSelectionOption="true"/>
+                        <f:selectItems value="#{droitsBean.groupes}" var="g" itemLabel="#{g.groupe.nom}" itemValue="#{g.id}"/>
+                    </p:selectOneMenu>
+                    <p:commandButton value="Ajouter" icon="pi pi-user-plus" action="#{droitsBean.ajouterAuGroupe}"
+                                     process="@this groupeCible" update="users groupeUsers groupes" styleClass="tb-tonal"/>
+                    <p:commandButton value="Retirer" icon="pi pi-user-minus" action="#{droitsBean.retirerDuGroupe}"
+                                     process="@this groupeCible" update="users groupeUsers groupes" styleClass="ui-button-flat"/>
+                </div>
+                <p:commandButton value="Nouveau groupe avec eux" icon="pi pi-users" action="#{droitsBean.nouveauGroupe}"
+                                 process="@this" update=":groupeDlgForm" oncomplete="PF('groupeDlg').show()" styleClass="ui-button-flat"/>
+            </ui:fragment>
+        </h:panelGroup>
+
+        <p:dataTable id="users" value="#{droitsBean.visibles}" var="l" rowKey="#{l.id}"
+                     selection="#{droitsBean.selection}" selectionMode="multiple" selectionRowMode="none"
+                     emptyMessage="Aucun utilisateur ne correspond" styleClass="tb-table tb-gest-table tb-droits-table">
+            <p:ajax event="rowSelectCheckbox" update=":gestForm:groupeUsers"/>
+            <p:ajax event="rowUnselectCheckbox" update=":gestForm:groupeUsers"/>
+            <p:ajax event="toggleSelect" update=":gestForm:groupeUsers"/>
+
+            <p:column selectionBox="true" styleClass="tb-col-check"/>
+
+            <p:column headerText="Utilisateur" sortBy="#{l.user.username}" styleClass="tb-col-salle">
+                <div class="tb-gest-nom">
+                    <span class="tb-avatar tb-user-avatar tb-role-#{l.user.type}">#{droitsBean.initiale(l.user)}</span>
+                    <span class="tb-gest-nom-texte">
+                        <strong>#{l.user.username}
+                            <p:tag value="vous" severity="info" rendered="#{droitsBean.estMoi(l.user)}" styleClass="tb-ml"/>
+                        </strong>
+                    </span>
+                </div>
+            </p:column>
+
+            <p:column headerText="Rôle" sortBy="#{l.user.type}" styleClass="tb-col-role">
+                <p:selectOneMenu value="#{l.user.type}" disabled="#{droitsBean.estMoi(l.user)}" styleClass="tb-gest-role">
+                    <f:selectItems value="#{droitsBean.roles}" var="r" itemLabel="#{r}" itemValue="#{r}"/>
+                    <p:ajax listener="#{droitsBean.changerRole(l, l.user.type)}" update=":gestForm:users :gestForm:groupes"/>
+                </p:selectOneMenu>
+            </p:column>
+
+            <p:column headerText="Accès" styleClass="tb-col-acces">
+                <span class="#{l.sansAcces ? 'tb-droits-sans' : ''}"><i class="pi pi-key"/> #{l.acces}</span>
+            </p:column>
+
+            <p:column headerText="Groupes" styleClass="tb-col-groupes">
+                <ui:repeat value="#{l.groupes}" var="g">
+                    <span class="tb-chip-groupe">#{g}</span>
+                </ui:repeat>
+                <h:outputText styleClass="tb-muted" value="—" rendered="#{empty l.groupes}"/>
+            </p:column>
+        </p:dataTable>
+    </section>
+
+    <section class="tb-section">
+        <h2 class="tb-section-title">
+            <span class="tb-section-icon"><i class="pi pi-users"/></span>
+            Groupes
+            <span class="tb-section-meta">#{droitsBean.groupes.size()}</span>
+        </h2>
+        <h:panelGroup id="groupes" layout="block" styleClass="tb-groupes">
+            <h:panelGroup layout="block" styleClass="tb-empty tb-empty-sm" rendered="#{empty droitsBean.groupes}">
+                Aucun groupe. Un groupe donne les mêmes accès à plusieurs utilisateurs : « Nouveau groupe ».
+            </h:panelGroup>
+            <ui:repeat value="#{droitsBean.groupes}" var="g">
+                <article class="tb-card tb-groupe">
+                    <div class="tb-groupe-tete">
+                        <span class="tb-section-icon"><i class="pi pi-users"/></span>
+                        <div class="tb-groupe-titre">
+                            <strong>#{g.groupe.nom}</strong>
+                            <h:outputText styleClass="tb-muted" value="#{g.groupe.description}" rendered="#{not empty g.groupe.description}"/>
+                        </div>
+                        <p:commandButton icon="pi pi-pencil" title="Modifier #{g.groupe.nom}" action="#{droitsBean.modifierGroupe(g)}"
+                                         process="@this" update=":groupeDlgForm" oncomplete="PF('groupeDlg').show()" styleClass="ui-button-flat"/>
+                        <p:commandButton icon="pi pi-trash" title="Supprimer #{g.groupe.nom}" action="#{droitsBean.supprimerGroupe(g)}"
+                                         process="@this" update=":gestForm:groupes :gestForm:users" styleClass="ui-button-flat ui-button-danger">
+                            <p:confirm header="Supprimer" message="Supprimer le groupe « #{g.groupe.nom} » ? Ses membres gardent leurs propres accès."
+                                       icon="pi pi-exclamation-triangle"/>
+                        </p:commandButton>
+                    </div>
+                    <div class="tb-groupe-ligne">
+                        <span class="tb-groupe-label"><i class="pi pi-user"/> #{g.membres.size()} membre(s)</span>
+                        <ui:repeat value="#{g.membres}" var="m"><span class="tb-chip-groupe">#{m}</span></ui:repeat>
+                    </div>
+                    <div class="tb-groupe-ligne">
+                        <span class="tb-groupe-label"><i class="pi pi-key"/> #{g.elements.size()} élément(s)</span>
+                        <ui:repeat value="#{g.elements}" var="e"><span class="tb-chip-groupe tb-chip-element">#{e}</span></ui:repeat>
+                    </div>
+                </article>
+            </ui:repeat>
+        </h:panelGroup>
+    </section>
+</ui:composition>

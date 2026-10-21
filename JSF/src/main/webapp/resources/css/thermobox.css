@@ -1219,9 +1219,38 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 :root body .tb-gest-input .ui-inputnumber, :root body .tb-gest-input input { width: 8.5em; height: 36px; }
 .tb-gest-table tr.ui-state-highlight { background: color-mix(in srgb, var(--md-primary) 10%, transparent) !important; color: inherit !important; }
 
+/* ADMIN: two tabs, the elements and the users */
+.tb-segmented.tb-gest-onglets { display: inline-flex; margin: 0 0 18px; }
+:root body .ui-selectcheckboxmenu.tb-gest-multi { min-width: 170px; max-width: 260px; height: 44px; }
+:root body .ui-selectcheckboxmenu.tb-gest-multi .ui-selectcheckboxmenu-label { line-height: 44px; padding-top: 0; padding-bottom: 0; }
+:root body .tb-droits-table td.tb-col-role { width: 200px; }
+:root body .ui-selectonemenu.tb-gest-role { min-width: 170px; }
+.tb-droits-sans { color: var(--tb-on-chauffe-container); font-weight: 600; }
+.tb-chip-groupe {
+    display: inline-flex; align-items: center; margin: 2px 4px 2px 0; padding: 2px 10px;
+    border-radius: var(--tb-shape-full); background: var(--md-secondary-container);
+    font-size: .8rem; font-weight: 600; white-space: nowrap;
+}
+.tb-chip-element { background: color-mix(in srgb, var(--md-primary) 12%, transparent); color: var(--md-primary); }
+
+/* Groups: one card each */
+.tb-groupes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.tb-card.tb-groupe { margin-top: 0; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.tb-groupe-tete { display: flex; align-items: center; gap: 12px; }
+.tb-groupe-titre { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.tb-groupe-titre strong { font-size: 1.08rem; }
+.tb-groupe-titre .tb-muted { font-size: .85rem; }
+.tb-groupe-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.tb-groupe-label { margin-right: 8px; color: var(--md-on-surface-variant); font-size: .82rem; font-weight: 700; white-space: nowrap; }
+
 /* Phones: one block per element */
 @media (max-width: 840px) {
     .tb-gest-groupe { top: calc(var(--tb-topbar-h, 58px) + 8px); }
+    .tb-segmented.tb-gest-onglets { display: flex; }
+    :root body .tb-gest-table.tb-droits-table tbody tr { grid-template-areas: "c n n" "c r r" "c x x" "c g g"; }
+    :root body .tb-gest-table.tb-droits-table td.tb-col-role { grid-area: r; width: auto; }
+    :root body .tb-gest-table.tb-droits-table td.tb-col-acces { grid-area: x; }
+    :root body .tb-gest-table.tb-droits-table td.tb-col-groupes { grid-area: g; }
     :root body .tb-gest-table thead { display: none; }
     :root body .tb-gest-table tbody tr {
         display: grid;

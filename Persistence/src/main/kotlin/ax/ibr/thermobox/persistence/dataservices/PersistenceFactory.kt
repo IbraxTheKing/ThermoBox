@@ -2,6 +2,8 @@ package ax.ibr.thermobox.persistence.dataservices
 
 import ax.ibr.thermobox.common.entities.Acces
 import ax.ibr.thermobox.common.entities.Favori
+import ax.ibr.thermobox.common.entities.Groupe
+import ax.ibr.thermobox.persistence.jpa.GroupeDataServiceJPAImpl
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleImage
 import ax.ibr.thermobox.common.entities.SalleSalleAttr
@@ -71,6 +73,10 @@ object PersistenceFactory {
     }
 
     fun getAccesDataService(): AccesDataService = accesService
+
+    private val groupeService: GroupeDataService by lazy { GroupeDataServiceJPAImpl(emf, Groupe::class.java) }
+
+    fun getGroupeDataService(): GroupeDataService = groupeService
 
     fun getUserDataService(): UserDataService = userService
 

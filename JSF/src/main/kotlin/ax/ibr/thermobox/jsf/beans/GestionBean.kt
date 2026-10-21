@@ -1,6 +1,9 @@
 package ax.ibr.thermobox.jsf.beans
 
 import ax.ibr.thermobox.common.entities.Boitier
+import ax.ibr.thermobox.common.entities.Groupe
+import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.common.entities.SalleKind
 import ax.ibr.thermobox.common.entities.kind
@@ -70,8 +73,14 @@ class GestionBean : Serializable {
     /** Consigne typed on each row, in the unit of the Préférences page (a map: EL gives no type, so any number). */
     var saisies: MutableMap<Long, Any?> = HashMap()
 
+    /** "salles" or "droits" (ADMIN: users and groups). */
+    var onglet: String = "salles"
+
     // Selection actions
     var consigneGroupe: Float? = null
+    /** ADMIN: users and groups the selected elements are given to / taken from. */
+    var accesUsers: Array<Long> = emptyArray()
+    var accesGroupes: Array<Long> = emptyArray()
     var forcer: Boolean = false
     var cibleId: Long? = null
 
@@ -178,6 +187,64 @@ class GestionBean : Serializable {
         if (refusees.isNotEmpty()) Faces.error("Consigne refusée", refusees.joinToString())
         charger()
         return refusees.isEmpty()
+    }
+
+    fun ouvrirOnglet(o: String) {
+        onglet = if (o == "droits" && login.isAdmin) "droits" else "salles"
+    }
+
+    // ---------------------------------------------------------------- accesses of the selection (ADMIN)
+
+    /** Users who can be given accesses: not the ADMINs, who see everything anyway. */
+    val utilisateursLimitables: List<User> get() = Services.users.getAll().filter { it.type != UserType.ADMIN }.sortedBy { it.username?.lowercase() }
+
+    val groupesExistants: List<Groupe> get() = Services.groupes.getAll()
+
+    fun donnerAcces() = changerAcces(true)
+
+    fun retirerAcces() = changerAcces(false)
+
+    /**
+     * The selected bâtiments, étages and salles (and what they contain) for the chosen users and
+     * groups. A user who sees everything already has them (giving changes nothing) and can't lose
+     * them (limit them first in « Utilisateurs et groupes »).
+     */
+    private fun changerAcces(donner: Boolean) {
+        if (!login.require(login.isAdmin)) return
+        val elements = selection.filter { !it.boitier }.map { it.salle }
+        if (elements.isEmpty()) { Faces.warn("Sélectionne des bâtiments, étages ou salles"); return }
+        if (accesUsers.isEmpty() && accesGroupes.isEmpty()) { Faces.warn("Choisis des utilisateurs ou des groupes"); return }
+        val ids = elements.mapNotNull { it.id }.toSet()
+        val faits = ArrayList<String>()
+        val ignores = ArrayList<String>()
+        accesUsers.mapNotNull { Services.users.getById(it) }.forEach { u ->
+            if (u.type == UserType.ADMIN || !Services.acces.estRestreint(u)) {
+                ignores += "${u.username} (voit déjà tout)"
+                return@forEach
+            }
+            val actuels = Services.acces.getAutorisations(u)
+            val nouveaux = if (donner) actuels + elements.filter { e -> actuels.none { it.id == e.id } } else actuels.filter { it.id !in ids }
+            try {
+                Services.acces.definir(u, true, nouveaux)
+                faits += u.username.orEmpty()
+            } catch (e: Exception) {
+                ignores += "${u.username} (${e.message})"
+            }
+        }
+        accesGroupes.mapNotNull { Services.groupes.getById(it) }.forEach { g ->
+            try {
+                if (donner) Services.groupes.ajouterElements(g, elements) else Services.groupes.retirerElements(g, elements)
+                faits += "groupe ${g.nom}"
+            } catch (e: Exception) {
+                ignores += "groupe ${g.nom} (${e.message})"
+            }
+        }
+        if (faits.isNotEmpty()) Faces.info(
+            (if (donner) "Accès donné à " else "Accès retiré à ") + faits.joinToString(),
+            "${elements.size} élément(s) et leur contenu")
+        if (ignores.isNotEmpty()) Faces.warn("Non modifié", ignores.joinToString())
+        accesUsers = emptyArray()
+        accesGroupes = emptyArray()
     }
 
     // ---------------------------------------------------------------- structure (ADMIN)

@@ -18,6 +18,7 @@ object Services {
     val favoris get() = BusinessFactory.getFavoriService()
     val images get() = BusinessFactory.getSalleImageService()
     val acces get() = BusinessFactory.getAccesService()
+    val groupes get() = BusinessFactory.getGroupeService()
 
     val driver: ProtocolDriver get() = BusinessFactory.getDriver()
 }

@@ -27,6 +27,9 @@
         <class>ax.ibr.thermobox.common.entities.Mesurer</class>
         <class>ax.ibr.thermobox.common.entities.Acces</class>
         <class>ax.ibr.thermobox.common.entities.AccesRestreint</class>
+        <class>ax.ibr.thermobox.common.entities.Groupe</class>
+        <class>ax.ibr.thermobox.common.entities.GroupeMembre</class>
+        <class>ax.ibr.thermobox.common.entities.GroupeAcces</class>
 
         <properties>
 
