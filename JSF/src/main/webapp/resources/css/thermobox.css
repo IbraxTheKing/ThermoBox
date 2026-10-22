@@ -2052,6 +2052,8 @@ a.tb-crumb:hover { background: var(--md-secondary-container); color: var(--md-on
 }
 .tb-banner-error .tb-banner-icon { background: var(--md-error); color: var(--md-on-error); }
 .tb-banner + .tb-banner, .tb-card + .tb-banner { margin-top: 12px; }
+.tb-depreciation code { padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, currentColor 12%, transparent); font-size: .9em; }
+.tb-page-head + .tb-depreciation { margin-bottom: 16px; }
 
 .tb-maj-installee { display: flex; align-items: center; gap: 18px; margin: 0 0 16px; }
 .tb-maj-installee-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

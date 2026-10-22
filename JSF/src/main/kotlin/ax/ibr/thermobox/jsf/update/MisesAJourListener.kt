@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.jsf.update
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.jsf.depreciation.Depreciation
 import jakarta.servlet.ServletContextEvent
 import jakarta.servlet.ServletContextListener
 
@@ -11,6 +12,7 @@ import jakarta.servlet.ServletContextListener
 class MisesAJourListener : ServletContextListener {
 
     override fun contextInitialized(event: ServletContextEvent) {
+        event.servletContext.log("AVERTISSEMENT : ${Depreciation.MESSAGE}")
         BusinessFactory.getUpdateService().demarrer(ComposantJsf(event.servletContext))
     }
 

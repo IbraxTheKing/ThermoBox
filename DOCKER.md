@@ -15,8 +15,12 @@ et `THERMOBOX_JWT_SECRET` (32 caractères minimum). Ajoutez aussi `.env` au `.gi
 | Service | Profil | URL / port |
 |---|---|---|
 | REST | toujours | http://localhost:8080 |
-| JSF sur Tomcat | `tomcat` | http://localhost:8081 |
-| JSF sur WildFly | `wildfly` | http://localhost:8082 |
+| JSF sur Tomcat (déprécié) | `tomcat` | http://localhost:8081 |
+| JSF sur WildFly (déprécié) | `wildfly` | http://localhost:8082 |
+
+> L'interface JSF est dépréciée : les profils `tomcat` et `wildfly` disparaissent en **26.12**.
+> Utilisez le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
+> (branche `dev` pour l'instant) avec le serveur REST.
 | MySQL | toujours | 127.0.0.1:3306 (machine locale uniquement) |
 | Mosquitto (MQTT) | `mqtt` | localhost:1883 |
 

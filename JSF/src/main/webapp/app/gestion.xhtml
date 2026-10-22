@@ -30,6 +30,8 @@
                                  oncomplete="PF('gestDlg').show()" styleClass="tb-btn-lg tb-fab"/>
             </header>
 
+            <ui:include src="/WEB-INF/includes/deprecation-banner.xhtml"/>
+
             <!-- ADMIN: the elements, or the users and their groups -->
             <h:panelGroup layout="block" styleClass="tb-segmented tb-gest-onglets" rendered="#{loginBean.admin}"
                           pt:role="tablist">
