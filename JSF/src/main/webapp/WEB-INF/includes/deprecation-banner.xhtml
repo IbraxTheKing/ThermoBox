@@ -1,0 +1,19 @@
+<!-- Admins: the JSF interface is deprecated and removed in a coming version (Depreciation.kt). -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+    <h:panelGroup layout="block" styleClass="tb-banner tb-depreciation" rendered="#{loginBean.admin}">
+        <span class="tb-banner-icon"><i class="pi pi-exclamation-triangle"/></span>
+        <div class="tb-banner-text">
+            <strong>Cette interface est dépréciée</strong>
+            <span>
+                L'interface JSF sera supprimée dans la version #{depreciation.versionSuppression}.
+                Préférez le client Angular <em>Thermobox-Ng-Client</em> (branche
+                <code>#{depreciation.clientBranche}</code> pour l'instant), qui utilise l'API REST de ce serveur.
+            </span>
+        </div>
+        <p:linkButton value="Ouvrir le client" icon="pi pi-external-link" iconPos="right"
+                      href="#{depreciation.clientBrancheUrl}" target="_blank" styleClass="ui-button-flat"/>
+    </h:panelGroup>
+</ui:composition>

@@ -2,6 +2,12 @@
 
 ThermoBox est une application de supervision thermique permettant la gestion des températures dans des infrastructures complexes telles que des bâtiments ou des salles serveurs. Le système permet d'organiser des espaces hiérarchiques, de suivre les mesures en temps réel et de gérer des consignes dynamiques.
 
+> [!WARNING]
+> **L'interface JSF est dépréciée** et le module `JSF` sera supprimé dans la version **26.12**.
+> Utilisez le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
+> (branche [`dev`](https://github.com/IbraxTheKing/Thermobox-Ng-Client/tree/dev) pour l'instant),
+> qui passe par l'API REST de ce serveur. Voir [Dépréciation de l'interface JSF](#dépréciation-de-linterface-jsf).
+
 ## Quick Start
 
 ### Prérequis
@@ -59,6 +65,23 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée, un `THERMOBOX_STAGE`
 inconnu) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
 
+## Dépréciation de l'interface JSF
+
+L'interface web JSF fait double emploi avec le client Angular
+[Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client), qui couvre les mêmes
+fonctions à travers l'API REST. Garder deux interfaces double la maintenance et la surface d'attaque
+(les contrôles d'accès sont écrits deux fois, dans les beans JSF et dans les ressources REST).
+
+| Version | Ce qui change |
+|---|---|
+| Jusqu'à 26.11 | JSF fonctionne mais ne reçoit plus de nouvelles fonctions, seulement des correctifs de sécurité. Les administrateurs voient un bandeau sur l'aperçu, la gestion, les utilisateurs et les mises à jour, et le serveur l'écrit dans son journal au démarrage. |
+| 26.12 | Le module `JSF`, ses images Docker (profils `tomcat` et `wildfly`) et l'installation du WAR par les mises à jour sont supprimés. Seuls le serveur REST et le client Angular restent. |
+
+**Pour migrer :** déployez Thermobox-Ng-Client (branche `dev` pour l'instant) en suivant son README,
+avec ce serveur REST comme API (`http://localhost:8080` avec Docker). Les comptes, salles, consignes et
+groupes sont dans la base et restent tels quels. Les préférences personnelles de l'interface JSF
+(unité, teinte, animations, raccourcis) sont des cookies du navigateur et sont à refaire dans le client.
+
 ## Architecture du Projet
 
 Le projet est structuré en modules Maven pour assurer une séparation des responsabilités :
@@ -69,7 +92,7 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 | Persistence | Data Access | Gère l'accès aux données via JPA et fournit les services de persistance. |
 | Business | Core Logic | Contient la logique métier, les règles de calcul des consignes et les pilotes de communication (MQTT/Simulé). |
 | RestServer | Entry Point | Exposition des ressources via une API REST sécurisée par JWT (Jersey + Jetty). |
-| JSF | UI Layer | Interface utilisateur web construite avec Jakarta Faces et PrimeFaces. |
+| JSF | UI Layer | **Déprécié, supprimé en 26.12.** Interface web Jakarta Faces / PrimeFaces, remplacée par [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client). |
 | ibr-utils | Shared Utils | Utilitaires transversaux : Logging JSON, Cryptographie, Gestion d'exceptions personnalisées. |
 | Base | Deployment | Module de packaging regroupant les modules internes pour faciliter le déploiement (Fat Jar). |
 
@@ -79,7 +102,7 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 - Persistence : Jakarta Persistence (JPA) / Hibernate
 - API : Jersey, Jetty
 - Sécurité : JWT (JSON Web Tokens)
-- Frontend : Jakarta Faces (JSF), PrimeFaces
+- Frontend : client Angular séparé ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)) ; Jakarta Faces (JSF) et PrimeFaces, dépréciés
 
 ## Déploiement
 Le projet inclut un profil de déploiement spécifique. Pour générer les artefacts destinés à la production (incluant le regroupement des modules dans base.jar) :
@@ -168,8 +191,8 @@ Les tags constituent des références immuables vers les commits publiés. Un ta
 ## Mises à jour depuis l'interface
 
 ThermoBox cherche chaque jour une nouvelle version sur GitHub (et à la demande, depuis
-**Administration → Mises à jour**). Les administrateurs sont prévenus dans l'interface JSF
-(pastille dans la navigation, bandeau sur l'aperçu) et par l'API REST.
+**Administration → Mises à jour**). Les administrateurs sont prévenus par l'API REST (et, jusqu'à sa suppression en 26.12, dans
+l'interface JSF : pastille dans la navigation, bandeau sur l'aperçu).
 
 **Types de mise à jour**, d'après le numéro de version :
 
