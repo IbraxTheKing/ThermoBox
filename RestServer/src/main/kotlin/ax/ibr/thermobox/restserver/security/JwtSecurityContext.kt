@@ -10,15 +10,26 @@ import java.security.Principal
  * Resources get it through `@Context SecurityContext`; roles come from the database user,
  * not from the token, so a role change applies immediately.
  */
+
+data class JwtPrincipal(
+    val user: User,
+    val token: DecodedJWT
+) : Principal {
+    override fun getName(): String? = user.username
+}
+
 class JwtSecurityContext(
     val user: User,
     val token: DecodedJWT,
     private val secure: Boolean
 ) : SecurityContext {
 
-    override fun getUserPrincipal(): Principal = Principal { user.username }
+    private val principal = JwtPrincipal(user, token)
 
-    override fun isUserInRole(role: String): Boolean = user.type?.hasRole(role) == true
+    override fun getUserPrincipal(): Principal = principal
+
+    override fun isUserInRole(role: String): Boolean =
+        principal.user.type?.hasRole(role) == true
 
     override fun isSecure(): Boolean = secure
 
@@ -27,4 +38,5 @@ class JwtSecurityContext(
 
 /** Authenticated user of the current request. Only valid on non-public endpoints. */
 val SecurityContext.currentUser: User
-    get() = (this as JwtSecurityContext).user
+    get() = (userPrincipal as? JwtPrincipal)?.user
+        ?: throw IllegalStateException("Authenticated ThermoBox user not found")
