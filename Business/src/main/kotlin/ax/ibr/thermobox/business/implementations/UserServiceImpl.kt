@@ -28,17 +28,15 @@ class UserServiceImpl(
 
     override fun add(t: User) {
         hashPassword(t)
-        if (t.username?.contains(" ") == true) {
-            throw InvalidNameException("User name must not contain spaces")
-        }
+        if (!UserVerification.verifyUsername(t.username!!))
+            throw InvalidNameException("Username should only contains letters.")
         userService.add(t)
     }
 
     override fun update(t: User) {
         hashPassword(t)
-        if (t.username?.contains(" ") == true) {
-            throw InvalidNameException("User name must not contain spaces")
-        }
+        if (!UserVerification.verifyUsername(t.username!!))
+            throw InvalidNameException("Username should only contains letters.")
         userService.update(t)
     }
 
@@ -67,5 +65,14 @@ class UserServiceImpl(
     private fun hashPassword(user: User) {
         val password = user.password ?: return
         if (!PasswordHasher.isHash(password)) user.password = PasswordHasher.hash(password)
+    }
+}
+
+private object UserVerification {
+
+    fun verifyUsername(username: String): Boolean {
+        // Matches only lowercase and uppercase English letters (A-Z, a-z)
+        // The username cannot be empty
+        return username.matches(Regex("^[a-zA-Z]+$"))
     }
 }
