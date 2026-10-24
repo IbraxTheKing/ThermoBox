@@ -21,6 +21,7 @@ import jakarta.ws.rs.core.Context
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 import jakarta.ws.rs.core.SecurityContext
+import javax.naming.InvalidNameException
 
 
 @Path("api/users")
@@ -66,6 +67,10 @@ class UserResource {
                 .build()
         } catch (e: AlreadyExistsException) {
             error(Response.Status.CONFLICT, e.message ?: "Username already taken")
+        } catch (e: InvalidNameException) {
+            error(Response.Status.CONFLICT, e.message ?: "${username} is not a valid username.")
+        } catch (e: Exception) {
+            error(Response.Status.BAD_REQUEST, e.message ?: "${username} is not a valid username: ${e.message}")
         }
     }
 
