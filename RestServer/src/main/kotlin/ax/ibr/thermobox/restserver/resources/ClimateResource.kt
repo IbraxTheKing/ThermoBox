@@ -1,9 +1,11 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.business.charts.CurveSampling
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.implementations.ClimateServiceImpl
 import ax.ibr.thermobox.common.entities.Device
 import ax.ibr.thermobox.common.entities.RoomKind
+import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.restserver.dto.SetpointRequest
 import ax.ibr.thermobox.restserver.dto.SetpointDispatchDto
@@ -34,6 +36,11 @@ import java.time.format.DateTimeParseException
  * when it has none of its own. Only what the current user may see.
  *
  * Periods are given as ISO-8601 instants: ?start=2026-10-20T08:00:00Z&end=2026-10-21T08:00:00Z.
+ *
+ * Curves can be long (a device measuring every minute gives 43 200 points a month): with
+ * ?points=500, each measurement curve is reduced to at most 500 of its points, chosen to draw
+ * almost the same line ([CurveSampling]). A chart needs about as many points as it is wide in
+ * pixels. Setpoints are never reduced: they change rarely and every change matters.
  */
 @Path("api/v2/climate")
 @Produces(MediaType.APPLICATION_JSON)
@@ -54,13 +61,20 @@ class ClimateResource {
      */
     @GET
     @Path("/{id}/history")
-    fun history(@PathParam("id") id: Long, @QueryParam("start") start: String?, @QueryParam("end") end: String?): Response {
+    fun history(
+        @PathParam("id") id: Long,
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?,
+        @QueryParam("points") points: Int?,
+    ): Response {
         val s = view.element(id) ?: return notFound()
         val (de, a) = period(start, end) ?: return error("start and end must be ISO-8601 instants, start before end")
+        if (!validPoints(points)) return error(POINTS_ERROR)
+        fun curve(c: List<Temperature>) = reduce(c, points).map { PointDto.of(it) }
 
         val histories = climate.getHistories(s, de, a)
         val setpoints = climate.getSetpoints(s, de, a).map { PointDto.of(it) }
-        val average = ClimateServiceImpl.movingAverage(histories).map { PointDto.of(it) }
+        val average = curve(ClimateServiceImpl.movingAverage(histories))
         val container = s.kind == RoomKind.FLOOR || s.kind == RoomKind.BUILDING
 
         val dto = when {
@@ -69,7 +83,7 @@ class ClimateResource {
                 // One curve per room (average of its devices) rather than one per device.
                 rooms = hierarchy.getRooms(s).map { room ->
                     val ids = hierarchy.getDevices(room).mapNotNull { it.id }.toSet()
-                    SeriesDto(room.id, room.name, ClimateServiceImpl.movingAverage(histories.filter { it.device.id in ids }).map { PointDto.of(it) })
+                    SeriesDto(room.id, room.name, curve(ClimateServiceImpl.movingAverage(histories.filter { it.device.id in ids })))
                 }.filter { it.points.isNotEmpty() },
                 average = average,
                 setpoints = setpoints,
@@ -77,7 +91,7 @@ class ClimateResource {
             // VIEWER: the temperature of the room, not one curve per device.
             !view.devicesVisible -> HistoryDto(emptyList(), emptyList(), average, setpoints)
             else -> HistoryDto(
-                devices = histories.map { h -> SeriesDto(h.device.id, h.device.name, h.measurements.map { PointDto.of(it) }) },
+                devices = histories.map { h -> SeriesDto(h.device.id, h.device.name, curve(h.measurements)) },
                 rooms = emptyList(),
                 average = average,
                 setpoints = setpoints,
@@ -89,18 +103,24 @@ class ClimateResource {
     /**
      * Average curve of several elements at once (dashboard sparklines, measurements page):
      * ?ids=3,7,12&start=…&end=… gives {"3": [points…], "7": […]}. Elements the user may not see
-     * are left out.
+     * are left out. With &points=N, each curve has at most N points (sparklines need few).
      */
     @GET
     @Path("/averages")
-    fun averages(@QueryParam("ids") ids: String?, @QueryParam("start") start: String?, @QueryParam("end") end: String?): Response {
+    fun averages(
+        @QueryParam("ids") ids: String?,
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?,
+        @QueryParam("points") points: Int?,
+    ): Response {
         val (de, a) = period(start, end) ?: return error("start and end must be ISO-8601 instants, start before end")
+        if (!validPoints(points)) return error(POINTS_ERROR)
         val requested = ids.orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }.distinct()
         if (requested.size > MAX_ELEMENTS) return error("At most $MAX_ELEMENTS ids per request")
         val result = LinkedHashMap<String, List<PointDto>>()
         for (id in requested) {
             val s = view.element(id) ?: continue
-            result[id.toString()] = climate.getAverageHistory(s, de, a).map { PointDto.of(it) }
+            result[id.toString()] = reduce(climate.getAverageHistory(s, de, a), points).map { PointDto.of(it) }
         }
         return Response.ok(result).build()
     }
@@ -134,6 +154,12 @@ class ClimateResource {
         null
     }
 
+    private fun validPoints(points: Int?): Boolean = points == null || points in CurveSampling.MIN_POINTS..MAX_POINTS
+
+    /** [curve] as it is without [points], otherwise reduced to at most [points] points. */
+    private fun reduce(curve: List<Temperature>, points: Int?): List<Temperature> =
+        if (points == null) curve else CurveSampling.sample(curve, points)
+
     private fun notFound(): Response = Response.status(Response.Status.NOT_FOUND).build()
 
     private fun error(message: String): Response =
@@ -141,5 +167,7 @@ class ClimateResource {
 
     private companion object {
         const val MAX_ELEMENTS = 200
+        const val MAX_POINTS = 10_000
+        val POINTS_ERROR = "points must be between ${CurveSampling.MIN_POINTS} and $MAX_POINTS"
     }
 }

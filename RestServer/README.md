@@ -39,7 +39,8 @@ RestServer/src/test/     ServerLogoTest
 1. Charge la configuration JWT tout de suite : un `THERMOBOX_JWT_SECRET` invalide arrête le démarrage
    au lieu d'échouer à la première requête.
 2. Enregistre dans Jersey les paquets `resources`, `filters` et `exceptions` (toute classe annotée
-   `@Path` ou `@Provider` qui s'y trouve est prise en compte automatiquement).
+   `@Path` ou `@Provider` qui s'y trouve est prise en compte automatiquement), et active la
+   compression gzip des réponses (`EncodingFilter`) pour les clients qui l'acceptent.
 3. Démarre Jetty sur `THERMOBOX_HTTP_HOST:THERMOBOX_HTTP_PORT` (`localhost:8080` par défaut ; dans
    Docker, `0.0.0.0`, sinon le serveur n'est joignable que depuis le conteneur).
 4. Lance l'écoute des boîtiers (`BusinessFactory.getDriver().listen()`) et le système de mises à jour
@@ -204,9 +205,24 @@ La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/{id}/history?start=…&end=…` | Courbes de la période : une par boîtier (salle), une par salle (étage, bâtiment), la moyenne et les consignes. Un VIEWER n'a que la moyenne. | Authentifié |
-| `GET` | `/averages?ids=3,7&start=…&end=…` | Courbe moyenne de plusieurs éléments à la fois (`{"3": [points], "7": [points]}`). | Authentifié |
+| `GET` | `/{id}/history?start=…&end=…[&points=500]` | Courbes de la période : une par boîtier (salle), une par salle (étage, bâtiment), la moyenne et les consignes. Un VIEWER n'a que la moyenne. | Authentifié |
+| `GET` | `/averages?ids=3,7&start=…&end=…[&points=60]` | Courbe moyenne de plusieurs éléments à la fois (`{"3": [points], "7": [points]}`). | Authentifié |
 | `PUT` | `/{id}/setpoint` | Enregistre la consigne d'un bâtiment, d'un étage ou d'une salle et l'envoie à ses boîtiers (`{"value": 21.5, "force": false}`) ; ceux qui ont leur propre consigne la gardent, sauf `force`. | ADMIN, MANAGER |
+
+**Courbes allégées (`points`).** Sans `points`, chaque courbe contient toutes les mesures de la période
+(un boîtier qui mesure chaque minute donne 43 200 points par mois, environ 2 Mo de JSON). Avec
+`points=N` (3 à 10 000), chaque courbe de mesures garde au plus N de ses points, choisis pour dessiner
+presque la même ligne : algorithme *Largest-Triangle-Three-Buckets*, qui garde le premier et le dernier
+point, puis dans chaque tranche le point le plus marquant, si bien que les pics et les creux restent
+visibles (une moyenne par tranche les aplatirait). Les points renvoyés sont de vraies mesures, jamais
+des valeurs inventées ; une courbe déjà assez courte est renvoyée entière. Les consignes ne sont jamais
+réduites. Un graphique n'a besoin que d'à peu près autant de points que de pixels de large : par
+exemple `points=500` pour une courbe pleine largeur, `points=60` pour une miniature. Le format de la
+réponse ne change pas.
+
+Toutes les réponses sont en outre compressées en gzip quand le client l'accepte (`Accept-Encoding:
+gzip`, ce que tout navigateur envoie). Un mois d'un boîtier passe ainsi d'environ 2 Mo à 125 Ko
+compressés sans `points`, et à environ 2 Ko avec `points=500`.
 
 ### ⭐ Favoris (`/api/v2/favorites`)
 | Méthode | Chemin | Description | Accès |
