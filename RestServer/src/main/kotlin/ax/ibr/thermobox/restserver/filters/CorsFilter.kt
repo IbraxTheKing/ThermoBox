@@ -39,6 +39,7 @@ class CorsFilter : ContainerRequestFilter, ContainerResponseFilter {
                 "Access-Control-Allow-Headers",
                 "Content-Type, Accept, Authorization"
             )
+            putSingle("Access-Control-Expose-Headers", "X-Total-Count, ETag")
             putSingle("Access-Control-Max-Age", "86400")
         }
     }

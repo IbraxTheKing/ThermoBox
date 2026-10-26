@@ -140,7 +140,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Liste toutes les associations salle-température. | Authentifié |
+| `GET` | `/?limit=1000&offset=0` | Associations salle-température, les plus récentes d'abord, page par page (voir *Listes paginées*). | Authentifié |
 | `GET` | `/{id}` | Récupère une association par son ID. | Authentifié |
 | `GET` | `/room/{id}` | Liste les capteurs d'une salle spécifique. | Authentifié |
 | `GET` | `/room/{id}/current` | Températures actuelles d'une salle. | Authentifié |
@@ -157,14 +157,21 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 ### Températures (`/api/v2/temperatures`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Liste toutes les mesures (consignes et réelles). | ADMIN, MANAGER, VIEWER |
+| `GET` | `/?limit=1000&offset=0` | Mesures et consignes, les plus récentes d'abord, page par page (voir *Listes paginées*). | ADMIN, MANAGER, VIEWER |
 | `GET` | `/{id}` | Récupère une mesure par son ID. | ADMIN, MANAGER, VIEWER |
-| `GET` | `/type/{type}` | Filtre par type (`setpoint` ou `measurement`). | ADMIN, MANAGER, VIEWER |
+| `GET` | `/type/{type}?limit=1000&offset=0` | Par type (`setpoint` ou `measurement`), les plus récentes d'abord, page par page. | ADMIN, MANAGER, VIEWER |
 | `GET` | `/average/{type}` | Moyenne pour un type spécifique. | ADMIN, MANAGER, VIEWER |
 | `POST` | `/` | Ajoute une mesure manuellement. | ADMIN |
 | `POST` | `/type/{type}` | Ajoute une mesure (`measurement`) ou une consigne (`setpoint`) : `{"value": 21.5, "date": "…"}`. | ADMIN |
 | `PUT` | `/{id}` | Met à jour une mesure existante. | ADMIN |
 | `DELETE` | `/{id}` | Supprime une mesure. | ADMIN |
+
+**Listes paginées.** Ces listes peuvent contenir des millions de lignes (toutes les températures de la
+base) : elles sont servies page par page, les plus récentes d'abord. `limit` (1 à 10 000, 1 000 par
+défaut) et `offset` (0 par défaut) choisissent la page ; la réponse reste un tableau JSON. Avec la
+première page (`offset=0`), l'en-tête `X-Total-Count` donne le nombre total de lignes (utilisateurs non
+limités seulement ; il est exposé au navigateur par CORS). Un utilisateur limité reçoit, de la page, ce
+qu'il a le droit de voir. Sans paramètre, un client reçoit donc les 1 000 plus récentes.
 
 ### Utilisateurs (`/api/v2/users`)
 | Méthode | Chemin | Description | Accès |
@@ -205,13 +212,14 @@ La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/{id}/history?start=…&end=…[&points=500]` | Courbes de la période : une par boîtier (salle), une par salle (étage, bâtiment), la moyenne et les consignes. Un VIEWER n'a que la moyenne. | Authentifié |
-| `GET` | `/averages?ids=3,7&start=…&end=…[&points=60]` | Courbe moyenne de plusieurs éléments à la fois (`{"3": [points], "7": [points]}`). | Authentifié |
+| `GET` | `/{id}/history?start=…&end=…[&points=…]` | Courbes de la période : une par boîtier (salle), une par salle (étage, bâtiment), la moyenne et les consignes. Un VIEWER n'a que la moyenne. | Authentifié |
+| `GET` | `/averages?ids=3,7&start=…&end=…[&points=…]` | Courbe moyenne de plusieurs éléments à la fois (`{"3": [points], "7": [points]}`). | Authentifié |
 | `PUT` | `/{id}/setpoint` | Enregistre la consigne d'un bâtiment, d'un étage ou d'une salle et l'envoie à ses boîtiers (`{"value": 21.5, "force": false}`) ; ceux qui ont leur propre consigne la gardent, sauf `force`. | ADMIN, MANAGER |
 
-**Courbes allégées (`points`).** Sans `points`, chaque courbe contient toutes les mesures de la période
-(un boîtier qui mesure chaque minute donne 43 200 points par mois, environ 2 Mo de JSON). Avec
-`points=N` (3 à 10 000), chaque courbe de mesures garde au plus N de ses points, choisis pour dessiner
+**Courbes allégées (`points`).** Une courbe complète peut être énorme (un boîtier qui mesure chaque
+minute donne 43 200 points par mois, environ 2 Mo de JSON ; un bâtiment de 96 boîtiers, 40 Mo). Chaque
+courbe de mesures garde donc au plus `points` de ses points (**1 000 par défaut**, 3 à 10 000 ;
+`points=0` pour les avoir toutes), choisis pour dessiner
 presque la même ligne : algorithme *Largest-Triangle-Three-Buckets*, qui garde le premier et le dernier
 point, puis dans chaque tranche le point le plus marquant, si bien que les pics et les creux restent
 visibles (une moyenne par tranche les aplatirait). Les points renvoyés sont de vraies mesures, jamais
@@ -222,7 +230,7 @@ réponse ne change pas.
 
 Toutes les réponses sont en outre compressées en gzip quand le client l'accepte (`Accept-Encoding:
 gzip`, ce que tout navigateur envoie). Un mois d'un boîtier passe ainsi d'environ 2 Mo à 125 Ko
-compressés sans `points`, et à environ 2 Ko avec `points=500`.
+compressés avec toutes ses mesures, et à environ 2 Ko avec `points=500`.
 
 ### Favoris (`/api/v2/favorites`)
 | Méthode | Chemin | Description | Accès |

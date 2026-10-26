@@ -37,10 +37,11 @@ import java.time.format.DateTimeParseException
  *
  * Periods are given as ISO-8601 instants: ?start=2026-10-20T08:00:00Z&end=2026-10-21T08:00:00Z.
  *
- * Curves can be long (a device measuring every minute gives 43 200 points a month): with
- * ?points=500, each measurement curve is reduced to at most 500 of its points, chosen to draw
- * almost the same line ([CurveSampling]). A chart needs about as many points as it is wide in
- * pixels. Setpoints are never reduced: they change rarely and every change matters.
+ * Curves can be long (a device measuring every minute gives 43 200 points a month): each
+ * measurement curve is reduced to at most ?points=N of its points (1000 by default), chosen to
+ * draw almost the same line ([CurveSampling]). A chart needs about as many points as it is wide
+ * in pixels. points=0 gives every point. Setpoints are never reduced: they change rarely and
+ * every change matters.
  */
 @Path("api/v2/climate")
 @Produces(MediaType.APPLICATION_JSON)
@@ -154,11 +155,13 @@ class ClimateResource {
         null
     }
 
-    private fun validPoints(points: Int?): Boolean = points == null || points in CurveSampling.MIN_POINTS..MAX_POINTS
+    private fun validPoints(points: Int?): Boolean = points == null || points == 0 || points in CurveSampling.MIN_POINTS..MAX_POINTS
 
-    /** [curve] as it is without [points], otherwise reduced to at most [points] points. */
-    private fun reduce(curve: List<Temperature>, points: Int?): List<Temperature> =
-        if (points == null) curve else CurveSampling.sample(curve, points)
+    /** [curve] reduced to at most [points] points ([DEFAULT_POINTS] when not given), as it is for 0. */
+    private fun reduce(curve: List<Temperature>, points: Int?): List<Temperature> = when (points) {
+        0 -> curve
+        else -> CurveSampling.sample(curve, points ?: DEFAULT_POINTS)
+    }
 
     private fun notFound(): Response = Response.status(Response.Status.NOT_FOUND).build()
 
@@ -168,6 +171,8 @@ class ClimateResource {
     private companion object {
         const val MAX_ELEMENTS = 200
         const val MAX_POINTS = 10_000
-        val POINTS_ERROR = "points must be between ${CurveSampling.MIN_POINTS} and $MAX_POINTS"
+        /** Without ?points: enough for a chart as wide as a screen, a bounded response in any case. */
+        const val DEFAULT_POINTS = 1000
+        val POINTS_ERROR = "points must be 0 (every point) or between ${CurveSampling.MIN_POINTS} and $MAX_POINTS"
     }
 }

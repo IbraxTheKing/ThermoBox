@@ -29,10 +29,12 @@ class TemperatureResource {
 
     private fun allowed(list: List<Temperature>): List<Temperature> = accessService.filterTemperatures(access, list)
 
+    /** The latest temperatures first, a page at a time (?limit=1000&offset=0, see [Page]). */
     @GET
     @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
-    fun getAll(): List<Temperature> {
-        return allowed(service.getAll())
+    fun getAll(@QueryParam("limit") limit: Int?, @QueryParam("offset") offset: Int?): Response {
+        val page = Page.of(limit, offset) ?: return Page.invalid()
+        return paged(null, page)
     }
 
     @GET
@@ -45,9 +47,26 @@ class TemperatureResource {
     @GET
     @Path("/type/{type}")
     @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
-    fun getByType(@PathParam("type") type: String): List<Temperature>? {
-        val sample = resolveSample(type) ?: return null
-        return service.getByType(sample)?.let { allowed(it) }
+    fun getByType(
+        @PathParam("type") type: String,
+        @QueryParam("limit") limit: Int?,
+        @QueryParam("offset") offset: Int?,
+    ): Response {
+        val sample = resolveSample(type) ?: return Response.noContent().build()
+        val page = Page.of(limit, offset) ?: return Page.invalid()
+        return paged(sample, page)
+    }
+
+    /**
+     * A page of the temperatures of [sample]'s kind (all kinds when null). A limited user gets
+     * those of their page they may see. The total (a count over the whole table, about a second
+     * for millions of rows) is given with the first page only, and to unlimited users only.
+     */
+    private fun paged(sample: Temperature?, page: Page): Response {
+        val list = allowed(service.getPage(sample, page.offset, page.limit))
+        val response = Response.ok(list)
+        if (access.all && page.offset == 0) response.header(Page.TOTAL_HEADER, service.count(sample))
+        return response.build()
     }
 
     @GET

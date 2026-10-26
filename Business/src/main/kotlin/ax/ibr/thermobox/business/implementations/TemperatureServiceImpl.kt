@@ -42,4 +42,8 @@ class TemperatureServiceImpl(
         return temperatureService.getById(id)
     }
 
+    override fun getPage(temperatureClass: Temperature?, offset: Int, limit: Int): List<Temperature> =
+        temperatureService.getPage(temperatureClass, offset, limit)
+
+    override fun count(temperatureClass: Temperature?): Long = temperatureService.count(temperatureClass)
 }

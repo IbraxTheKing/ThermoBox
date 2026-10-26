@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.common.services
 
+import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
@@ -27,4 +28,23 @@ interface RoomTempAttrService: CrudService<RoomTempAttr> {
     fun getAverageTemperatureFromRoomTimed(room: Room, start: Instant, end: Instant): List<Temperature> // First is Temp, second is Setpoint
 
     fun getAllByTime(start: Instant, end: Instant) : List<RoomTempAttr>
+
+    /**
+     * The latest measurement of each of [devices], by device id (devices that never measured are
+     * left out). The storage answers it in one query; the default asks device by device.
+     */
+    fun getLatestMeasurements(devices: Collection<Room>): Map<Long, Temperature> =
+        devices.mapNotNull { d -> d.id?.let { id -> getCurrentTemperatureFromRoom(d, Measurement(0f, LocalDateTime.now()))?.let { id to it } } }.toMap()
+
+    /** The latest setpoint of each of [elements] (their own, not inherited), by element id. */
+    fun getLatestSetpoints(elements: Collection<Room>): Map<Long, Setpoint> =
+        elements.mapNotNull { e -> e.id?.let { id -> getSetpointFromRoom(e)?.let { id to it } } }.toMap()
+
+    /** The element each of [temperatureIds] belongs to: temperature id → room id. */
+    fun getRoomIdsOfTemperatures(temperatureIds: Collection<Long>): Map<Long, Long> =
+        temperatureIds.mapNotNull { id -> getByTemperature(id)?.room?.id?.let { id to it } }.toMap()
+
+    /** At most [limit] links, the most recent temperatures first, skipping [offset]. */
+    fun getPage(offset: Int, limit: Int): List<RoomTempAttr> =
+        getAll().sortedByDescending { it.temperature.date }.drop(offset).take(limit)
 }

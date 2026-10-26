@@ -66,7 +66,7 @@ class JdbcDataServicesTest {
         groups = UserGroupDataServiceJdbcImpl(db)
         db.transaction { cx ->
             listOf(
-                "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
+                "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
                 "room_image", "favorite", "room_temperature_attr", "temperature", "room_attr", "room", "`user`",
             ).forEach { cx.execute("DELETE FROM $it") }
         }
@@ -155,6 +155,70 @@ class JdbcDataServicesTest {
         assertNull(temperatures.getById(m1.temperature.id!!))
         assertEquals(2, roomTemperatures.getByRoom(device)!!.size)
         assertNull(roomTemperatures.getByRoom(Device("unsaved")))
+    }
+
+    @Test
+    fun `the latest measurement of each device follows the writes`() {
+        val d1 = Device("D1").also(rooms::add)
+        val d2 = Device("D2").also(rooms::add)
+        val d3 = Device("D3").also(rooms::add)
+        val now = LocalDateTime.now().withNano(0)
+        val old = RoomTempAttr(d1, Measurement(20f, now.minusHours(2))).also(roomTemperatures::add)
+        val recent = RoomTempAttr(d1, Measurement(21f, now.minusHours(1))).also(roomTemperatures::add)
+        // Added later but older: not the latest
+        RoomTempAttr(d1, Measurement(30f, now.minusHours(5))).also(roomTemperatures::add)
+        RoomTempAttr(d2, Measurement(18f, now)).also(roomTemperatures::add)
+        // A setpoint is not a measurement
+        RoomTempAttr(d2, Setpoint(25f, now.plusMinutes(1))).also(roomTemperatures::add)
+
+        val latest = roomTemperatures.getLatestMeasurements(listOf(d1, d2, d3))
+        assertEquals(mapOf(d1.id to 21f, d2.id to 18f), latest.mapValues { it.value.value })
+        assertEquals(21f, roomTemperatures.getCurrentTemperatureFromRoom(d1, Measurement(0f, now))?.value)
+
+        // The latest deleted: the previous one takes its place
+        roomTemperatures.remove(recent)
+        assertEquals(20f, roomTemperatures.getCurrentTemperatureFromRoom(d1, Measurement(0f, now))?.value)
+
+        // Its date changed: worked out again
+        val t = old.temperature
+        t.date = now.minusHours(10)
+        temperatures.update(t)
+        assertEquals(30f, roomTemperatures.getCurrentTemperatureFromRoom(d1, Measurement(0f, now))?.value)
+
+        // A row missing (database filled by hand) is worked out on the first read
+        db.transaction { it.execute("DELETE FROM latest_measurement") }
+        assertEquals(30f, roomTemperatures.getLatestMeasurements(listOf(d1))[d1.id]?.value)
+        assertEquals(1, db.read { cx -> cx.query("SELECT COUNT(*) AS n FROM latest_measurement") { it.getInt("n") }.first() })
+
+        // Deleting the device's history and the device
+        roomTemperatures.getByRoom(d2).orEmpty().forEach(roomTemperatures::remove)
+        rooms.remove(d2)
+        assertTrue(roomTemperatures.getLatestMeasurements(listOf(d1, d2)).keys == setOf(d1.id))
+    }
+
+    @Test
+    fun `setpoints, owners and pages in one query`() {
+        val room = Room("R").also(rooms::add)
+        val floor = Floor("F").also(rooms::add)
+        val device = Device("D").also(rooms::add)
+        val now = LocalDateTime.now().withNano(0)
+        roomTemperatures.add(RoomTempAttr(room, Setpoint(19f, now.minusDays(1))))
+        roomTemperatures.add(RoomTempAttr(room, Setpoint(21f, now)))
+        roomTemperatures.add(RoomTempAttr(floor, Setpoint(18f, now)))
+        val ms = (1..5).map { RoomTempAttr(device, Measurement(20f + it, now.minusMinutes(it.toLong()))).also(roomTemperatures::add) }
+
+        assertEquals(mapOf(room.id to 21f, floor.id to 18f), roomTemperatures.getLatestSetpoints(listOf(room, floor, device)).mapValues { it.value.value })
+        val owners = roomTemperatures.getRoomIdsOfTemperatures(ms.map { it.temperature.id!! } + -1L)
+        assertEquals(5, owners.size)
+        assertTrue(owners.values.all { it == device.id })
+
+        // Latest first
+        assertEquals(listOf(21f, 22f), temperatures.getPage(Measurement(0f, now), 0, 2).map { it.value })
+        assertEquals(listOf(23f), temperatures.getPage(Measurement(0f, now), 2, 1).map { it.value })
+        assertEquals(5, temperatures.count(Measurement(0f, now)))
+        assertEquals(8, temperatures.count(null))
+        assertEquals(3, temperatures.getPage(null, 5, 10).size)
+        assertEquals(2, roomTemperatures.getPage(0, 2).size)
     }
 
     @Test

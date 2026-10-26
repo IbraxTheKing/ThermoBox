@@ -116,4 +116,14 @@ class RoomTempAttrServiceImpl(
         return roomTempAttrService.getById(id)
     }
 
+    override fun getLatestMeasurements(devices: Collection<Room>): Map<Long, Temperature> =
+        roomTempAttrService.getLatestMeasurements(devices)
+
+    override fun getLatestSetpoints(elements: Collection<Room>): Map<Long, Setpoint> =
+        roomTempAttrService.getLatestSetpoints(elements)
+
+    override fun getRoomIdsOfTemperatures(temperatureIds: Collection<Long>): Map<Long, Long> =
+        roomTempAttrService.getRoomIdsOfTemperatures(temperatureIds)
+
+    override fun getPage(offset: Int, limit: Int): List<RoomTempAttr> = roomTempAttrService.getPage(offset, limit)
 }

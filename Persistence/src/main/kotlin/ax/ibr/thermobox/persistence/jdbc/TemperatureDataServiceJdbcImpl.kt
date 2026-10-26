@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.persistence.jdbc
 
 import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService
 import java.sql.Connection
 import java.sql.ResultSet
@@ -18,7 +19,25 @@ class TemperatureDataServiceJdbcImpl(db: JdbcDatabase) : TemperatureDataService,
 
     override fun insert(cx: Connection, t: Temperature): Long = insertTemperature(cx, t)
 
-    override fun updateRow(cx: Connection, t: Temperature) = updateTemperature(cx, t)
+    override fun updateRow(cx: Connection, t: Temperature) {
+        updateTemperature(cx, t)
+        // Its date may have changed: its device works its latest measurement out again
+        cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, t.id)
+    }
+
+    override fun deleteRow(cx: Connection, id: Long) {
+        cx.execute(LatestMeasurements.FORGET_TEMPERATURE, id)
+        cx.execute("DELETE FROM temperature WHERE id = ?", id)
+    }
+
+    override fun getPage(temperatureClass: Temperature?, offset: Int, limit: Int): List<Temperature> =
+        if (temperatureClass == null) list("ORDER BY e.date DESC, e.id DESC LIMIT ? OFFSET ?", limit, offset)
+        else list("WHERE e.DTYPE = ? ORDER BY e.date DESC, e.id DESC LIMIT ? OFFSET ?", Rows.temperatureType(temperatureClass), limit, offset)
+
+    override fun count(temperatureClass: Temperature?): Long = db.read { cx ->
+        if (temperatureClass == null) cx.query("SELECT COUNT(*) AS n FROM temperature") { it.getLong("n") }.first()
+        else cx.query("SELECT COUNT(*) AS n FROM temperature WHERE DTYPE = ?", Rows.temperatureType(temperatureClass)) { it.getLong("n") }.first()
+    }
 
     /** Temperatures of exactly [temperatureClass]'s kind, the latest first. */
     override fun getByType(temperatureClass: Temperature): List<Temperature> =

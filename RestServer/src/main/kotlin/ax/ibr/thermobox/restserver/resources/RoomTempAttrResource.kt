@@ -37,9 +37,11 @@ class RoomTempAttrResource {
     /** The room [id] if it exists and the user may see it; otherwise null, as for an unknown id. */
     private fun room(id: Long) = roomService.getById(id)?.takeIf { access.canSee(it) }
 
+    /** The latest first, a page at a time (?limit=1000&offset=0, see [Page]). */
     @GET
-    fun getAll(): List<RoomTempAttr> {
-        return service.getAll().filter { access.canSee(it.room) }
+    fun getAll(@QueryParam("limit") limit: Int?, @QueryParam("offset") offset: Int?): Response {
+        val page = Page.of(limit, offset) ?: return Page.invalid()
+        return Response.ok(service.getPage(page.offset, page.limit).filter { access.canSee(it.room) }).build()
     }
 
     @GET
