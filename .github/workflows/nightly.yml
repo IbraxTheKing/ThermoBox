@@ -105,8 +105,9 @@ jobs:
           cache: maven
 
       # The tests need MySQL and an MQTT broker, missing on the runner: compile and package
-      # without running them. The "deploy" profile fills deploy/ (base.jar, RestServer.jar,
-      # JsfClient.war), as for a production release.
+      # without running them. The "deploy" profile fills deploy/ (base.jar, RestServer.jar, and
+      # JsfClient.war: the "JSF removed" page for the JSF interfaces of 26.11 and before), as for a
+      # production release.
       - name: Build (Maven, deploy profile)
         if: steps.version.outputs.build == 'true'
         # -Dthermobox.version: the version the update system reads in the build

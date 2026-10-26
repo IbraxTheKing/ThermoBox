@@ -11,10 +11,10 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 
 /**
- * Data folder shared by the REST server and the JSF interface (a Docker volume, or ~/.thermobox):
+ * Data folder of the REST server (a Docker volume, or ~/.thermobox):
  *
  * ```
- * updates/<version>/        RestServer.jar, base.jar, JsfClient.war, version.json (SHA-256)
+ * updates/<version>/        RestServer.jar, base.jar, version.json (SHA-256)
  * updates/current           version to run; the launchers (docker/…/entrypoint.sh) read it
  * updates/installation.json last installation and its steps
  * backups/                  database dumps taken before an update
@@ -76,8 +76,8 @@ class UpdateDirectory(val root: Path) {
         write(versions.resolve(INSTALLATION), json.writerWithDefaultPrettyPrinter().writeValueAsString(installation))
 
     /**
-     * Lock held during an installation: REST and JSF can share the folder, only one of them may
-     * install at a time. null if the other one holds it.
+     * Lock held during an installation: several servers can share the folder, only one of them may
+     * install at a time. null if another one holds it.
      */
     fun lock(): Lock? {
         prepare()

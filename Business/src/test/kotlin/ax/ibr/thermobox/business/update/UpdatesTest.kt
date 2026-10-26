@@ -34,7 +34,7 @@ import java.util.zip.ZipOutputStream
 /** Whole update flow against a fake GitHub (local HTTP server): check, prepare, install, switch. */
 class UpdatesTest {
 
-    /** Stands for the REST server or the JSF interface. */
+    /** Stands for a REST server. */
     private class Fake(override val component: Component) : LocalComponent {
         @Volatile var inService: String? = null
         val switches = java.util.concurrent.CopyOnWriteArrayList<String>()
@@ -42,7 +42,7 @@ class UpdatesTest {
         override val switchEffect = "Restarts"
         override fun versionInDirectory(directory: UpdateDirectory) = inService
         override fun keepCurrent(target: Path) {
-            Files.writeString(target.resolve(if (component == Component.REST) Artifacts.REST else Artifacts.WAR), "old")
+            Files.writeString(target.resolve(Artifacts.REST), "old")
         }
         override fun switchTo(directory: Path, tag: String) {
             switches += tag
@@ -79,9 +79,9 @@ class UpdatesTest {
         }
         val url = "http://127.0.0.1:${server.address.port}"
 
-        /** Publishes [tag] with its three files; [digests] can replace a published SHA-256. */
+        /** Publishes [tag] with its three files (the WAR is the "JSF removed" page, never downloaded); [digests] can replace a published SHA-256. */
         fun publish(tag: String, java: Int = 21, prerelease: Boolean = false, notes: String = "", digests: Map<String, String> = emptyMap()): String {
-            val contents = mapOf(Artifacts.REST to restJar(), Artifacts.BASE to baseJar(java), Artifacts.WAR to war())
+            val contents = mapOf(Artifacts.REST to restJar(), Artifacts.BASE to baseJar(java), "JsfClient.war" to war())
             contents.forEach { (name, bytes) -> files["$tag/$name"] = bytes }
             val assets = contents.entries.joinToString(",") { (name, bytes) ->
                 """{"name":"$name","browser_download_url":"$url/dl/$tag/$name","size":${bytes.size},"digest":"sha256:${digests[name] ?: sha(bytes)}"}"""
@@ -120,7 +120,7 @@ class UpdatesTest {
     private fun finished(i: Installation) = i.state != InstallationState.RUNNING
 
     @Test
-    fun `patch, check, installation, switch of both components`() = FakeGitHub().use { gh ->
+    fun `patch, check, installation, switch of the servers sharing the folder`() = FakeGitHub().use { gh ->
         gh.releases = "[${gh.publish("26.12.0-beta.1", prerelease = true)},${gh.publish("26.11.0")},${gh.publish("26.10.2")},${gh.publish("26.10.0")}]"
         val config = configuration(gh)
         val rest = Fake(Component.REST)
@@ -157,14 +157,14 @@ class UpdatesTest {
         assertEquals("26.10.2", service.getStatus().installed?.tag)
         assertEquals(listOf("26.11.0"), service.getStatus().available.map { it.version.tag })
 
-        // The JSF interface shares the folder: it switches by itself.
-        val jsf = Fake(Component.JSF)
-        val other = service(config, jsf)
+        // Another server sharing the folder, still on 26.10.1: it switches by itself.
+        val second = Fake(Component.REST).apply { inService = "26.10.1" }
+        val other = service(config, second)
         other.follow()
         Thread.sleep(300)
-        assertEquals(listOf("26.10.2"), jsf.switches)
-        // And keeps its own previous files too.
-        assertEquals("old", Files.readString(config.directory.resolve("updates/26.10.1/JsfClient.war")))
+        assertEquals(listOf("26.10.2"), second.switches)
+        // The WAR published for the old JSF interfaces is never downloaded.
+        assertFalse(Files.exists(config.directory.resolve("updates/26.10.2/JsfClient.war")))
     }
 
     @Test
@@ -273,7 +273,7 @@ class UpdatesTest {
         val service = service(configuration(gh), Fake(Component.REST))
         service.check()
         service.directory.writeInstallation(InstallationJson.toJson(Installation(
-            "x", "26.10.2", "26.10.1", UpdateType.PATCH, Component.JSF, "admin", Instant.now(),
+            "x", "26.10.2", "26.10.1", UpdateType.PATCH, Component.REST, "admin", Instant.now(),
             InstallationState.RUNNING, emptyList(),
         )))
         assertTrue(service.prepare("26.10.2").installable)

@@ -9,37 +9,39 @@ import java.nio.file.StandardCopyOption
 import java.util.jar.JarFile
 import java.util.zip.ZipFile
 
-/** The three deliverables of a release (deploy/), as they are named in the data folder. */
+/**
+ * The deliverables of a release (deploy/) the REST server installs, as named in the data folder.
+ *
+ * Releases also publish a `JsfClient.war`, which the REST server never downloads: since 26.12 it is
+ * only a page saying the JSF interface was removed, for the JSF interfaces of 26.11 and before that
+ * update themselves (their update system needs a WAR).
+ */
 object Artifacts {
     const val REST = "RestServer.jar"
     const val BASE = "base.jar"
-    const val WAR = "JsfClient.war"
-    val ALL = listOf(REST, BASE, WAR)
+    val ALL = listOf(REST, BASE)
 
     /** Class of the update system: a version without it can't be updated from the interface. */
     private const val UPDATE_CLASS = "ax/ibr/thermobox/business/update/UpdateServiceImpl.class"
 
     /**
-     * Assets to download for a release: the three files when they are published separately
-     * (nightly), otherwise the zip that holds them (stable releases). The WAR was once called
-     * JsfServer.war: any single .war is taken.
+     * Assets to download for a release: RestServer.jar and base.jar when they are published
+     * separately, otherwise the zip that holds them.
      */
     fun choose(artifacts: List<Artifact>): List<Artifact>? {
         val byName = artifacts.associateBy { it.name }
-        val war = byName[WAR] ?: artifacts.singleOrNull { it.name.endsWith(".war", ignoreCase = true) }
         val rest = byName[REST]
         val base = byName[BASE]
-        if (rest != null && base != null && war != null) return listOf(rest, base, war)
+        if (rest != null && base != null) return listOf(rest, base)
         val zips = artifacts.filter { it.name.endsWith(".zip", ignoreCase = true) }
         return (zips.firstOrNull { it.name.startsWith("thermobox", ignoreCase = true) } ?: zips.singleOrNull())?.let { listOf(it) }
     }
 
-    /** Name of a downloaded asset in the folder: the WAR is renamed, a zip keeps its name. */
-    fun localName(artifact: Artifact): String =
-        if (artifact.name.endsWith(".war", ignoreCase = true)) WAR else artifact.name
+    /** Name of a downloaded asset in the folder. */
+    fun localName(artifact: Artifact): String = artifact.name
 
     /**
-     * Copies RestServer.jar, base.jar and the WAR out of [zip] into [directory]. Only the file name
+     * Copies RestServer.jar and base.jar out of [zip] into [directory]. Only the file name
      * of each entry is used (never its path), so an entry can't be written outside [directory].
      */
     fun extract(zip: Path, directory: Path) {
@@ -48,20 +50,17 @@ object Artifacts {
             fun copy(entry: java.util.zip.ZipEntry, name: String) =
                 z.getInputStream(entry).use { Files.copy(it, directory.resolve(name), StandardCopyOption.REPLACE_EXISTING) }
             fun name(e: java.util.zip.ZipEntry) = e.name.substringAfterLast('/')
-            for (expected in listOf(REST, BASE)) {
-                val e = files.firstOrNull { name(it) == expected } ?: throw IOException("$expected absent de ${zip.fileName}")
+            for (expected in ALL) {
+                val e = files.firstOrNull { name(it) == expected } ?: throw IOException("$expected missing from ${zip.fileName}")
                 copy(e, expected)
             }
-            val wars = files.filter { name(it).endsWith(".war", ignoreCase = true) }
-            val war = wars.firstOrNull { name(it) == WAR } ?: wars.singleOrNull() ?: throw IOException("WAR absent de ${zip.fileName}")
-            copy(war, WAR)
         }
     }
 
     /** Result of [inspect]: what the downloaded files need and contain. */
     data class Content(val requiredJava: Int, val hasUpdater: Boolean)
 
-    /** Checks that the three files are what they should be, and reads the Java version they need. */
+    /** Checks that the files are what they should be, and reads the Java version they need. */
     fun inspect(directory: Path): Content {
         JarFile(directory.resolve(REST).toFile()).use { jar ->
             val manifest = jar.manifest?.mainAttributes ?: throw IOException("$REST has no manifest")
@@ -75,9 +74,6 @@ object Artifacts {
             if (classes.isEmpty()) throw IOException("$BASE contains no class")
             classes.take(50).forEach { e -> jar.getInputStream(e).use { requiredJava = maxOf(requiredJava, javaVersion(it)) } }
             hasUpdater = jar.getEntry(UPDATE_CLASS) != null
-        }
-        ZipFile(directory.resolve(WAR).toFile()).use { war ->
-            if (war.getEntry("WEB-INF/web.xml") == null) throw IOException("$WAR is not a web application (no WEB-INF/web.xml)")
         }
         return Content(requiredJava, hasUpdater)
     }

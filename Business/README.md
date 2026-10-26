@@ -8,4 +8,4 @@ Le module `Business` contient la logique métier de ThermoBox. C'est ici que son
 - Validation : Vérification de la cohérence des données avant persistance.
 
 ### Utilisation :
-Ce module est consommé par RestServer (pour les requêtes API) et JSF (pour l'interface utilisateur). Il utilise les services du module Persistence pour le stockage des résultats.
+Ce module est consommé par RestServer (pour les requêtes API). Il utilise les services du module Persistence pour le stockage des résultats.

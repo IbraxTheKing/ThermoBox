@@ -9,7 +9,7 @@ import java.time.Duration
  * - `THERMOBOX_UPDATE_REPO` : GitHub repository (IbraxTheKing/ThermoBox)
  * - `THERMOBOX_UPDATE_CHANNEL` : `stable` (default) or `prerelease` (nightly, beta, rc too)
  * - `THERMOBOX_UPDATE_CHECK` : `false` turns the daily check off
- * - `THERMOBOX_DATA_DIR` : folder shared by REST and JSF (downloads, backups), ~/.thermobox
+ * - `THERMOBOX_DATA_DIR` : data folder (downloads, backups, settings), ~/.thermobox
  * - `THERMOBOX_GITHUB_TOKEN` : optional, raises the GitHub API limit (60 requests/hour without)
  */
 data class UpdateConfig(

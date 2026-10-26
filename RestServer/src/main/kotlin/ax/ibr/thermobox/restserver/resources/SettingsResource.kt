@@ -20,8 +20,7 @@ import java.util.Properties
  * Display settings an ADMIN chooses for every user, whatever the client: today the look of the
  * pages, "glass" (translucent surfaces, colored background) or "panel" (flat control panel).
  *
- * Kept in `interface.properties` of the data folder (THERMOBOX_DATA_DIR), the file the JSF
- * interface uses too: when both share the folder, the choice applies to both.
+ * Kept in `interface.properties` of the data folder (THERMOBOX_DATA_DIR).
  */
 @Path("api/v2/settings")
 @Produces(MediaType.APPLICATION_JSON)

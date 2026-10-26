@@ -5,8 +5,7 @@
 ```bash
 sh scripts/init-env.sh                              # crée .env avec des secrets aléatoires
 docker compose up -d --build                        # MySQL + REST
-docker compose --profile tomcat up -d --build       # + interface JSF sur Tomcat
-docker compose --profile wildfly up -d --build      # ... ou sur WildFly
+docker compose --profile mqtt up -d --build         # + broker MQTT pour de vrais boîtiers
 ```
 
 Sans `openssl` (Windows hors Git Bash/WSL) : copiez `.env.example` en `.env` et remplissez les mots de passe
@@ -15,76 +14,59 @@ et `THERMOBOX_JWT_SECRET` (32 caractères minimum). Ajoutez aussi `.env` au `.gi
 | Service | Profil | URL / port |
 |---|---|---|
 | REST | toujours | http://localhost:8080 |
-| JSF sur Tomcat (déprécié) | `tomcat` | http://localhost:8081 |
-| JSF sur WildFly (déprécié) | `wildfly` | http://localhost:8082 |
-
-> L'interface JSF est dépréciée : les profils `tomcat` et `wildfly` disparaissent en **26.12**.
-> Utilisez le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
-> (branche `dev` pour l'instant) avec le serveur REST.
 | MySQL | toujours | 127.0.0.1:3306 (machine locale uniquement) |
 | Mosquitto (MQTT) | `mqtt` | localhost:1883 |
 
-Les ports se changent dans `.env`. Les profils Tomcat et WildFly peuvent tourner ensemble (ports différents),
-mais un seul suffit.
+Les ports se changent dans `.env`.
+
+L'interface est le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
+(branche `dev` pour l'instant), déployé à part avec `http://localhost:8080` comme API. L'interface JSF et
+ses profils `tomcat` et `wildfly` ont été supprimés en 26.12 : après la mise à jour, arrêtez les anciens
+conteneurs avec `docker compose --profile tomcat --profile wildfly down --remove-orphans`.
 
 ## Fichiers
 
 ```
-docker-compose.yml               orchestration (profils tomcat / wildfly / mqtt)
+docker-compose.yml               orchestration (profil mqtt)
 .env.example                     modèle de configuration
 .dockerignore
 scripts/init-env.sh              génère .env
-docker/rest/Dockerfile           REST : RestServer.jar + base.jar sur Temurin 23
-docker/jsf-tomcat/Dockerfile     JSF : Tomcat 10.1 sur Temurin 23
-docker/jsf-tomcat/setenv.sh      options JVM de Tomcat
-docker/jsf-wildfly/Dockerfile    JSF : WildFly sur Temurin 23
-docker/jsf-wildfly/prepare-war.sh  adapte le WAR à WildFly
-docker/jsf-wildfly/configure.cli   configuration WildFly (page d'accueil, taille des uploads)
+docker/rest/Dockerfile           REST : build Maven, puis RestServer.jar + base.jar sur Temurin 23
+docker/rest/entrypoint.sh        lance le serveur et le relance après une mise à jour (code 75)
 docker/mosquitto/mosquitto.conf  broker MQTT
 ```
 
-Les trois Dockerfiles ont la même étape de build Maven : BuildKit ne la joue qu'une fois pour les trois images.
-Si vous la modifiez, modifiez-la dans les trois.
-
 ## Points à connaître
 
-- **Java 23 partout.** Le bytecode du projet est en Java 23 : toutes les images d'exécution sont basées sur
-  Temurin 23 (Tomcat et WildFly y sont copiés depuis leurs images officielles). `ARG TOMCAT_IMAGE`,
-  `ARG WILDFLY_IMAGE` et `ARG JAVA_VERSION` permettent de changer les versions.
-- **Pas de datasource.** `PersistenceFactory` ouvre sa connexion JDBC avec `THERMOBOX_DB_URL/USER/PASSWORD` :
-  Tomcat et WildFly n'ont donc rien à configurer côté base.
-- **WildFly.** Le WAR contient Mojarra et Weld pour Tomcat. `prepare-war.sh` les retire (WildFly a les siens)
-  et marque l'unité de persistance `jboss.as.jpa.managed=false` pour que WildFly ne tente pas de la gérer.
-- **MQTT.** `BusinessFactory.MQTT = false` (driver simulé) et `MqttDriver` vise `tcp://localhost:1883` en dur :
-  Mosquitto est optionnel tant que l'URL ne passe pas par une variable d'environnement.
-- **Mode développement.** `web.xml` est en `PROJECT_STAGE=Development` : à passer en `Production` pour un
-  déploiement réel.
+- **Java 23.** Le bytecode du projet est en Java 23 : l'image d'exécution est basée sur Temurin 23.
+  `ARG JAVA_VERSION` permet de changer la version.
+- **Pas de datasource.** `PersistenceFactory` ouvre sa connexion JDBC avec `THERMOBOX_DB_URL/USER/PASSWORD`.
+- **MQTT.** `THERMOBOX_DRIVER=simulated` (défaut) simule les boîtiers ; avec `mqtt`, le serveur se connecte à
+  `THERMOBOX_MQTT_URL` (le service `mosquitto` du profil `mqtt`, ou votre broker).
 - **Schéma.** Créé et mis à jour au démarrage par les migrations Flyway (voir le README, « Migrations de
   schéma ») : rien à faire à la main, même sur une base existante.
 
 ## Mises à jour depuis l'interface
 
 Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/v2/updates/{version}/install`)
-sont téléchargées dans le volume `thermobox_data`, partagé par `rest` et `jsf-tomcat`, avec les
-sauvegardes de la base (`/var/lib/thermobox/backups`). Au démarrage, chaque conteneur prend la version
-de `updates/current` si elle existe, sinon les fichiers de l'image : une version installée survit donc
-à la recréation des conteneurs.
+sont téléchargées dans le volume `thermobox_data` (`/var/lib/thermobox`), avec les sauvegardes de la base
+(`backups/`) et les réglages des administrateurs (logo, limites de température, style). Au démarrage, le
+conteneur prend la version de `updates/current` si elle existe, sinon les fichiers de l'image : une version
+installée survit donc à la recréation du conteneur.
 
-- `THERMOBOX_VERSION` (dans `.env`) inscrit la version dans les images construites ici. Laissée à `dev`,
-  l'interface ne connaît pas sa version et traite toute mise à jour comme fonctionnelle.
-- Reconstruire les images ne remplace pas une version installée depuis l'interface. Pour revenir aux
-  fichiers des images : `docker compose exec rest rm /var/lib/thermobox/updates/current`, puis
-  `docker compose --profile tomcat up -d --force-recreate`.
-- WildFly : pas d'installation depuis l'interface (le WAR doit passer par `prepare-war.sh`).
+- `THERMOBOX_VERSION` (dans `.env`) inscrit la version dans l'image construite ici. Laissée à `dev`,
+  le serveur ne connaît pas sa version et traite toute mise à jour comme fonctionnelle.
+- Reconstruire l'image ne remplace pas une version installée depuis l'interface. Pour revenir aux
+  fichiers de l'image : `docker compose exec rest rm /var/lib/thermobox/updates/current`, puis
+  `docker compose up -d --force-recreate rest`.
 
 ## Commandes utiles
 
 ```bash
 docker compose ps
 docker compose logs -f rest
-docker compose logs -f jsf-tomcat        # ou jsf-wildfly
-docker compose --profile tomcat --profile wildfly --profile mqtt down       # arrêt
-docker compose --profile tomcat --profile wildfly --profile mqtt down -v    # arrêt + suppression des données
+docker compose --profile mqtt down       # arrêt
+docker compose --profile mqtt down -v    # arrêt + suppression des données
 ```
 
 ## Dépannage

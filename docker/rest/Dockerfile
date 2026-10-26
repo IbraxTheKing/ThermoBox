@@ -6,9 +6,7 @@
 ARG JAVA_VERSION=23
 
 # ---------------------------------------------------------------------------
-# Build stage. The 3 Dockerfiles (rest, jsf-tomcat, jsf-wildfly) have EXACTLY the same stage:
-# BuildKit caches it once for the three images.
-# If you change a line here, change it in the other two as well.
+# Build stage.
 # ---------------------------------------------------------------------------
 FROM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 WORKDIR /workspace
@@ -21,7 +19,6 @@ COPY Common ./Common
 COPY Persistence ./Persistence
 COPY Business ./Business
 COPY RestServer ./RestServer
-COPY JSF ./JSF
 COPY Base ./Base
 
 RUN --mount=type=cache,target=/root/.m2 \
@@ -44,7 +41,7 @@ COPY --chmod=755 docker/rest/entrypoint.sh /usr/local/bin/thermobox-entrypoint.s
 # A Windows checkout may have turned the script into CRLF: "/bin/sh^M: bad interpreter"
 RUN sed -i 's/\r$//' /usr/local/bin/thermobox-entrypoint.sh
 
-# thermobox_data volume (shared with the JSF interface): downloaded versions and backups
+# thermobox_data volume: downloaded versions, backups and settings
 RUN mkdir -p /var/lib/thermobox && chown thermobox:thermobox /var/lib/thermobox
 
 USER thermobox

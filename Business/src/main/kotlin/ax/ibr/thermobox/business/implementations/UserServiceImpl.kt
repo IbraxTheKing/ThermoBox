@@ -66,7 +66,7 @@ class UserServiceImpl(
     }
 
     /**
-     * Only BCrypt hashes reach the database. Every write goes through here (JSF, REST, seeder),
+     * Only BCrypt hashes reach the database. Every write goes through here (REST, seeder),
      * so a password that is not a hash yet (new account or changed password) is hashed, and one
      * that already is (user re-saved unchanged) is kept as is.
      *

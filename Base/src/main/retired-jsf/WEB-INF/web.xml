@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JsfClient.war since 26.12: the JSF interface was removed, this page says so. Published only
+     for the JSF interfaces of 26.11 and before, whose update system installs a new WAR. -->
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="6.0">
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/index.html</location>
+    </error-page>
+</web-app>

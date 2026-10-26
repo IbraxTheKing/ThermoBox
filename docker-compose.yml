@@ -1,9 +1,7 @@
-# ThermoBox: MySQL + REST (always) + one JSF interface of your choice (tomcat or wildfly profile)
-# + MQTT broker (mqtt profile).
+# ThermoBox: MySQL + REST server, + MQTT broker (mqtt profile).
+# The interface is the Angular client (Thermobox-Ng-Client), deployed on its own.
 #
 #   docker compose up -d --build                     -> MySQL + REST
-#   docker compose --profile tomcat up -d --build    -> + JSF on Tomcat    (port 8081)
-#   docker compose --profile wildfly up -d --build   -> + JSF on WildFly   (port 8082)
 #   docker compose --profile mqtt up -d              -> + Mosquitto        (port 1883)
 #
 # The secrets come from the .env file (created by scripts/init-env.sh, see .env.example).
@@ -26,9 +24,6 @@ x-app-env: &app-env
   THERMOBOX_MQTT_URL: ${THERMOBOX_MQTT_URL:-tcp://mosquitto:1883}
   THERMOBOX_MQTT_USER: ${THERMOBOX_MQTT_USER:-}
   THERMOBOX_MQTT_PASSWORD: ${THERMOBOX_MQTT_PASSWORD:-}
-  # JSF interface: Production (default) or Development; true behind an HTTPS proxy
-  THERMOBOX_STAGE: ${THERMOBOX_STAGE:-Production}
-  THERMOBOX_HTTPS: ${THERMOBOX_HTTPS:-false}
 
 services:
 
@@ -69,7 +64,7 @@ services:
     ports:
       - "${REST_PORT:-8080}:8080"
     volumes:
-      # Updates installed from the interface, database backups (shared with jsf-tomcat)
+      # Updates installed from the interface, database backups, settings, logo
       - thermobox_data:/var/lib/thermobox
     depends_on:
       mysql:
@@ -80,54 +75,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 40s
-
-  jsf-tomcat:
-    profiles: ["tomcat"]
-    build:
-      context: .
-      dockerfile: docker/jsf-tomcat/Dockerfile
-      args:
-        THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
-    image: thermobox/jsf-tomcat:local
-    restart: unless-stopped
-    environment:
-      <<: *app-env
-    ports:
-      - "${TOMCAT_PORT:-8081}:8080"
-    volumes:
-      - thermobox_data:/var/lib/thermobox
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /login.xhtml HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -qE ' (200|30[0-9]) '"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-
-  jsf-wildfly:
-    profiles: ["wildfly"]
-    build:
-      context: .
-      dockerfile: docker/jsf-wildfly/Dockerfile
-      args:
-        THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
-    image: thermobox/jsf-wildfly:local
-    restart: unless-stopped
-    environment:
-      <<: *app-env
-    ports:
-      - "${WILDFLY_PORT:-8082}:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /login.xhtml HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -qE ' (200|30[0-9]) '"]
-      interval: 15s
-      timeout: 5s
-      retries: 6
-      start_period: 90s
 
   # Optional: broker for real devices, with THERMOBOX_DRIVER=mqtt in .env
   # (THERMOBOX_MQTT_URL points to this service by default).

@@ -16,7 +16,7 @@ import java.util.logging.Logger
  * - Database already migrated by a newer version (downgrade): the unknown scripts are tolerated
  *   (`*:future`) instead of blocking startup.
  *
- * REST and JSF may start together: Flyway takes a MySQL lock, the second one waits.
+ * Several servers may start together on one database: Flyway takes a MySQL lock, the second one waits.
  */
 object DatabaseMigrations {
 
