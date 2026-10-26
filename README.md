@@ -82,9 +82,9 @@ avec ce serveur REST comme API (`http://localhost:8080` avec Docker). Les compte
 groupes sont dans la base et restent tels quels. Les préférences personnelles de l'interface JSF
 (unité, teinte, animations, raccourcis) sont des cookies du navigateur et sont à refaire dans le client.
 
-## Noms anglais (26.11)
+## Noms anglais (26.12)
 
-Depuis 26.11, le code, la base et l'API sont en anglais (salle → `Room`, bâtiment → `Building`,
+Depuis 26.12, le code, la base et l'API sont en anglais (salle → `Room`, bâtiment → `Building`,
 étage → `Floor`, boîtier → `Device`, consigne → `Setpoint`, mesure → `Measurement`, gestionnaire →
 `MANAGER`…). Les interfaces restent en français.
 
