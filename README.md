@@ -51,6 +51,7 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_DB_URL` | `jdbc:mysql://localhost:3306/thermobox` | Base MySQL |
 | `THERMOBOX_DB_USER` / `THERMOBOX_DB_PASSWORD` | *obligatoires* | Identifiants de la base |
 | `THERMOBOX_DB_MIGRATE` | `true` | `false` : pas de migration de schéma au démarrage |
+| `THERMOBOX_DB_ACCESS` | `jpa` | Accès à la base : `jpa` (EclipseLink) ou `jdbc` (SQL direct, sans JPA), voir [Persistence](Persistence/README.md) |
 | `THERMOBOX_JWT_SECRET` | *obligatoire* | Clé de signature des jetons (32 caractères minimum) |
 | `THERMOBOX_JWT_TTL_MINUTES` | `60` | Durée de vie d'un jeton |
 | `THERMOBOX_DRIVER` | `simulated` | `simulated` (boîtiers simulés) ou `mqtt` (vrais boîtiers) ; l'ancienne valeur `simule` est acceptée |
@@ -117,7 +118,7 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 ## Stack Technique
 - Langage : Kotlin 2.4+
 - Build Tool : Maven
-- Persistence : Jakarta Persistence (JPA) / Hibernate
+- Persistence : Jakarta Persistence (JPA, EclipseLink) ou JDBC direct (`THERMOBOX_DB_ACCESS`), migrations Flyway
 - API : Jersey, Jetty
 - Sécurité : JWT (JSON Web Tokens)
 - Frontend : client Angular séparé ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)) ; Jakarta Faces (JSF) et PrimeFaces, dépréciés

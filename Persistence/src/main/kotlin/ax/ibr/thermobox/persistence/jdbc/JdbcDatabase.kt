@@ -1,0 +1,153 @@
+package ax.ibr.thermobox.persistence.jdbc
+
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+import java.sql.Statement
+import java.sql.Timestamp
+import java.sql.Types
+import java.time.LocalDateTime
+import java.util.concurrent.ArrayBlockingQueue
+
+/**
+ * The database reached with plain JDBC, without JPA: the connections of the JDBC data services
+ * (`THERMOBOX_DB_ACCESS=jdbc`, see PersistenceFactory).
+ *
+ * Like the JPA services, each operation takes a connection, runs, and gives it back: the services
+ * can be shared by concurrent requests. Up to [maxIdle] connections are kept open for the next
+ * operations; a connection that died meanwhile (database restarted, idle timeout) is replaced.
+ */
+class JdbcDatabase(
+    private val url: String,
+    private val user: String,
+    private val password: String,
+    private val maxIdle: Int = 8,
+) : AutoCloseable {
+
+    private val idle = ArrayBlockingQueue<Connection>(maxIdle)
+
+    init {
+        // Registered by hand: the shaded base.jar may not keep the drivers' META-INF/services
+        driverClass(url)?.let { runCatching { Class.forName(it) } }
+    }
+
+    /** Runs [block] outside a transaction (each statement is committed on its own). */
+    fun <R> read(block: (Connection) -> R): R {
+        val cx = borrow()
+        var healthy = false
+        try {
+            val result = block(cx)
+            healthy = true
+            return result
+        } finally {
+            giveBack(cx, healthy)
+        }
+    }
+
+    /** Runs [block] in one transaction: committed on success, rolled back on any exception. */
+    fun <R> transaction(block: (Connection) -> R): R {
+        val cx = borrow()
+        var healthy = false
+        try {
+            cx.autoCommit = false
+            try {
+                val result = block(cx)
+                cx.commit()
+                healthy = true
+                return result
+            } catch (e: Throwable) {
+                runCatching { cx.rollback() }
+                throw e
+            } finally {
+                runCatching { cx.autoCommit = true }
+            }
+        } finally {
+            giveBack(cx, healthy)
+        }
+    }
+
+    override fun close() {
+        while (true) {
+            val cx = idle.poll() ?: break
+            runCatching { cx.close() }
+        }
+    }
+
+    private fun borrow(): Connection {
+        while (true) {
+            val cx = idle.poll() ?: return DriverManager.getConnection(url, user, password)
+            if (runCatching { cx.isValid(2) }.getOrDefault(false)) return cx
+            runCatching { cx.close() }
+        }
+    }
+
+    /** Back to the idle ones; closed after an error (its state is unknown) or when enough are idle. */
+    private fun giveBack(cx: Connection, healthy: Boolean) {
+        if (!healthy || !idle.offer(cx)) runCatching { cx.close() }
+    }
+
+    companion object {
+        fun driverClass(url: String): String? = when {
+            url.startsWith("jdbc:mysql:") -> "com.mysql.cj.jdbc.Driver"
+            url.startsWith("jdbc:mariadb:") -> "org.mariadb.jdbc.Driver"
+            else -> null
+        }
+    }
+}
+
+// --- Small helpers shared by the JDBC data services ---
+
+/** Prepares [sql] and binds [params] in order (null, String, Long, Int, Float, LocalDateTime, ByteArray). */
+internal fun Connection.statement(sql: String, vararg params: Any?, keys: Boolean = false): PreparedStatement {
+    val st = if (keys) prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) else prepareStatement(sql)
+    params.forEachIndexed { i, p ->
+        val n = i + 1
+        when (p) {
+            null -> st.setNull(n, Types.NULL)
+            is String -> st.setString(n, p)
+            is Long -> st.setLong(n, p)
+            is Int -> st.setInt(n, p)
+            is Float -> st.setFloat(n, p)
+            is Double -> st.setDouble(n, p)
+            is LocalDateTime -> st.setTimestamp(n, Timestamp.valueOf(p))
+            is ByteArray -> st.setBytes(n, p)
+            is Boolean -> st.setBoolean(n, p)
+            else -> throw IllegalArgumentException("Unsupported parameter type ${p.javaClass.name}")
+        }
+    }
+    return st
+}
+
+/** Rows of [sql] mapped by [map], in order. */
+internal fun <T> Connection.query(sql: String, vararg params: Any?, map: (ResultSet) -> T?): List<T> =
+    statement(sql, *params).use { st ->
+        st.executeQuery().use { rs ->
+            val out = ArrayList<T>()
+            while (rs.next()) map(rs)?.let { out += it }
+            out
+        }
+    }
+
+/** Number of rows changed by [sql]. */
+internal fun Connection.execute(sql: String, vararg params: Any?): Int = statement(sql, *params).use { it.executeUpdate() }
+
+/** Runs the INSERT [sql] and returns the id the database generated. */
+internal fun Connection.insert(sql: String, vararg params: Any?): Long = statement(sql, *params, keys = true).use { st ->
+    st.executeUpdate()
+    st.generatedKeys.use { rs ->
+        check(rs.next()) { "No id generated by: $sql" }
+        rs.getLong(1)
+    }
+}
+
+/** `?, ?, ?` for an IN list of [n] values. */
+internal fun placeholders(n: Int): String = List(n) { "?" }.joinToString(", ")
+
+internal fun ResultSet.longOrNull(column: String): Long? = getLong(column).takeUnless { wasNull() }
+
+internal fun ResultSet.floatOrNull(column: String): Float? = getFloat(column).takeUnless { wasNull() }
+
+internal fun ResultSet.intOrNull(column: String): Int? = getInt(column).takeUnless { wasNull() }
+
+internal fun ResultSet.dateTime(column: String): LocalDateTime? = getTimestamp(column)?.toLocalDateTime()
