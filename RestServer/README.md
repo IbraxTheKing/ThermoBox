@@ -125,6 +125,19 @@ La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 | `GET` | `/` | Réglages d'affichage communs à tous (`{"style": "glass"}` ou `"panel"`). | Authentifié |
 | `PUT` | `/` | Change le style pour tout le monde. | ADMIN |
 
+### 🏷 Serveur (`/api/v2/server`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Nom et version du serveur, adresse et origine du logo (`{"name": "ThermoBox", "version": "…", "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). | Public |
+| `GET` | `/logo` | Le logo du serveur, dans son format. Avec `?size=192`, un PNG d'au plus 192 px quand le logo peut être redimensionné (PNG, JPEG, GIF, logo ThermoBox) ; un logo SVG, ICO ou WebP est servi tel quel. Avec `ETag`. | Public |
+| `PUT` | `/logo` | Remplace le logo : le corps est l'image (PNG, JPEG ou GIF, gardée en PNG de 1024 px au plus ; ou SVG sans script), 5 Mo max. | ADMIN |
+| `DELETE` | `/logo` | Revient au logo automatique. | ADMIN |
+
+Le logo affiché est, dans l'ordre :
+1. celui donné par un administrateur (`PUT /api/v2/server/logo`), gardé dans `branding/` du dossier de données (`THERMOBOX_DATA_DIR`) ;
+2. sinon celui du site auquel appartient le serveur : un serveur joint à `thermobox.example.com` reprend le logo de `example.com` (icônes déclarées par sa page d'accueil, la plus grande d'abord, sinon `/favicon.ico`). Le nom vient de la requête (`X-Forwarded-Host` derrière un proxy, sinon `Host`). Rien n'est cherché pour une adresse IP, `localhost` ou un nom local (`.local`, `.lan`…). Seul HTTPS vers des adresses publiques est utilisé ; le logo trouvé est gardé un jour (une heure si rien n'est trouvé) ;
+3. sinon le logo de ThermoBox.
+
 ### ⬆ Mises à jour (`/api/v2/updates`)
 Voir la section « Mises à jour depuis l'interface » du README principal.
 
