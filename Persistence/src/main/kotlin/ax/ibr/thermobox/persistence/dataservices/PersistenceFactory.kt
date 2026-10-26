@@ -21,60 +21,112 @@ import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.backup.BackupResult
 import ax.ibr.thermobox.persistence.backup.DatabaseBackup
 import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
+import ax.ibr.thermobox.persistence.jdbc.AccessDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.FavoriteDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.JdbcDatabase
+import ax.ibr.thermobox.persistence.jdbc.RoomDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.RoomImageDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.RoomRoomAttrDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.RoomTempAttrDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.UserDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.UserGroupDataServiceJdbcImpl
 import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
 import java.nio.file.Path
 
+/**
+ * The data services of the application, all on the database of `THERMOBOX_DB_URL`.
+ *
+ * Two implementations of every service, chosen by `THERMOBOX_DB_ACCESS`:
+ * - `jpa` (default): JPA with EclipseLink (package `jpa`);
+ * - `jdbc`: plain SQL through JDBC (package `jdbc`), without JPA: lighter, and every query is
+ *   written out. Both read and write the same tables, so a server can switch at any restart.
+ *
+ * In both cases the Flyway migrations run first: the schema belongs to them.
+ */
 object PersistenceFactory {
 
-    private const val JDBC: Boolean = false
+    /** How the data services reach the database. */
+    enum class AccessMode { JPA, JDBC }
+
     private const val PU: String = "thermoboxPU"
     private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
-    // Schema migrations first: JPA only maps the tables, it never creates or alters them.
-    private val emfHolder = lazy {
+    /**
+     * `THERMOBOX_DB_ACCESS`: `jpa` (default) or `jdbc`.
+     * @throws IllegalStateException for any other value, so a typo does not go unnoticed
+     */
+    fun accessMode(env: Map<String, String> = System.getenv()): AccessMode =
+        when (val v = env["THERMOBOX_DB_ACCESS"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }) {
+            null, "jpa" -> AccessMode.JPA
+            "jdbc" -> AccessMode.JDBC
+            else -> error("THERMOBOX_DB_ACCESS=$v is not valid: jpa or jdbc")
+        }
+
+    private val mode: AccessMode by lazy { accessMode() }
+
+    private val migrated by lazy {
         if (DatabaseMigrations.enabled()) {
             DatabaseMigrations.migrate(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
         }
+    }
+
+    // Schema migrations first: JPA and JDBC only use the tables, they never create or alter them.
+    private val emfHolder = lazy {
+        migrated
         Persistence.createEntityManagerFactory(PU, databaseProperties())
     }
     private val emf: EntityManagerFactory by emfHolder
 
+    private val jdbcHolder = lazy {
+        migrated
+        JdbcDatabase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
+    }
+    private val jdbc: JdbcDatabase by jdbcHolder
+
+    private fun <T> pick(jpa: () -> T, jdbc: (JdbcDatabase) -> T): T = when (mode) {
+        AccessMode.JPA -> jpa()
+        AccessMode.JDBC -> jdbc(this.jdbc)
+    }
+
     private val userService: UserDataService by lazy {
-        if (JDBC) TODO("JDBC version") else UserDataServiceJPAImpl(emf, User::class.java)
+        pick({ UserDataServiceJPAImpl(emf, User::class.java) }, ::UserDataServiceJdbcImpl)
     }
 
     private val roomService: RoomDataService by lazy {
-        if (JDBC) TODO("JDBC version") else RoomDataServiceJPAImpl(emf, Room::class.java)
+        pick({ RoomDataServiceJPAImpl(emf, Room::class.java) }, ::RoomDataServiceJdbcImpl)
     }
 
     private val roomTempAttrService: RoomTempAttrDataService by lazy {
-        if (JDBC) TODO("JDBC version") else RoomTempAttrDataServiceJPAImpl(emf, RoomTempAttr::class.java)
+        pick({ RoomTempAttrDataServiceJPAImpl(emf, RoomTempAttr::class.java) }, ::RoomTempAttrDataServiceJdbcImpl)
     }
 
     private val temperatureService: TemperatureDataService by lazy {
-        if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
+        pick({ TemperatureDataServiceJPAImpl(emf, Temperature::class.java) }, ::TemperatureDataServiceJdbcImpl)
     }
 
     private val roomRoomAttrService: RoomRoomAttrDataService by lazy {
-        if (JDBC) TODO("JDBC version") else RoomRoomAttrDataServiceJPAImpl(emf, RoomRoomAttr::class.java)
+        pick({ RoomRoomAttrDataServiceJPAImpl(emf, RoomRoomAttr::class.java) }, ::RoomRoomAttrDataServiceJdbcImpl)
     }
 
     private val favoriteService: FavoriteDataService by lazy {
-        if (JDBC) TODO("JDBC version") else FavoriteDataServiceJPAImpl(emf, Favorite::class.java)
+        pick({ FavoriteDataServiceJPAImpl(emf, Favorite::class.java) }, ::FavoriteDataServiceJdbcImpl)
     }
 
     private val roomImageService: RoomImageDataService by lazy {
-        if (JDBC) TODO("JDBC version") else RoomImageDataServiceJPAImpl(emf, RoomImage::class.java)
+        pick({ RoomImageDataServiceJPAImpl(emf, RoomImage::class.java) }, ::RoomImageDataServiceJdbcImpl)
     }
 
     private val accessService: AccessDataService by lazy {
-        if (JDBC) TODO("JDBC version") else AccessDataServiceJPAImpl(emf, Access::class.java)
+        pick({ AccessDataServiceJPAImpl(emf, Access::class.java) }, ::AccessDataServiceJdbcImpl)
+    }
+
+    private val userGroupService: UserGroupDataService by lazy {
+        pick({ UserGroupDataServiceJPAImpl(emf, UserGroup::class.java) }, ::UserGroupDataServiceJdbcImpl)
     }
 
     fun getAccessDataService(): AccessDataService = accessService
-
-    private val userGroupService: UserGroupDataService by lazy { UserGroupDataServiceJPAImpl(emf, UserGroup::class.java) }
 
     fun getUserGroupDataService(): UserGroupDataService = userGroupService
 
@@ -94,6 +146,7 @@ object PersistenceFactory {
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()
+        if (jdbcHolder.isInitialized()) jdbc.close()
     }
 
     /** Full SQL dump of the database (gzip), with the same connection settings as JPA. */

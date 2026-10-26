@@ -13,6 +13,8 @@ x-app-env: &app-env
   THERMOBOX_DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-thermobox}?allowPublicKeyRetrieval=true&useSSL=false"
   THERMOBOX_DB_USER: ${MYSQL_USER:-thermobox}
   THERMOBOX_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD missing: run scripts/init-env.sh}"
+  # Access to the database: jpa (EclipseLink, default) or jdbc (plain SQL)
+  THERMOBOX_DB_ACCESS: ${THERMOBOX_DB_ACCESS:-jpa}
   THERMOBOX_JWT_SECRET: "${THERMOBOX_JWT_SECRET:?THERMOBOX_JWT_SECRET missing (32 characters minimum): run scripts/init-env.sh}"
   THERMOBOX_JWT_TTL_MINUTES: ${THERMOBOX_JWT_TTL_MINUTES:-60}
   # Updates (see README): stable or prerelease channel, daily check, optional GitHub token
