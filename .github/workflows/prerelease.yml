@@ -72,10 +72,92 @@ jobs:
             fi
             base="$VERSION"
           else
-            # Série suivant la dernière version stable.
+            # Trouver la série la plus récente parmi les tags stables et les branches
+            # stabilization/AA.MM ou stabilization/AA.MM.PATCH.
+            latest=""
             if [ -n "$stable" ]; then
-              aa=$((10#$(echo "$stable" | cut -d. -f1)))
-              mm=$((10#$(echo "$stable" | cut -d. -f2)))
+              latest="$stable"
+            fi
+
+            while IFS= read -r branch; do
+              branch="${branch#origin/}"
+              series="${branch#stabilization/}"
+              if printf '%s' "$series" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?
+
+          if git rev-parse -q --verify "refs/tags/$base^{commit}" >/dev/null || \
+             git rev-parse -q --verify "refs/tags/v$base^{commit}" >/dev/null; then
+            echo "::error::La version stable $base existe déjà : impossible de créer une préversion pour cette version."
+            exit 1
+          fi
+
+          escaped_base=$(printf '%s' "$base" | sed 's/\./\\./g')
+          motif="^${escaped_base}-${TYPE}[.-]([0-9]+)$"
+          last=$(git tag --list "${base}-${TYPE}*" | sed -nE "s/${motif}/\\1/p" | sort -n | tail -n1 || true)
+
+          if [ -n "$last" ]; then
+            last_tag=$(git tag --list "${base}-${TYPE}.${last}" "${base}-${TYPE}-${last}" | head -n1)
+            if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
+              echo "::error::$last_tag a déjà été publiée depuis ce commit de $BRANCHE."
+              exit 1
+            fi
+          fi
+
+          tag="${base}-${TYPE}.$(( ${last:-0} + 1 ))"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Le tag $tag existe déjà."
+            exit 1
+          fi
+
+          echo "Dernière stable : ${stable:-aucune} ; base : $base ; $BRANCHE ($commit) -> $tag"
+          {
+            echo "tag=$tag"
+            echo "commit=$commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Basculer sur le commit choisi
+        run: git checkout --detach "${{ steps.version.outputs.commit }}"
+
+      - name: Installer le JDK 23
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      # Comme la nightly : les tests ont besoin de MySQL et d'un broker MQTT, absents du runner.
+      - name: Compiler (Maven, profil deploy)
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
+
+      - name: Rassembler les livrables
+        run: |
+          mkdir -p dist
+          cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
+          zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
+          ls -l dist
+
+      - name: Créer la prépublication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          gh release create "$tag" dist/* \
+            --target "${{ steps.version.outputs.commit }}" \
+            --prerelease \
+            --title "$tag" \
+            --notes "$NOTES" \
+            --generate-notes
+; then
+                parts=$(printf '%s' "$series" | awk -F. '{ printf "%d.%02d.0", $1, $2 }')
+                if [ -z "$latest" ] || [ "$(printf '%s\n%s\n' "$latest" "$parts" | sort -V | tail -n1)" = "$parts" ]; then
+                  latest="$parts"
+                fi
+              fi
+            done < <(git branch -r --list 'origin/stabilization/*' | sed 's/^[[:space:]]*//')
+
+            if [ -n "$latest" ]; then
+              aa=$((10#$(echo "$latest" | cut -d. -f1)))
+              mm=$((10#$(echo "$latest" | cut -d. -f2)))
               if [ "$mm" -eq 12 ]; then
                 aa=$((aa + 1))
                 mm=1
