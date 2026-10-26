@@ -1,5 +1,5 @@
--- 26.12: English names for the tables, the columns and the type values, like the code.
--- destructive: tables and columns are renamed, so a version before 26.12 cannot use the database
+-- 26.11: English names for the tables, the columns and the type values, like the code.
+-- destructive: tables and columns are renamed, so a version before 26.11 cannot use the database
 -- any more; going back means restoring the backup made before the update (see the release notes).
 -- The names of the constraints and indexes (FK_salle_attr_salleA_id…) are left as they are: no
 -- code uses them, and they differ between databases created by EclipseLink and by V1.
