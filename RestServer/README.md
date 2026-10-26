@@ -1,12 +1,115 @@
 # RestServer Module 🌐
 
-Le module `RestServer` expose les fonctionnalités de ThermoBox via une API RESTful sécurisée, construite avec **Jersey** et tournant sur un serveur **Jetty**.
+Le module `RestServer` est le programme que l'on lance : un serveur HTTP (**Jetty**) qui expose
+ThermoBox par une API REST (**Jersey**, JSON avec **Jackson**), sécurisée par jetons JWT. C'est par
+lui que passent le client Angular ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client))
+et toute autre application. Au démarrage, il lance aussi l'écoute des boîtiers et le système de mises
+à jour.
 
-## 🛠 Fonctionnalités principales
-- **API Endpoints** : Ressources pour la gestion des salles, des températures et des utilisateurs (ex: `/api/v2/roomtemps`).
-- **Sécurité JWT** : Gestion complète de l'authentification par jetons JSON Web Tokens.
-- **Contrôle d'accès granulaire** : Gestion des rôles (`ADMIN`, `MANAGER`, `VIEWER`) et permissions basées sur la propriété des ressources (Owner).
-- **Intégration Matérielle** : Capacité à envoyer des consignes directement aux boîtiers de capteurs via le pilote de communication.
+```
+ibr-utils  ←  Common  ←  Persistence  ←  Business  ←  RestServer
+```
+
+- **Dépend de** : `Business` (toute la logique, via `BusinessFactory`), `Common`, `ibr-utils`. Il
+  n'appelle jamais `Persistence` directement (sauf `PersistenceFactory.close()` à l'arrêt).
+- **Livré comme** : `RestServer.jar` (profil `deploy`), qui contient ce module et toutes les
+  bibliothèques tierces (Jersey, Jetty, Jackson, EclipseLink, pilote MySQL…), et trouve les modules du
+  projet dans `base.jar`, à côté de lui (`Class-Path` du manifeste, voir le module `Base`).
+
+## 🗂 Arborescence
+
+```
+RestServer/src/main/
+├── kotlin/ax/ibr/thermobox/restserver/
+│   ├── Main.kt          point d'entrée : configuration Jersey, démarrage de Jetty, pilote, mises à jour
+│   ├── resources/       les points d'entrée de l'API (une classe par chemin /api/v2/…)
+│   ├── dto/             la forme JSON des réponses et des requêtes
+│   ├── filters/         filtres appliqués à chaque requête : CORS, sécurité, ancienne API
+│   ├── security/        JwtSecurityContext : l'utilisateur connecté, pour les ressources
+│   ├── hierarchy/       UserView : l'arbre tel qu'un utilisateur a le droit de le voir
+│   ├── branding/        logo du serveur (personnalisé, du site, ou celui de ThermoBox)
+│   ├── update/          RestComponent : comment ce serveur change de version
+│   └── exceptions/      GlobalExceptionHandler : réponse JSON pour toute erreur non attrapée
+└── resources/branding/  logo ThermoBox (SVG, et PNG 192 / 512 / 1024 px)
+RestServer/src/test/     ServerLogoTest
+```
+
+### `Main.kt`
+
+1. Charge la configuration JWT tout de suite : un `THERMOBOX_JWT_SECRET` invalide arrête le démarrage
+   au lieu d'échouer à la première requête.
+2. Enregistre dans Jersey les paquets `resources`, `filters` et `exceptions` (toute classe annotée
+   `@Path` ou `@Provider` qui s'y trouve est prise en compte automatiquement).
+3. Démarre Jetty sur `THERMOBOX_HTTP_HOST:THERMOBOX_HTTP_PORT` (`localhost:8080` par défaut ; dans
+   Docker, `0.0.0.0`, sinon le serveur n'est joignable que depuis le conteneur).
+4. Lance l'écoute des boîtiers (`BusinessFactory.getDriver().listen()`) et le système de mises à jour
+   (`start(RestComponent())`).
+5. À l'arrêt : arrêt des mises à jour et fermeture des connexions à la base.
+
+### `resources/` — l'API
+
+Une classe par domaine. Chacune récupère ses services avec `BusinessFactory`, l'utilisateur connecté
+avec le `SecurityContext`, et convertit entités ↔ JSON avec `dto/`. Les droits se déclarent par
+annotation (`@PublicEndpoint`, `@RequiresRole`, `@RequiresAuth`, voir ibr-utils) ; les règles d'accès
+aux éléments (`AccessScope`) sont appliquées dans la ressource : un élément interdit répond comme un
+élément inexistant (404).
+
+| Classe | Chemin |
+|---|---|
+| `AuthResource` | `/api/v2/auth` |
+| `RoomResource` | `/api/v2/rooms` (et les photos) |
+| `HierarchyResource` | `/api/v2/hierarchy` |
+| `ClimateResource` | `/api/v2/climate` |
+| `RoomTempAttrResource` | `/api/v2/roomtemps` |
+| `TemperatureResource` | `/api/v2/temperatures` |
+| `FavoriteResource` | `/api/v2/favorites` |
+| `UserResource` | `/api/v2/users` |
+| `UserGroupResource` | `/api/v2/groups` |
+| `SettingsResource` | `/api/v2/settings` |
+| `ServerResource` | `/api/v2/server` |
+| `UpdateResource` | `/api/v2/updates` |
+
+### `dto/` — le JSON
+
+Les entités ne sont jamais renvoyées telles quelles : `UserDto` n'a pas de mot de passe, `NodeDto` porte
+le type d'élément, la température et la consigne effective… Les dates sont des chaînes ISO-8601 à
+l'heure du serveur (`2026-10-21T14:05:00`), les énumérations par leur nom (`BUILDING`, `PATCH`).
+Fichiers : `AuthDtos`, `AccessDtos`, `HierarchyDtos`, `UpdateDtos`, `ErrorResponse`.
+
+### `filters/` — à chaque requête, dans cet ordre
+
+1. **`LegacyApiRequestFilter`** (avant la recherche de la ressource) : un chemin `/api/…` qui n'est pas
+   `/api/v2/…` est l'ancienne API française ; il est réécrit vers son équivalent v2.
+   `LegacyApiInterceptor` traduit ensuite le JSON dans les deux sens (voir
+   [Ancienne API](#-ancienne-api-api-dépréciée)).
+2. **`CorsFilter`** : répond directement aux requêtes de pré-vérification (`OPTIONS`) et ajoute les
+   en-têtes CORS à toutes les réponses (toutes origines : la sécurité repose sur le jeton, pas sur les
+   cookies).
+3. **`SecurityFilter`** : sauf `@PublicEndpoint`, exige `Authorization: Bearer <jeton>` ; le jeton doit
+   être bien signé, non expiré, non révoqué (déconnexion), et son utilisateur doit encore exister.
+   Puis il applique `@RequiresRole` / `@RequiresAuth`. 401 sans jeton valide, 403 sans les droits.
+
+### `security/`, `hierarchy/`, `branding/`, `update/`, `exceptions/`
+
+- `JwtSecurityContext` / `JwtPrincipal` : l'utilisateur et son jeton, posés par le `SecurityFilter`,
+  lus par les ressources (`securityContext.currentUser`, `securityContext.scope`).
+- `UserView` : pour une requête, l'arbre vu par un utilisateur : ce qu'il peut voir, ses favoris, et
+  les boîtiers seulement pour un MANAGER ou un ADMIN (un VIEWER voit les températures, pas le matériel).
+- `ServerLogo`, `SiteLogo`, `LogoImages` : le logo du serveur (voir [Serveur](#-serveur-apiv2server)).
+- `RestComponent` : pour changer de version, le serveur s'arrête avec le code **75** ; son lanceur
+  (`docker/rest/entrypoint.sh` ou `scripts/thermobox-rest.sh`, qui posent `THERMOBOX_RESTART=auto`) le
+  relance sur `updates/current`. Lancé par un simple `java -jar`, il refuse d'installer : personne ne le
+  relancerait.
+- `GlobalExceptionHandler` : toute exception non attrapée devient `{"status": …, "message": …}`, 400
+  pour une `IllegalArgumentException`, 500 sinon.
+
+### Lancer en développement
+
+Variables minimales : `THERMOBOX_DB_URL`, `THERMOBOX_DB_USER`, `THERMOBOX_DB_PASSWORD`,
+`THERMOBOX_JWT_SECRET` (voir le README principal pour toutes). Puis exécutez `main` de
+`ax.ibr.thermobox.restserver.MainKt` depuis l'IDE, ou après `mvn -Pdeploy -DskipTests package` :
+`java -jar deploy/RestServer.jar` (avec `base.jar` dans le même dossier). Le serveur répond sur
+http://localhost:8080/api/v2/server sans authentification.
 
 ## 📖 Documentation de l'API
 

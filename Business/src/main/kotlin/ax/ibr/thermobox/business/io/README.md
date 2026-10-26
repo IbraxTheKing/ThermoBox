@@ -46,26 +46,26 @@ class MonDriver : ProtocolDriver() {
 
 Les mesures vont toujours sur un `Device`, jamais directement sur une salle : c'est la salle qui fait la moyenne de ses boîtiers (rattachés via `RoomRoomAttr`). La température s'enregistre avec un seul `roomTempAttrService.add(...)` : le lien la persiste en cascade, l'enregistrer aussi avec `temperatureService` la dupliquerait.
 
-Dans les callbacks de réception, un message mal formé (salle inconnue, valeur illisible…) doit simplement être ignoré. Une exception levée à cet endroit peut couper l'écoute.
+Dans les callbacks de réception, un message mal formé (salle inconnue, valeur illisible…) doit simplement être ignoré. Une exception levée à cet endroit peut couper l'écoute. Une mesure hors des limites des mesures (`SetpointRules.acceptsMeasurement(value)` faux) est une erreur de capteur : elle est ignorée aussi.
 
 ## L'appel à `super.sendSetpoint()`
 
 Une consigne se règle au niveau d'une salle : `ClimateService.sendSetpoint()` l'enregistre sur la salle puis appelle `ProtocolDriver.sendSetpoint()` pour chacun de ses boîtiers.
 
-L'appel à `super.sendSetpoint()` doit être fait en premier, avant tout envoi. C'est lui qui valide la consigne (les limites de valeur sont dans `SetpointRules`) :
+L'appel à `super.sendSetpoint()` doit être fait en premier, avant tout envoi. C'est lui qui valide la consigne (`SetpointRules`, avec les limites choisies par un administrateur, `GET /api/v2/server/limits`, -10 à 50 °C par défaut) :
 
 | Cas | Exception |
 |---|---|
 | Le boîtier n'a pas d'id | `NullException` |
 | Le boîtier n'existe pas en base | `DontExistException` |
-| Valeur ≥ 100 °C ou ≤ -10 °C | `ImpossibleValueException` |
-| Valeur ≥ 50 °C | `TooHotException` |
+| Valeur sous le minimum des consignes | `ImpossibleValueException` |
+| Valeur au-dessus du maximum des consignes | `TooHotException` |
 
 Si on oublie cet appel, des consignes invalides peuvent partir vers les boîtiers.
 
 ## Brancher le driver
 
-Pour utiliser le nouveau driver, on modifie la `BusinessFactory` pour qu'elle crée `MonDriver` au lieu du driver actuel. Le reste du code n'a pas à changer, puisqu'il passe par `getDriver()` :
+Pour utiliser le nouveau driver, on ajoute une valeur à `ConfigDriver.DriverType` (lue dans `THERMOBOX_DRIVER`) et le cas correspondant dans la `BusinessFactory`, qui crée alors `MonDriver`. Le reste du code n'a pas à changer, puisqu'il passe par `getDriver()` :
 
 ```kotlin
 BusinessFactory.getDriver().listen()
