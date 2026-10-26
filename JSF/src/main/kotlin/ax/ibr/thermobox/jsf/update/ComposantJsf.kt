@@ -1,10 +1,10 @@
 package ax.ibr.thermobox.jsf.update
 
-import ax.ibr.thermobox.business.update.Artefacts
-import ax.ibr.thermobox.business.update.ComposantLocal
-import ax.ibr.thermobox.business.update.DossierMisesAJour
-import ax.ibr.thermobox.business.update.Telechargeur
-import ax.ibr.thermobox.common.update.Composant
+import ax.ibr.thermobox.business.update.Artifacts
+import ax.ibr.thermobox.business.update.LocalComponent
+import ax.ibr.thermobox.business.update.UpdateDirectory
+import ax.ibr.thermobox.business.update.Downloader
+import ax.ibr.thermobox.common.update.Component
 import jakarta.servlet.ServletContext
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,9 +16,9 @@ import java.nio.file.StandardCopyOption
  * THERMOBOX_WAR_PATH, or the one next to the unpacked application (webapps/ROOT → ROOT.war).
  * In Docker, docker/jsf-tomcat/entrypoint.sh puts updates/current back at every start.
  */
-class ComposantJsf(contexte: ServletContext) : ComposantLocal {
+class ComposantJsf(contexte: ServletContext) : LocalComponent {
 
-    override val composant = Composant.JSF
+    override val component = Component.JSF
 
     private val serveur: String = contexte.serverInfo.orEmpty()
 
@@ -27,7 +27,7 @@ class ComposantJsf(contexte: ServletContext) : ComposantLocal {
             ?.let { it.resolveSibling(it.fileName.toString() + ".war") }
             ?.takeIf { Files.isRegularFile(it) }
 
-    override fun empechement(): String? = when {
+    override fun blocker(): String? = when {
         // WildFly needs a WAR without Mojarra / Weld (docker/jsf-wildfly/prepare-war.sh).
         serveur.contains("WildFly", true) || serveur.contains("JBoss", true) || serveur.contains("Undertow", true) ->
             "Sur WildFly, le WAR doit être adapté (docker/jsf-wildfly/prepare-war.sh) : mettez cette interface à jour à la main."
@@ -36,29 +36,29 @@ class ComposantJsf(contexte: ServletContext) : ComposantLocal {
         else -> null
     }
 
-    override val effetBascule =
+    override val switchEffect =
         "L'interface JSF est redéployée par Tomcat (quelques secondes) : les pages ouvertes devront être rechargées."
 
-    override fun versionDuDossier(dossier: DossierMisesAJour): String? {
+    override fun versionInDirectory(dossier: UpdateDirectory): String? {
         val sha = shaDuWar() ?: return null
         val versions = runCatching { Files.list(dossier.versions).use { l -> l.filter { Files.isDirectory(it) }.toList() } }.getOrDefault(emptyList())
         // The current version first: it's the usual answer.
-        val courante = dossier.courante()
+        val courante = dossier.current()
         return versions.map { it.fileName.toString() }.sortedByDescending { it == courante }
-            .firstOrNull { runCatching { dossier.sha256(it, Artefacts.WAR) }.getOrNull() == sha }
+            .firstOrNull { runCatching { dossier.sha256(it, Artifacts.WAR) }.getOrNull() == sha }
     }
 
-    override fun conserverActuels(cible: Path) {
+    override fun keepCurrent(cible: Path) {
         val w = war ?: return
-        val f = cible.resolve(Artefacts.WAR)
+        val f = cible.resolve(Artifacts.WAR)
         if (!Files.exists(f)) Files.copy(w, f)
     }
 
-    override fun basculer(dossier: Path, tag: String) {
+    override fun switchTo(dossier: Path, tag: String) {
         val w = war ?: error("WAR introuvable")
         // Copied next to it, then renamed: Tomcat never sees a half-written WAR.
         val tmp = w.resolveSibling(".${w.fileName}.$tag.tmp")
-        Files.copy(dossier.resolve(Artefacts.WAR), tmp, StandardCopyOption.REPLACE_EXISTING)
+        Files.copy(dossier.resolve(Artifacts.WAR), tmp, StandardCopyOption.REPLACE_EXISTING)
         Files.move(tmp, w, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         println("[ThermoBox mises à jour] $w remplacé par la version $tag : Tomcat redéploie l'interface")
     }
@@ -72,7 +72,7 @@ class ComposantJsf(contexte: ServletContext) : ComposantLocal {
             val taille = Files.size(w)
             val date = Files.getLastModifiedTime(w).toMillis()
             empreinte?.takeIf { it.first == taille && it.second == date }?.third
-                ?: Telechargeur.sha256(w).also { empreinte = Triple(taille, date, it) }
+                ?: Downloader.sha256(w).also { empreinte = Triple(taille, date, it) }
         }.getOrNull()
     }
 }

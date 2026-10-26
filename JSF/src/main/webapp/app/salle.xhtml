@@ -107,7 +107,7 @@
                         </h:outputText>
                         <!-- No consigne of its own: it follows its étage or bâtiment -->
                         <h:link outcome="/app/salle" styleClass="tb-hero-source"
-                                rendered="#{salleDetailBean.consigneEffective.heritee}">
+                                rendered="#{salleDetailBean.consigneEffective.inherited}">
                             <f:param name="id" value="#{salleDetailBean.consigneEffective.source.id}"/>
                             <i class="pi pi-sitemap"/> héritée de #{salleDetailBean.consigneEffective.source.name}
                         </h:link>
@@ -217,20 +217,20 @@
                 <div class="tb-boxes">
                     <ui:repeat value="#{salleDetailBean.mesures}" var="m">
                         <h:link outcome="/app/salle" styleClass="tb-box">
-                            <f:param name="id" value="#{m.boitier.id}"/>
-                            <span class="tb-box-name"><i class="pi pi-wifi"/>#{m.boitier.name}</span>
-                            <span class="tb-temp-l" data-watch="b#{m.boitier.id}">
-                                #{unite.t(m.mesure.value)}
+                            <f:param name="id" value="#{m.device.id}"/>
+                            <span class="tb-box-name"><i class="pi pi-wifi"/>#{m.device.name}</span>
+                            <span class="tb-temp-l" data-watch="b#{m.device.id}">
+                                #{unite.t(m.measurement.value)}
                                 <span class="tb-deg">°</span>
                             </span>
                             <span class="tb-box-meta">
                                 <h:panelGroup styleClass="tb-delta" rendered="#{not empty salleDetailBean.ecart(m)}">
                                     #{salleDetailBean.ecart(m)}
                                 </h:panelGroup>
-                                <h:outputText value="#{m.mesure.date}" rendered="#{m.mesure ne null}">
+                                <h:outputText value="#{m.measurement.date}" rendered="#{m.measurement ne null}">
                                     <f:convertDateTime type="localDateTime" pattern="dd/MM HH:mm"/>
                                 </h:outputText>
-                                <h:outputText value="Pas encore de mesure" rendered="#{m.mesure eq null}"/>
+                                <h:outputText value="Pas encore de mesure" rendered="#{m.measurement eq null}"/>
                             </span>
                         </h:link>
                     </ui:repeat>

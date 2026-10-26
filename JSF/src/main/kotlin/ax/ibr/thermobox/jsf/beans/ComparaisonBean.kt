@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Batiment
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Building
+import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Comparaison
@@ -33,7 +33,7 @@ class ComparaisonBean : Serializable {
 
     /** One curve: a salle or a bâtiment, with its figures over the period (in Celsius). */
     data class Ligne(
-        val element: Salle,
+        val element: Room,
         val chemin: String,
         /** Colour of its curve: --tb-serie-<n> */
         val couleur: Int,
@@ -59,7 +59,7 @@ class ComparaisonBean : Serializable {
     var batimentId: Long? = null
 
     var lignes: List<Ligne> = emptyList()
-    var batiments: List<Salle> = emptyList()
+    var batiments: List<Room> = emptyList()
     var chartModel: LineChartModel = LineChartModel()
 
     val parBatiment: Boolean get() = regroupement == "batiment"
@@ -73,19 +73,19 @@ class ComparaisonBean : Serializable {
     fun charger() {
         try {
             val acces = login.perimetre
-            batiments = Services.salles.getAllByType(Batiment(null)).filter { acces.estVisible(it) }.sortedBy { it.name?.lowercase() }
+            batiments = Services.salles.getAllByType(Building(null)).filter { acces.isVisible(it) }.sortedBy { it.name?.lowercase() }
             // Exact types: étages, bâtiments and boxes are Salle subclasses too
-            val elements: List<Pair<Salle, List<Salle>>> = if (parBatiment) {
+            val elements: List<Pair<Room, List<Room>>> = if (parBatiment) {
                 // A bâtiment's curve aggregates all its boxes: only for a user who may see all of it
-                Services.salles.getAllByType(Batiment(null)).filter { acces.peutVoir(it) }.map { it to emptyList() }
+                Services.salles.getAllByType(Building(null)).filter { acces.canSee(it) }.map { it to emptyList() }
             } else {
-                Services.salles.getAllByType(Salle(null)).filter { acces.peutVoir(it) }
-                    .map { it to Services.hierarchie.getChemin(it) }
+                Services.salles.getAllByType(Room(null)).filter { acces.canSee(it) }
+                    .map { it to Services.hierarchie.getPath(it) }
                     .filter { (_, chemin) ->
                         when (batimentId) {
                             null -> true
-                            -1L -> chemin.none { it is Batiment }
-                            else -> chemin.any { it is Batiment && it.id == batimentId }
+                            -1L -> chemin.none { it is Building }
+                            else -> chemin.any { it is Building && it.id == batimentId }
                         }
                     }
             }.sortedWith(compareBy({ it.second.joinToString { s -> s.name.orEmpty() }.lowercase() }, { it.first.name?.lowercase() }))
@@ -98,9 +98,9 @@ class ComparaisonBean : Serializable {
             val a = fin.atZone(zone).toInstant()
 
             val calculees = elements.mapIndexed { i, (element, chemin) ->
-                val courbe = Comparaison.courbe(Services.climat.getMoyenneHistorique(element, de, a), debut, fin, pas)
-                val actuelle = Services.climat.getMoyenne(element)
-                val consigne = Services.climat.getConsigne(element)?.value
+                val courbe = Comparaison.courbe(Services.climat.getAverageHistory(element, de, a), debut, fin, pas)
+                val actuelle = Services.climat.getAverage(element)
+                val consigne = Services.climat.getSetpoint(element)?.value
                 Ligne(
                     element = element,
                     chemin = chemin.joinToString(" › ") { it.name.orEmpty() },

@@ -64,7 +64,7 @@ Si vous la modifiez, modifiez-la dans les trois.
 
 ## Mises à jour depuis l'interface
 
-Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/updates/{version}/install`)
+Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/v2/updates/{version}/install`)
 sont téléchargées dans le volume `thermobox_data`, partagé par `rest` et `jsf-tomcat`, avec les
 sauvegardes de la base (`/var/lib/thermobox/backups`). Au démarrage, chaque conteneur prend la version
 de `updates/current` si elle existe, sinon les fichiers de l'image : une version installée survit donc

@@ -2,15 +2,15 @@
 package ax.ibr.thermobox.restserver.security
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
-import ax.ibr.thermobox.common.acces.Perimetre
+import ax.ibr.thermobox.common.access.AccessScope
 import ax.ibr.thermobox.common.entities.User
 import com.auth0.jwt.interfaces.DecodedJWT
 import jakarta.ws.rs.core.SecurityContext
 import java.security.Principal
 
 /**
- * Transporte l'utilisateur et son JWT dans le Principal exposé par Jersey.
- * On ne dépend pas de l'implémentation interne du SecurityContext de Jersey.
+ * Carries the user and their JWT in the Principal Jersey exposes,
+ * without depending on Jersey's internal SecurityContext implementation.
  */
 data class JwtPrincipal(
     val user: User,
@@ -38,8 +38,8 @@ class JwtSecurityContext(
 }
 
 /**
- * Extensions pour récupérer les données depuis le Principal,
- * sans caster le SecurityContext lui-même.
+ * Extensions to read the data from the Principal,
+ * without casting the SecurityContext itself.
  */
 val SecurityContext.currentUser: User
     get() = (userPrincipal as? JwtPrincipal)?.user
@@ -49,5 +49,5 @@ val SecurityContext.currentToken: DecodedJWT
     get() = (userPrincipal as? JwtPrincipal)?.token
         ?: throw IllegalStateException("Authenticated ThermoBox token not found")
 
-val SecurityContext.perimetre: Perimetre
-    get() = BusinessFactory.getAccesService().perimetre(currentUser)
+val SecurityContext.scope: AccessScope
+    get() = BusinessFactory.getAccessService().scope(currentUser)

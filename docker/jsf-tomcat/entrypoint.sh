@@ -1,7 +1,7 @@
 #!/bin/sh
-# Remet en place la version de l'interface installée depuis l'interface (updates/current, dans le
-# volume thermobox_data) avant de lancer Tomcat : l'image, elle, contient toujours le WAR
-# d'origine, et un conteneur recréé repartirait sinon sur celui-ci.
+# Puts back the version of the interface installed from the interface (updates/current, in the
+# thermobox_data volume) before starting Tomcat: the image always holds the original WAR, and a
+# container created again would otherwise start from it.
 set -eu
 
 DATA="${THERMOBOX_DATA_DIR:-/var/lib/thermobox}"
@@ -13,7 +13,7 @@ if [ -n "$v" ] && [ -f "$DATA/updates/$v/JsfClient.war" ] && ! cmp -s "$DATA/upd
     mv -f "$WAR.tmp" "$WAR"
     # Unpacked copy of the previous version
     rm -rf "${WAR%.war}"
-    echo "ThermoBox : interface en version $v, installée depuis l'interface"
+    echo "ThermoBox: interface in version $v, installed from the interface"
 fi
 
 exec catalina.sh run

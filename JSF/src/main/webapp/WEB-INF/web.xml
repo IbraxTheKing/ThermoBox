@@ -46,7 +46,7 @@
         <servlet-name>Faces Servlet</servlet-name>
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
-        <!-- Salle photos (p:fileUpload). 10 MB, as ImageProcessor.MAX_UPLOAD_BYTES. -->
+        <!-- Room photos (p:fileUpload). 10 MB, as ImageProcessor.MAX_UPLOAD_BYTES. -->
         <multipart-config>
             <max-file-size>10485760</max-file-size>
             <max-request-size>11534336</max-request-size>

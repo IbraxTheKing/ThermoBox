@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Mesurer
+import ax.ibr.thermobox.common.entities.Setpoint
+import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
@@ -48,7 +48,7 @@ class TemperatureBean : Serializable {
         charge = true
         val acces = login.perimetre
         // Only the temperatures of the salles / boxes the user may see.
-        temperatures = Services.acces.filtrerTemperatures(acces, when (filtre) {
+        temperatures = Services.acces.filterTemperatures(acces, when (filtre) {
             "consigne", "mesurer" -> Services.temperatures.getByType(sample(filtre)).orEmpty()
             else -> Services.temperatures.getAll()
         }).sortedByDescending { it.date }
@@ -60,15 +60,15 @@ class TemperatureBean : Serializable {
     /** Average of a type; for a limited user, over their temperatures only. */
     private fun moyenne(type: String): Temperature? = runCatching {
         val acces = login.perimetre
-        if (acces.tout) return@runCatching Services.temperatures.getAverage(sample(type))
-        val valeurs = Services.acces.filtrerTemperatures(acces, Services.temperatures.getByType(sample(type)).orEmpty()).mapNotNull { it.value }
+        if (acces.all) return@runCatching Services.temperatures.getAverage(sample(type))
+        val valeurs = Services.acces.filterTemperatures(acces, Services.temperatures.getByType(sample(type)).orEmpty()).mapNotNull { it.value }
         if (valeurs.isEmpty()) null else sample(type).apply { value = valeurs.average().toFloat() }
     }.getOrNull()
 
 
     fun typeOf(t: Temperature): String = when (t) {
-        is Consigne -> "Consigne"
-        is Mesurer -> "Mesure"
+        is Setpoint -> "Consigne"
+        is Measurement -> "Mesure"
         else -> "—"
     }
 
@@ -81,7 +81,7 @@ class TemperatureBean : Serializable {
 
     fun edit(t: Temperature) {
         editing = t
-        formType = if (t is Consigne) "consigne" else "mesurer"
+        formType = if (t is Setpoint) "consigne" else "mesurer"
         formValue = t.value?.let { Unite.courante().depuisCelsius(it) }
         formDate = t.date
     }
@@ -94,7 +94,7 @@ class TemperatureBean : Serializable {
         try {
             val t = editing
             if (t == null) {
-                Services.temperatures.add(if (formType == "consigne") Consigne(value, date) else Mesurer(value, date))
+                Services.temperatures.add(if (formType == "consigne") Setpoint(value, date) else Measurement(value, date))
                 Faces.info("Température ajoutée")
             } else {
                 t.value = value
@@ -124,5 +124,5 @@ class TemperatureBean : Serializable {
 
     /** Même logique que TemperatureResource.resolveSample */
     private fun sample(type: String): Temperature =
-        if (type == "consigne") Consigne(0f, LocalDateTime.now()) else Mesurer(0f, LocalDateTime.now())
+        if (type == "consigne") Setpoint(0f, LocalDateTime.now()) else Measurement(0f, LocalDateTime.now())
 }

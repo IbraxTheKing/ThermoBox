@@ -9,24 +9,24 @@
             <div class="tb-maj-titre">
                 <strong class="tb-maj-version">#{v.version.tag}</strong>
                 <span class="tb-canal tb-canal-#{updateBean.canal(v.version)}">#{updateBean.canalLabel(v.version)}</span>
-                <span class="tb-maj-type-tag">#{v.anterieure ? 'Version antérieure' : v.type.label}</span>
+                <span class="tb-maj-type-tag">#{v.older ? 'Version antérieure' : libelles.updateType(v.type)}</span>
                 <p:tag value="Recommandée" severity="success" icon="pi pi-thumbs-up"
-                       rendered="#{v.type eq 'CORRECTIVE' and not v.incompatible and not v.anterieure}"/>
+                       rendered="#{v.type eq 'PATCH' and not v.incompatible and not v.older}"/>
                 <p:tag value="Incompatibilité annoncée" severity="danger" rendered="#{v.incompatible}"/>
             </div>
             <span class="tb-spacer"/>
             <p:linkButton value="Sur GitHub" icon="pi pi-external-link" href="#{v.page}" target="_blank"
                           styleClass="ui-button-flat"/>
-            <p:commandButton value="#{v.anterieure ? 'Réinstaller…' : 'Installer…'}" icon="pi pi-download"
+            <p:commandButton value="#{v.older ? 'Réinstaller…' : 'Installer…'}" icon="pi pi-download"
                              action="#{updateBean.preparer(v.version.tag)}"
                              process="@this" update=":installForm" oncomplete="if (args &amp;&amp; args.ok) PF('installDlg').show()"
                              disabled="#{updateBean.suivi}"
-                             styleClass="#{v.type eq 'CORRECTIVE' and not v.anterieure ? '' : 'tb-tonal'}"/>
+                             styleClass="#{v.type eq 'PATCH' and not v.older ? '' : 'tb-tonal'}"/>
         </div>
         <p class="tb-maj-type">
-            <h:outputText value="#{v.titre} · " rendered="#{v.titre ne v.version.tag}"/>
-            publiée le #{updateBean.date(v.publieeLe)}.
-            #{v.anterieure ? 'Plus ancienne que la version installée.' : v.type.description}
+            <h:outputText value="#{v.title} · " rendered="#{v.title ne v.version.tag}"/>
+            publiée le #{updateBean.date(v.publishedAt)}.
+            #{v.older ? 'Plus ancienne que la version installée.' : libelles.updateTypeDescription(v.type)}
         </p>
         <h:panelGroup layout="block" styleClass="tb-maj-migration" rendered="#{v.migration ne null}">
             <strong><i class="pi pi-exclamation-triangle"/> Opérations à prévoir</strong>

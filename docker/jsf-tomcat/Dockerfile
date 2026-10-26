@@ -40,7 +40,7 @@ COPY --chmod=755 docker/jsf-tomcat/entrypoint.sh /usr/local/bin/thermobox-entryp
 # A Windows checkout may have turned the script into CRLF: "/bin/sh^M: bad interpreter"
 RUN sed -i 's/\r$//' /usr/local/bin/thermobox-entrypoint.sh
 
-# Volume thermobox_data (partagé avec le serveur REST) : versions téléchargées et sauvegardes
+# thermobox_data volume (shared with the REST server): downloaded versions and backups
 RUN mkdir -p /var/lib/thermobox && chown tomcat:tomcat /var/lib/thermobox
 ENV THERMOBOX_DATA_DIR=/var/lib/thermobox \
     THERMOBOX_WAR_PATH=${CATALINA_HOME}/webapps/ROOT.war
@@ -56,5 +56,5 @@ USER tomcat
 
 EXPOSE 8080
 
-# Remet la version installée depuis l'interface (updates/current), puis lance Tomcat
+# Puts back the version installed from the interface (updates/current), then starts Tomcat
 CMD ["/usr/local/bin/thermobox-entrypoint.sh"]

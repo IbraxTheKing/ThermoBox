@@ -1,13 +1,13 @@
 package ax.ibr.thermobox.business.io.mqtt
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
-import ax.ibr.thermobox.business.io.simulation.ClimatSimule
+import ax.ibr.thermobox.business.io.simulation.SimulatedClimate
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
-import ax.ibr.thermobox.common.entities.Boitier
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Mesurer
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleTempAttr
+import ax.ibr.thermobox.common.entities.Device
+import ax.ibr.thermobox.common.entities.Setpoint
+import ax.ibr.thermobox.common.entities.Measurement
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomTempAttr
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -15,16 +15,16 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
- * Implémentation factice de ProtocolDriver, pour travailler sans broker MQTT ni vrais boîtiers.
+ * Fake ProtocolDriver, to work without an MQTT broker or real devices.
  *
- * - Elle mesure **tous** les boîtiers en base (ceux du DatabaseSeeder compris). Chaque boîtier
- *   tend vers la consigne de sa salle (voir [ClimatSimule]) : une consigne changée dans JSF se
- *   voit sur les courbes au fil des mesures.
- * - Elle annonce un à un les boîtiers de [nouveauxBoitiers], comme des appareils qu'on vient de
- *   brancher : ils arrivent non rattachés, à ranger dans leur salle.
+ * - It measures **every** device in the database (the DatabaseSeeder's included). Each device
+ *   tends towards the setpoint of its room (see [SimulatedClimate]): a setpoint changed in a client
+ *   shows on the curves as measurements come in.
+ * - It announces the devices of [newDevices] one by one, like hardware that was just plugged in:
+ *   they arrive unattached, to be put in their room.
  */
 class SimulatedProtocolDriver(
-    private val nouveauxBoitiers: List<String> = listOf("Boîtier neuf 3", "Boîtier neuf 4", "Boîtier neuf 5"),
+    private val newDevices: List<String> = listOf("New device 3", "New device 4", "New device 5"),
     private val temperatureIntervalMs: Long = 60_000L,
     private val discoveryIntervalMs: Long = 120_000L,
 ) : ProtocolDriver() {
@@ -32,30 +32,30 @@ class SimulatedProtocolDriver(
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
     private var running = false
 
-    private val hierarchie by lazy { BusinessFactory.getHierarchieService() }
-    private val climat by lazy { BusinessFactory.getClimatService() }
+    private val hierarchy by lazy { BusinessFactory.getHierarchyService() }
+    private val climate by lazy { BusinessFactory.getClimateService() }
 
     /** Last simulated value per box id, so readings drift smoothly instead of jumping. */
-    private val dernieres = ConcurrentHashMap<Long, Float>()
+    private val latest = ConcurrentHashMap<Long, Float>()
 
     override fun listen() {
         if (running) return
         running = true
         listenToRooms()
         listenToTemperatures()
-        println("[SimulatedProtocolDriver] Simulation démarrée (pas de broker MQTT requis).")
+        println("[SimulatedProtocolDriver] Simulation started (no MQTT broker needed).")
     }
 
     override fun listenToRooms() {
         scheduler.scheduleAtFixedRate({
             try {
-                // One new box per tick; registerBoitier skips names already in database.
-                val name = nouveauxBoitiers.firstOrNull { nom -> getBoitiers().none { it.name == nom } }
-                if (name != null && registerBoitier(name)) {
-                    println("[SimulatedProtocolDriver] Nouveau boîtier simulé : $name")
+                // One new box per tick; registerDevice skips names already in database.
+                val name = newDevices.firstOrNull { deviceName -> getDevices().none { it.name == deviceName } }
+                if (name != null && registerDevice(name)) {
+                    println("[SimulatedProtocolDriver] New simulated device: $name")
                 }
             } catch (e: Exception) {
-                println("[SimulatedProtocolDriver] Erreur listenToRooms : ${e.message}")
+                println("[SimulatedProtocolDriver] listenToRooms error: ${e.message}")
             }
         }, discoveryIntervalMs, discoveryIntervalMs, TimeUnit.MILLISECONDS)
     }
@@ -63,48 +63,48 @@ class SimulatedProtocolDriver(
     override fun listenToTemperatures() {
         scheduler.scheduleAtFixedRate({
             try {
-                val boitiers = getBoitiers()
-                val maintenant = LocalDateTime.now()
-                boitiers.forEach { boitier -> mesurer(boitier, maintenant) }
-                if (boitiers.isNotEmpty()) {
-                    println("[SimulatedProtocolDriver] ${boitiers.size} mesure(s) simulée(s)")
+                val devices = getDevices()
+                val now = LocalDateTime.now()
+                devices.forEach { device -> measure(device, now) }
+                if (devices.isNotEmpty()) {
+                    println("[SimulatedProtocolDriver] ${devices.size} simulated measurement(s)")
                 }
             } catch (e: Exception) {
-                println("[SimulatedProtocolDriver] Erreur listenToTemperatures : ${e.message}")
+                println("[SimulatedProtocolDriver] listenToTemperatures error: ${e.message}")
             }
         }, 0, temperatureIntervalMs, TimeUnit.MILLISECONDS)
     }
 
-    private fun mesurer(boitier: Boitier, date: LocalDateTime) {
-        val id = boitier.id ?: return
-        val nom = boitier.name.orEmpty()
-        val cible = ClimatSimule.cible(consigne(boitier), nom, date)
-        val actuelle = dernieres[id]
-            ?: salleTempAttrService.getCurrentTemperatureFromSalle(boitier, Mesurer(0f, date))?.value
-            ?: cible
-        val valeur = ClimatSimule.suivante(actuelle, cible)
-        dernieres[id] = valeur
+    private fun measure(device: Device, date: LocalDateTime) {
+        val id = device.id ?: return
+        val deviceName = device.name.orEmpty()
+        val target = SimulatedClimate.target(setpoint(device), deviceName, date)
+        val current = latest[id]
+            ?: roomTempAttrService.getCurrentTemperatureFromRoom(device, Measurement(0f, date))?.value
+            ?: target
+        val value = SimulatedClimate.next(current, target)
+        latest[id] = value
         // The link cascades to the temperature: saving it separately would insert it twice.
-        salleTempAttrService.add(SalleTempAttr(boitier, Mesurer(valeur, date)))
+        roomTempAttrService.add(RoomTempAttr(device, Measurement(value, date)))
     }
 
-    /** Latest consigne the box knows: its own (sent by sendConsigne) or the one its salle follows. */
-    private fun consigne(boitier: Boitier): Float {
-        val salle = hierarchie.getParent(boitier)
+    /** Latest setpoint the device knows: its own (sent by sendSetpoint) or the one its room follows. */
+    private fun setpoint(device: Device): Float {
+        val room = hierarchy.getParent(device)
         return listOfNotNull(
-            salleTempAttrService.getConsigneFromSalle(boitier),
-            salle?.let { climat.getConsigne(it) }
-        ).maxByOrNull { it.date ?: LocalDateTime.MIN }?.value ?: ClimatSimule.CONSIGNE_PAR_DEFAUT
+            roomTempAttrService.getSetpointFromRoom(device),
+            room?.let { climate.getSetpoint(it) }
+        ).maxByOrNull { it.date ?: LocalDateTime.MIN }?.value ?: SimulatedClimate.DEFAULT_SETPOINT
     }
 
-    override fun sendConsigne(s: Salle, c: Consigne) {
-        super.sendConsigne(s, c)
-        println("[SimulatedProtocolDriver] Consigne simulée envoyée à ${s.name} : ${c.value}")
+    override fun sendSetpoint(s: Room, c: Setpoint) {
+        super.sendSetpoint(s, c)
+        println("[SimulatedProtocolDriver] Simulated setpoint sent to ${s.name} : ${c.value}")
         // A real box would apply it; here we keep it on the box so the simulation follows it.
-        salleTempAttrService.add(SalleTempAttr(s, c))
+        roomTempAttrService.add(RoomTempAttr(s, c))
     }
 
-    /** Arrête proprement les tâches planifiées. */
+    /** Stops the scheduled tasks cleanly. */
     fun stop() {
         running = false
         scheduler.shutdown()
@@ -115,6 +115,6 @@ class SimulatedProtocolDriver(
         } catch (e: InterruptedException) {
             scheduler.shutdownNow()
         }
-        println("[SimulatedProtocolDriver] Simulation arrêtée.")
+        println("[SimulatedProtocolDriver] Simulation stopped.")
     }
 }

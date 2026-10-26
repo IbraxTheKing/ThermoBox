@@ -16,19 +16,19 @@ import org.junit.jupiter.api.Test
 class PasswordHashingTest {
 
     /** In-memory stand-in for the JPA data service: stores what it is given, as is. */
-    private class FauxUsers : UserService {
-        val lignes = mutableListOf<User>()
-        override fun getByUsername(username: String) = lignes.firstOrNull { it.username == username }
-        override fun getByType(userType: UserType) = lignes.filter { it.type == userType }
-        override fun add(t: User) { lignes += t }
-        override fun update(t: User) { lignes.replaceAll { if (it.username == t.username) t else it } }
-        override fun remove(t: User) { lignes -= t }
-        override fun getAll() = lignes.toList()
-        override fun getById(id: Long) = lignes.firstOrNull { it.id == id }
+    private class FakeUsers : UserService {
+        val lines = mutableListOf<User>()
+        override fun getByUsername(username: String) = lines.firstOrNull { it.username == username }
+        override fun getByType(userType: UserType) = lines.filter { it.type == userType }
+        override fun add(t: User) { lines += t }
+        override fun update(t: User) { lines.replaceAll { if (it.username == t.username) t else it } }
+        override fun remove(t: User) { lines -= t }
+        override fun getAll() = lines.toList()
+        override fun getById(id: Long) = lines.firstOrNull { it.id == id }
     }
 
     @Test
-    fun `le hash est sale et se verifie`() {
+    fun `the hash is salted and verifies`() {
         val a = PasswordHasher.hash("motdepasse123")
         val b = PasswordHasher.hash("motdepasse123")
 
@@ -36,48 +36,48 @@ class PasswordHashingTest {
         assertNotEquals(a, b) // random salt
         assertTrue(PasswordHasher.matches("motdepasse123", a))
         assertFalse(PasswordHasher.matches("MotDePasse123", a))
-        assertFalse(PasswordHasher.matches("motdepasse123", "pas un hash"))
+        assertFalse(PasswordHasher.matches("motdepasse123", "not a hash"))
     }
 
     @Test
-    fun `un mot de passe de plus de 72 octets est refuse`() {
+    fun `a password longer than 72 bytes is refused`() {
         assertThrows(IllegalArgumentException::class.java) { PasswordHasher.hash("é".repeat(37)) } // 74 bytes
         assertFalse(PasswordHasher.matches("a".repeat(80), PasswordHasher.hash("a".repeat(72))))
     }
 
     @Test
-    fun `le service ne stocke que des hash et ne rehache pas un hash`() {
-        val donnees = FauxUsers()
-        val service = UserServiceImpl(donnees)
+    fun `the service only stores hashes and never rehashes a hash`() {
+        val data = FakeUsers()
+        val service = UserServiceImpl(data)
 
         service.add(User("alice", "secret-alice"))
-        val stocke = donnees.lignes.single().password!!
-        assertTrue(PasswordHasher.matches("secret-alice", stocke))
+        val stored = data.lines.single().password!!
+        assertTrue(PasswordHasher.matches("secret-alice", stored))
 
         // Re-saved unchanged (e.g. a new username): the hash is kept, not hashed again.
-        service.update(donnees.lignes.single())
-        assertSame(stocke, donnees.lignes.single().password)
+        service.update(data.lines.single())
+        assertSame(stored, data.lines.single().password)
 
         // Password changed in clear text: hashed again.
-        service.update(User("alice", "nouveau-secret"))
-        assertTrue(PasswordHasher.matches("nouveau-secret", donnees.lignes.single().password!!))
+        service.update(User("alice", "new-secret"))
+        assertTrue(PasswordHasher.matches("new-secret", data.lines.single().password!!))
     }
 
     @Test
-    fun `connexion avec un hash, et migration d'un ancien mot de passe en clair`() {
-        val donnees = FauxUsers()
-        val service = UserServiceImpl(donnees)
+    fun `login with a hash, and migration of an old clear-text password`() {
+        val data = FakeUsers()
+        val service = UserServiceImpl(data)
         service.add(User("alice", "secret-alice"))
-        donnees.add(User("bob", "ancien-en-clair")) // written before hashing existed
+        data.add(User("bob", "old-clear-text")) // written before hashing existed
 
         assertEquals("alice", Authenticator.authenticate("alice", "secret-alice", service)?.username)
-        assertNull(Authenticator.authenticate("alice", "mauvais", service))
-        assertNull(Authenticator.authenticate("inconnu", "secret-alice", service))
+        assertNull(Authenticator.authenticate("alice", "wrong", service))
+        assertNull(Authenticator.authenticate("unknown", "secret-alice", service))
 
-        assertNull(Authenticator.authenticate("bob", "mauvais", service))
-        assertEquals("bob", Authenticator.authenticate("bob", "ancien-en-clair", service)?.username)
-        val migre = donnees.getByUsername("bob")!!.password
-        assertTrue(PasswordHasher.isHash(migre)) // stored as a hash from now on
-        assertEquals("bob", Authenticator.authenticate("bob", "ancien-en-clair", service)?.username)
+        assertNull(Authenticator.authenticate("bob", "wrong", service))
+        assertEquals("bob", Authenticator.authenticate("bob", "old-clear-text", service)?.username)
+        val migrated = data.getByUsername("bob")!!.password
+        assertTrue(PasswordHasher.isHash(migrated)) // stored as a hash from now on
+        assertEquals("bob", Authenticator.authenticate("bob", "old-clear-text", service)?.username)
     }
 }

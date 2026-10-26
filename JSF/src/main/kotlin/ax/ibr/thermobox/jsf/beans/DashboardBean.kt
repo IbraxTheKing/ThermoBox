@@ -1,9 +1,9 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Batiment
-import ax.ibr.thermobox.common.entities.Boitier
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Building
+import ax.ibr.thermobox.common.entities.Device
+import ax.ibr.thermobox.common.entities.Setpoint
+import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.util.Unite
 import ax.ibr.thermobox.jsf.auth.LoginBean
@@ -51,15 +51,15 @@ enum class EtatSalle(val label: String, val ton: String, private val singulier: 
 
 /** Une carte du tableau de bord : une salle et la moyenne de ses boîtiers. */
 data class SalleResume(
-    val salle: Salle,
+    val salle: Room,
     val chemin: String,
-    val batiment: Salle?,
+    val batiment: Room?,
     val moyenne: Float?,
     val derniereMesure: LocalDateTime?,
     val boitiers: Int,
-    val consigne: Consigne?,
+    val consigne: Setpoint?,
     /** Where the consigne comes from when the salle has none of its own (étage, bâtiment). */
-    val consigneSource: Salle? = null,
+    val consigneSource: Room? = null,
     val favori: Boolean = false,
     /** Photo URL, relative to the application; null when the salle has none. */
     val image: String? = null,
@@ -83,7 +83,7 @@ data class Compteur(val etat: EtatSalle, val nombre: Int) : Serializable {
 }
 
 /** Les salles d'un bâtiment (ou celles sans bâtiment quand [batiment] est null). */
-data class GroupeBatiment(val batiment: Salle?, val moyenne: Float?, val salles: List<SalleResume>) : Serializable {
+data class GroupeBatiment(val batiment: Room?, val moyenne: Float?, val salles: List<SalleResume>) : Serializable {
     val nom: String get() = batiment?.name ?: "Sans bâtiment"
 
     /** Key of the section in the folded-sections cookie (see [DashboardBean.replie]). */
@@ -102,7 +102,7 @@ class DashboardBean : Serializable {
     /** Summary chip picked: only salles in that state are shown. */
     var etatFiltre: EtatSalle? = null
     var batimentId: Long? = null
-    var batiments: List<Salle> = emptyList()
+    var batiments: List<Room> = emptyList()
 
     // Affichage, recalculé par filtrer()
     var favoris: List<SalleResume> = emptyList()
@@ -147,44 +147,44 @@ class DashboardBean : Serializable {
         // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
         // Only those the user may see (AccesService), checked on the server at every refresh.
         val acces = login.perimetre
-        val salles = Services.salles.getAllByType(Salle(null)).filter { acces.peutVoir(it) }
-        val consignes = salles.associate { it.id to Services.climat.getConsigneEffective(it) }
+        val salles = Services.salles.getAllByType(Room(null)).filter { acces.canSee(it) }
+        val consignes = salles.associate { it.id to Services.climat.getEffectiveSetpoint(it) }
         courbesNouvelles = false
-        if (!courbesEnAttente) chargerTendances(salles, consignes.mapValues { it.value?.consigne })
+        if (!courbesEnAttente) chargerTendances(salles, consignes.mapValues { it.value?.setpoint })
         toutes = salles.map { salle ->
-            val chemin = Services.hierarchie.getChemin(salle)
-            val mesures = Services.climat.getMesures(salle)
+            val chemin = Services.hierarchie.getPath(salle)
+            val mesures = Services.climat.getMeasurements(salle)
             SalleResume(
                 salle = salle,
                 chemin = chemin.joinToString(" › ") { it.name.orEmpty() },
-                batiment = chemin.firstOrNull { it is Batiment },
-                moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
-                derniereMesure = mesures.mapNotNull { it.mesure?.date }.maxOrNull(),
+                batiment = chemin.firstOrNull { it is Building },
+                moyenne = mesures.mapNotNull { it.measurement?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                derniereMesure = mesures.mapNotNull { it.measurement?.date }.maxOrNull(),
                 boitiers = mesures.size,
-                consigne = consignes[salle.id]?.consigne,
-                consigneSource = consignes[salle.id]?.takeIf { it.heritee }?.source,
+                consigne = consignes[salle.id]?.setpoint,
+                consigneSource = consignes[salle.id]?.takeIf { it.inherited }?.source,
                 favori = salle.id in favorisIds,
                 image = images[salle.id]?.let { SalleImageServlet.url(salle.id!!, it) },
                 tendance = tendances[salle.id],
             )
         }
-        batiments = Services.salles.getAllByType(Batiment(null)).filter { acces.estVisible(it) }.sortedBy { it.name?.lowercase() }
-        moyennesBatiments = if (acces.tout) {
+        batiments = Services.salles.getAllByType(Building(null)).filter { acces.isVisible(it) }.sortedBy { it.name?.lowercase() }
+        moyennesBatiments = if (acces.all) {
             // Average of every box of the building, not of the salle averages (salles differ in size).
-            batiments.associate { it.id to Services.climat.getMoyenne(it) }
+            batiments.associate { it.id to Services.climat.getAverage(it) }
         } else {
             // Limited user: over the salles they may see only, weighted by their number of boxes
             // (the building's own average would tell about the others).
             toutes.filter { it.moyenne != null && it.boitiers > 0 }.groupBy { it.batiment?.id }
                 .mapValues { (_, l) -> (l.sumOf { it.moyenne!!.toDouble() * it.boitiers } / l.sumOf { it.boitiers }).toFloat() }
         }
-        boitiersNonRattaches = if (acces.tout) Services.hierarchie.getRacines().count { it is Boitier } else 0
+        boitiersNonRattaches = if (acces.all) Services.hierarchie.getRoots().count { it is Device } else 0
         compteurs = toutes.groupingBy { it.etat }.eachCount().toSortedMap().map { (etat, n) -> Compteur(etat, n) }
         filtrer()
     }
 
     /** Average curve of each salle over the last [PERIODE_TENDANCE]. */
-    private fun chargerTendances(salles: List<Salle>, consignes: Map<Long?, Consigne?>) {
+    private fun chargerTendances(salles: List<Room>, consignes: Map<Long?, Setpoint?>) {
         val maintenant = LocalDateTime.now()
         val derniere = tendancesCalculees
         val connues = salles.all { it.id in tendances }
@@ -193,7 +193,7 @@ class DashboardBean : Serializable {
         val debut = maintenant.minus(PERIODE_TENDANCE)
         val zone = ZoneId.systemDefault()
         tendances = salles.filter { it.id != null }.associate { salle ->
-            val historique = Services.climat.getMoyenneHistorique(
+            val historique = Services.climat.getAverageHistory(
                 salle, debut.atZone(zone).toInstant(), maintenant.atZone(zone).toInstant()
             )
             salle.id!! to Sparkline.of(historique, debut, maintenant, consignes[salle.id]?.value)

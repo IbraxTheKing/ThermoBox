@@ -1,13 +1,15 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleImage
-import ax.ibr.thermobox.common.entities.SalleKind
+import ax.ibr.thermobox.jsf.util.Libelles
+
+import ax.ibr.thermobox.common.entities.Setpoint
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomImage
+import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.common.entities.kind
-import ax.ibr.thermobox.business.implementations.ClimatServiceImpl
-import ax.ibr.thermobox.common.services.ConsigneEffective
-import ax.ibr.thermobox.common.services.MesureBoitier
+import ax.ibr.thermobox.business.implementations.ClimateServiceImpl
+import ax.ibr.thermobox.common.services.EffectiveSetpoint
+import ax.ibr.thermobox.common.services.DeviceMeasurement
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.basculerFavori as basculerFavoriEnBase
@@ -40,20 +42,20 @@ class SalleDetailBean : Serializable {
     /** f:viewParam "id" */
     var id: Long? = null
 
-    var salle: Salle? = null
+    var salle: Room? = null
     /** Ancestors, from the building down: clickable breadcrumb. */
-    var ancetres: List<Salle> = emptyList()
+    var ancetres: List<Room> = emptyList()
     var favori: Boolean = false
     /** Photo URL, relative to the application; null when there is none. */
     var image: String? = null
-    var enfants: List<Salle> = emptyList()
+    var enfants: List<Room> = emptyList()
     var moyenne: Float? = null
-    var mesures: List<MesureBoitier> = emptyList()
-    var consigneEffective: ConsigneEffective? = null
+    var mesures: List<DeviceMeasurement> = emptyList()
+    var consigneEffective: EffectiveSetpoint? = null
     var nouvelleConsigne: Float? = null
 
     /** Étages / salles below with their own consigne: the new one leaves them alone unless [forcer]. */
-    var consignesPropres: List<ConsigneEffective> = emptyList()
+    var consignesPropres: List<EffectiveSetpoint> = emptyList()
     var forcer: Boolean = false
 
     /** Étage or bâtiment: the salles it contains, at any depth. */
@@ -64,39 +66,39 @@ class SalleDetailBean : Serializable {
 
     var start: LocalDateTime = now().minusHours(24)
     var end: LocalDateTime = now()
-    var historiqueConsignes: List<Consigne> = emptyList()
+    var historiqueConsignes: List<Setpoint> = emptyList()
     var chartModel: LineChartModel = ChartBuilder.build(emptyList())
 
-    val consigne: Consigne? get() = consigneEffective?.consigne
+    val consigne: Setpoint? get() = consigneEffective?.setpoint
 
     val etat: EtatSalle get() = EtatSalle.of(moyenne, consigne?.value)
 
-    val isConteneur: Boolean get() = salle?.kind == SalleKind.ETAGE || salle?.kind == SalleKind.BATIMENT
+    val isConteneur: Boolean get() = salle?.kind == RoomKind.FLOOR || salle?.kind == RoomKind.BUILDING
 
-    val kindLabel: String get() = salle?.kind?.label.orEmpty()
-    val isBoitier: Boolean get() = salle?.kind == SalleKind.BOITIER
+    val kindLabel: String get() = salle?.kind?.let { Libelles.kind(it) }.orEmpty()
+    val isBoitier: Boolean get() = salle?.kind == RoomKind.DEVICE
 
     /** Breadcrumb: an ancestor outside the user's accesses is shown as plain text, not as a link. */
-    fun accessible(s: Salle): Boolean = login.perimetre.peutVoir(s)
+    fun accessible(s: Room): Boolean = login.perimetre.canSee(s)
 
     /** Only salles go on the dashboard, so only they can be favourites. */
-    val isSalleSimple: Boolean get() = salle?.kind == SalleKind.SALLE
+    val isSalleSimple: Boolean get() = salle?.kind == RoomKind.ROOM
 
     /** Date of the most recent box reading, for the "Moyenne" card. */
-    val derniereMesure: LocalDateTime? get() = mesures.mapNotNull { it.mesure?.date }.maxOrNull()
+    val derniereMesure: LocalDateTime? get() = mesures.mapNotNull { it.measurement?.date }.maxOrNull()
 
     /** f:viewAction (appelé une seule fois, pas sur les postbacks) */
     fun load() {
         salle = id?.let { runCatching { Services.salles.getById(it) }.getOrNull() }
             // A VIEWER gets the same "not found" page as for an unknown id, and so does anyone
             // for an element outside their accesses (even typed by hand in the URL).
-            ?.takeUnless { it.kind == SalleKind.BOITIER && !login.canSeeBoitiers }
-            ?.takeIf { login.perimetre.peutVoir(it) }
+            ?.takeUnless { it.kind == RoomKind.DEVICE && !login.canSeeBoitiers }
+            ?.takeIf { login.perimetre.canSee(it) }
         val s = salle ?: return
-        ancetres = Services.hierarchie.getChemin(s)
+        ancetres = Services.hierarchie.getPath(s)
         favori = s.id in favorisDe(login.currentUser)
         enfants = if (isBoitier) emptyList()
-        else Services.hierarchie.getChildren(s).filter { login.canSeeBoitiers || it.kind != SalleKind.BOITIER }
+        else Services.hierarchie.getChildren(s).filter { login.canSeeBoitiers || it.kind != RoomKind.DEVICE }
         chargerImage()
         refresh()
         loadHistory()
@@ -106,16 +108,16 @@ class SalleDetailBean : Serializable {
     fun refresh() {
         val s = salle ?: return
         // Accesses withdrawn while the page was open: nothing more is shown.
-        if (!login.perimetre.peutVoir(s)) {
+        if (!login.perimetre.canSee(s)) {
             salle = null
             Faces.warn("Vous n'avez plus accès à cet élément")
             return
         }
-        mesures = Services.climat.getMesures(s)
-        moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
-        consigneEffective = Services.climat.getConsigneEffective(s)
-        consignesPropres = if (isBoitier) emptyList() else Services.climat.getConsignesPropres(s)
-        if (isConteneur) salles = Services.hierarchie.getSalles(s).map { resumer(it) }
+        mesures = Services.climat.getMeasurements(s)
+        moyenne = mesures.mapNotNull { it.measurement?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+        consigneEffective = Services.climat.getEffectiveSetpoint(s)
+        consignesPropres = if (isBoitier) emptyList() else Services.climat.getOwnSetpoints(s)
+        if (isConteneur) salles = Services.hierarchie.getRooms(s).map { resumer(it) }
         // The spinner starts from the current consigne rather than from its minimum.
         // Shown in the unit of the Préférences page (rounded to the step of the field)
         if (nouvelleConsigne == null) nouvelleConsigne = (consigne?.value ?: CONSIGNE_PAR_DEFAUT).let { c ->
@@ -126,7 +128,7 @@ class SalleDetailBean : Serializable {
 
     fun basculerFavori() {
         val s = salle ?: return
-        if (!login.require(login.perimetre.peutVoir(s))) return
+        if (!login.require(login.perimetre.canSee(s))) return
         val user = login.currentUser ?: return
         try {
             favori = basculerFavoriEnBase(user, s)
@@ -141,7 +143,7 @@ class SalleDetailBean : Serializable {
         if (!login.require(login.isAdmin)) return
         val fichier = event.file
         try {
-            Services.images.add(SalleImage(s, fichier.contentType.orEmpty(), fichier.content))
+            Services.images.add(RoomImage(s, fichier.contentType.orEmpty(), fichier.content))
             chargerImage()
             Faces.info("Photo enregistrée")
         } catch (e: IllegalArgumentException) {
@@ -155,7 +157,7 @@ class SalleDetailBean : Serializable {
         val s = salle ?: return
         if (!login.require(login.isAdmin)) return
         try {
-            Services.images.getBySalle(s)?.let { Services.images.remove(it) }
+            Services.images.getByRoom(s)?.let { Services.images.remove(it) }
             image = null
             Faces.info("Photo retirée")
         } catch (e: Exception) {
@@ -168,28 +170,28 @@ class SalleDetailBean : Serializable {
         image = Services.images.getDates()[s.id]?.let { SalleImageServlet.url(s.id!!, it) }
     }
 
-    private fun resumer(salle: Salle): SalleResume {
-        val mesuresSalle = Services.climat.getMesures(salle)
-        val effective = Services.climat.getConsigneEffective(salle)
+    private fun resumer(salle: Room): SalleResume {
+        val mesuresSalle = Services.climat.getMeasurements(salle)
+        val effective = Services.climat.getEffectiveSetpoint(salle)
         return SalleResume(
             salle = salle,
             chemin = "",
             batiment = null,
-            moyenne = mesuresSalle.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
-            derniereMesure = mesuresSalle.mapNotNull { it.mesure?.date }.maxOrNull(),
+            moyenne = mesuresSalle.mapNotNull { it.measurement?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+            derniereMesure = mesuresSalle.mapNotNull { it.measurement?.date }.maxOrNull(),
             boitiers = mesuresSalle.size,
-            consigne = effective?.consigne,
-            consigneSource = effective?.takeIf { it.heritee }?.source,
+            consigne = effective?.setpoint,
+            consigneSource = effective?.takeIf { it.inherited }?.source,
         )
     }
 
     /** « Étage 1 (19,0 °C), Everest (22,5 °C) » */
     val consignesPropresLabel: String
-        get() = Unite.courante().let { u -> consignesPropres.joinToString { "${it.source.name} (${u.texte(it.consigne.value)} ${u.symbole})" } }
+        get() = Unite.courante().let { u -> consignesPropres.joinToString { "${it.source.name} (${u.texte(it.setpoint.value)} ${u.symbole})" } }
 
     /** Écart d'un boîtier à la moyenne de la salle, ex. « +0,4° ». */
-    fun ecart(m: MesureBoitier): String {
-        val valeur = m.mesure?.value ?: return ""
+    fun ecart(m: DeviceMeasurement): String {
+        val valeur = m.measurement?.value ?: return ""
         val moy = moyenne ?: return ""
         return Unite.courante().ecart(valeur - moy)
     }
@@ -204,22 +206,22 @@ class SalleDetailBean : Serializable {
         // Entered in the unit of the Préférences page, stored in Celsius
         val saisie = nouvelleConsigne ?: return
         val value = Math.round(unite.versCelsius(saisie) * 10f) / 10f
-        if (!login.require(login.canSetConsigne && login.perimetre.peutVoir(s))) return
+        if (!login.require(login.canSetConsigne && login.perimetre.canSee(s))) return
 
         val envoi = try {
-            Services.climat.envoyerConsigne(s, value, forcer)
+            Services.climat.sendSetpoint(s, value, forcer)
         } catch (e: Exception) {
             Faces.error("Consigne refusée", e.message)
             return
         }
         val titre = "Consigne de ${unite.texte(value)} ${unite.symbole} enregistrée"
         val details = buildList {
-            add(if (envoi.boitiers.isEmpty()) "aucun boîtier à prévenir" else "envoyée à ${envoi.boitiers.size} boîtier(s)")
-            if (envoi.remplacees.isNotEmpty()) add("remplace celle de ${envoi.remplacees.joinToString { it.name.orEmpty() }}")
-            if (envoi.conservees.isNotEmpty()) add("${envoi.conservees.joinToString { it.source.name.orEmpty() }} garde(nt) sa consigne")
+            add(if (envoi.devices.isEmpty()) "aucun boîtier à prévenir" else "envoyée à ${envoi.devices.size} boîtier(s)")
+            if (envoi.replaced.isNotEmpty()) add("remplace celle de ${envoi.replaced.joinToString { it.name.orEmpty() }}")
+            if (envoi.kept.isNotEmpty()) add("${envoi.kept.joinToString { it.source.name.orEmpty() }} garde(nt) sa consigne")
         }.joinToString(" ; ").replaceFirstChar { it.uppercase() }
-        if (envoi.echecs.isEmpty()) Faces.info(titre, details)
-        else Faces.warn(titre, "$details. Non transmise à : ${envoi.echecs.joinToString { it.name.orEmpty() }}")
+        if (envoi.failures.isEmpty()) Faces.info(titre, details)
+        else Faces.warn(titre, "$details. Non transmise à : ${envoi.failures.joinToString { it.name.orEmpty() }}")
 
         nouvelleConsigne = null
         forcer = false
@@ -252,35 +254,35 @@ class SalleDetailBean : Serializable {
         val to = end.atZone(zone).toInstant()
 
         try {
-            val historiques = Services.climat.getHistoriques(s, from, to)
-            val consignes = Services.climat.getConsignes(s, from, to)
+            val historiques = Services.climat.getHistories(s, from, to)
+            val consignes = Services.climat.getSetpoints(s, from, to)
             historiqueConsignes = consignes.sortedByDescending { it.date }
 
             val series = ArrayList<Serie>()
             if (isConteneur) {
                 // One curve per salle (average of its boxes) rather than one per box.
-                val parSalle = Services.hierarchie.getSalles(s).map { salle ->
-                    val boitiers = Services.hierarchie.getBoitiers(salle).map { it.id }.toSet()
-                    salle to historiques.filter { it.boitier.id in boitiers }
+                val parSalle = Services.hierarchie.getRooms(s).map { salle ->
+                    val boitiers = Services.hierarchie.getDevices(salle).map { it.id }.toSet()
+                    salle to historiques.filter { it.device.id in boitiers }
                 }.filter { (_, h) -> h.isNotEmpty() }
                 parSalle.forEachIndexed { i, (salle, h) ->
-                    series.add(Serie(salle.name.orEmpty(), ClimatServiceImpl.moyenneGlissante(h), PALETTE[i % PALETTE.size]))
+                    series.add(Serie(salle.name.orEmpty(), ClimateServiceImpl.movingAverage(h), PALETTE[i % PALETTE.size]))
                 }
                 if (parSalle.size > 1) {
-                    series.add(Serie(if (s.kind == SalleKind.ETAGE) "Moyenne de l'étage" else "Moyenne du bâtiment", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                    series.add(Serie(if (s.kind == RoomKind.FLOOR) "Moyenne de l'étage" else "Moyenne du bâtiment", ClimateServiceImpl.movingAverage(historiques), "--tb-serie-moyenne"))
                 }
             } else if (!login.canSeeBoitiers) {
                 // VIEWER: the salle's temperature only, not one curve per box.
                 if (historiques.isNotEmpty()) {
-                    series.add(Serie("Température", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                    series.add(Serie("Température", ClimateServiceImpl.movingAverage(historiques), "--tb-serie-moyenne"))
                 }
             } else {
                 historiques.forEachIndexed { i, h ->
-                    series.add(Serie(h.boitier.name.orEmpty(), h.mesures, PALETTE[i % PALETTE.size]))
+                    series.add(Serie(h.device.name.orEmpty(), h.measurements, PALETTE[i % PALETTE.size]))
                 }
                 // A single box is its own average: no need for a duplicate curve.
                 if (historiques.size > 1) {
-                    series.add(Serie("Moyenne de la salle", ClimatServiceImpl.moyenneGlissante(historiques), "--tb-serie-moyenne"))
+                    series.add(Serie("Moyenne de la salle", ClimateServiceImpl.movingAverage(historiques), "--tb-serie-moyenne"))
                 }
             }
             series.add(Serie("Consigne", consignes, "--tb-serie-consigne"))

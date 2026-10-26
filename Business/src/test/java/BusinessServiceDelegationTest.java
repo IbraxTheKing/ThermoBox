@@ -1,14 +1,14 @@
-import ax.ibr.thermobox.business.implementations.SalleServiceImpl;
-import ax.ibr.thermobox.business.implementations.SalleTempAttrServiceImpl;
+import ax.ibr.thermobox.business.implementations.RoomServiceImpl;
+import ax.ibr.thermobox.business.implementations.RoomTempAttrServiceImpl;
 import ax.ibr.thermobox.business.implementations.TemperatureServiceImpl;
 import ax.ibr.thermobox.business.implementations.UserServiceImpl;
-import ax.ibr.thermobox.common.entities.Salle;
-import ax.ibr.thermobox.common.entities.SalleTempAttr;
+import ax.ibr.thermobox.common.entities.Room;
+import ax.ibr.thermobox.common.entities.RoomTempAttr;
 import ax.ibr.thermobox.common.entities.Temperature;
 import ax.ibr.thermobox.common.entities.User;
 import ax.ibr.thermobox.common.entities.UserType;
-import ax.ibr.thermobox.persistence.dataservices.SalleDataService;
-import ax.ibr.thermobox.persistence.dataservices.SalleTempAttrDataService;
+import ax.ibr.thermobox.persistence.dataservices.RoomDataService;
+import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService;
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService;
 import ax.ibr.thermobox.persistence.dataservices.UserDataService;
 
@@ -31,7 +31,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void delegueGetByUsernameAuDataService() {
+    void delegatesGetByUsernameToDataService() {
         User user = mock(User.class);
 
         when(dataService.getByUsername("ib")).thenReturn(user);
@@ -40,7 +40,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void delegueGetByTypeAuDataService() {
+    void delegatesGetByTypeToDataService() {
         User user1 = mock(User.class);
         User user2 = mock(User.class);
 
@@ -52,7 +52,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void delegueAddUpdateEtRemoveAuDataService() {
+    void delegatesAddUpdateAndRemoveToDataService() {
         User user = mock(User.class);
         UserServiceImpl service = new UserServiceImpl(dataService);
 
@@ -67,32 +67,32 @@ class UserServiceImplTest {
 }
 
 
-class SalleServiceImplTest {
+class RoomServiceImplTest {
 
-    private SalleDataService dataService;
+    private RoomDataService dataService;
 
     @BeforeEach
     void setUp() {
-        dataService = mock(SalleDataService.class);
+        dataService = mock(RoomDataService.class);
     }
 
     @Test
-    void delegueGetByNameAuDataService() {
-        Salle salle = mock(Salle.class);
+    void delegatesGetByNameToDataService() {
+        Room room = mock(Room.class);
 
-        when(dataService.getByName("Salle101")).thenReturn(salle);
+        when(dataService.getByName("Room101")).thenReturn(room);
 
-        assertEquals(salle, new SalleServiceImpl(dataService).getByName("Salle101"));
+        assertEquals(room, new RoomServiceImpl(dataService).getByName("Room101"));
     }
 
     @Test
-    void delegueGetAllAuDataService() {
-        Salle salle = mock(Salle.class);
-        List<Salle> salles = java.util.List.of(salle);
+    void delegatesGetAllToDataService() {
+        Room room = mock(Room.class);
+        List<Room> rooms = java.util.List.of(room);
 
-        when(dataService.getAll()).thenReturn(salles);
+        when(dataService.getAll()).thenReturn(rooms);
 
-        assertEquals(salles, new SalleServiceImpl(dataService).getAll());
+        assertEquals(rooms, new RoomServiceImpl(dataService).getAll());
     }
 }
 
@@ -107,7 +107,7 @@ class TemperatureServiceImplTest {
     }
 
     @Test
-    void delegueGetByIdAuDataService() {
+    void delegatesGetByIdToDataService() {
         Temperature temperature = mock(Temperature.class);
 
         when(dataService.getById(5L)).thenReturn(temperature);
@@ -119,7 +119,7 @@ class TemperatureServiceImplTest {
     }
 
     @Test
-    void delegueAddAuDataService() {
+    void delegatesAddToDataService() {
         Temperature temperature = mock(Temperature.class);
 
         new TemperatureServiceImpl(dataService).add(temperature);
@@ -129,37 +129,37 @@ class TemperatureServiceImplTest {
 }
 
 
-class SalleTempAttrServiceImplTest {
+class RoomTempAttrServiceImplTest {
 
-    private SalleTempAttrDataService dataService;
+    private RoomTempAttrDataService dataService;
 
     @BeforeEach
     void setUp() {
-        dataService = mock(SalleTempAttrDataService.class);
+        dataService = mock(RoomTempAttrDataService.class);
     }
 
     @Test
-    void delegueGetBySalleIdAuDataService() {
-        SalleTempAttr attr = mock(SalleTempAttr.class);
+    void delegatesGetByRoomIdToDataService() {
+        RoomTempAttr attr = mock(RoomTempAttr.class);
 
-        when(dataService.getBySalle(3)).thenReturn(Collections.singletonList(attr));
+        when(dataService.getByRoom(3)).thenReturn(Collections.singletonList(attr));
 
         assertEquals(
                 attr,
-                new SalleTempAttrServiceImpl(dataService).getBySalle(3)
+                new RoomTempAttrServiceImpl(dataService).getByRoom(3)
         );
     }
 
     @Test
-    void delegueGetBySalleObjetAuDataService() {
-        Salle salle = mock(Salle.class);
-        SalleTempAttr attr = mock(SalleTempAttr.class);
+    void delegatesGetByRoomObjectToDataService() {
+        Room room = mock(Room.class);
+        RoomTempAttr attr = mock(RoomTempAttr.class);
 
-        when(dataService.getBySalle(salle)).thenReturn(Collections.singletonList(attr));
+        when(dataService.getByRoom(room)).thenReturn(Collections.singletonList(attr));
 
         assertEquals(
                 attr,
-                new SalleTempAttrServiceImpl(dataService).getBySalle(salle)
+                new RoomTempAttrServiceImpl(dataService).getByRoom(room)
         );
     }
 }

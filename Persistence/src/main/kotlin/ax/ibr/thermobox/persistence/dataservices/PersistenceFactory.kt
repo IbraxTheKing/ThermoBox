@@ -1,26 +1,26 @@
 package ax.ibr.thermobox.persistence.dataservices
 
-import ax.ibr.thermobox.common.entities.Acces
-import ax.ibr.thermobox.common.entities.Favori
-import ax.ibr.thermobox.common.entities.Groupe
-import ax.ibr.thermobox.persistence.jpa.GroupeDataServiceJPAImpl
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleImage
-import ax.ibr.thermobox.common.entities.SalleSalleAttr
-import ax.ibr.thermobox.common.entities.SalleTempAttr
+import ax.ibr.thermobox.common.entities.Access
+import ax.ibr.thermobox.common.entities.Favorite
+import ax.ibr.thermobox.common.entities.UserGroup
+import ax.ibr.thermobox.persistence.jpa.UserGroupDataServiceJPAImpl
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomImage
+import ax.ibr.thermobox.common.entities.RoomRoomAttr
+import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
-import ax.ibr.thermobox.persistence.jpa.AccesDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.jpa.FavoriDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.jpa.SalleDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.jpa.SalleImageDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.jpa.SalleSalleAttrDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.jpa.SalleTempAttrDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.AccessDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.FavoriteDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.RoomDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.RoomImageDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.RoomRoomAttrDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.RoomTempAttrDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
-import ax.ibr.thermobox.persistence.backup.ResultatSauvegarde
-import ax.ibr.thermobox.persistence.backup.SauvegardeBase
-import ax.ibr.thermobox.persistence.migration.MigrationsBase
+import ax.ibr.thermobox.persistence.backup.BackupResult
+import ax.ibr.thermobox.persistence.backup.DatabaseBackup
+import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
 import jakarta.persistence.EntityManagerFactory
 import jakarta.persistence.Persistence
 import java.nio.file.Path
@@ -33,8 +33,8 @@ object PersistenceFactory {
 
     // Schema migrations first: JPA only maps the tables, it never creates or alters them.
     private val emfHolder = lazy {
-        if (MigrationsBase.actives()) {
-            MigrationsBase.migrer(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
+        if (DatabaseMigrations.enabled()) {
+            DatabaseMigrations.migrate(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
         }
         Persistence.createEntityManagerFactory(PU, databaseProperties())
     }
@@ -44,61 +44,61 @@ object PersistenceFactory {
         if (JDBC) TODO("JDBC version") else UserDataServiceJPAImpl(emf, User::class.java)
     }
 
-    private val salleService: SalleDataService by lazy {
-        if (JDBC) TODO("JDBC version") else SalleDataServiceJPAImpl(emf, Salle::class.java)
+    private val roomService: RoomDataService by lazy {
+        if (JDBC) TODO("JDBC version") else RoomDataServiceJPAImpl(emf, Room::class.java)
     }
 
-    private val salleTempAttrService: SalleTempAttrDataService by lazy {
-        if (JDBC) TODO("JDBC version") else SalleTempAttrDataServiceJPAImpl(emf, SalleTempAttr::class.java)
+    private val roomTempAttrService: RoomTempAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else RoomTempAttrDataServiceJPAImpl(emf, RoomTempAttr::class.java)
     }
 
     private val temperatureService: TemperatureDataService by lazy {
         if (JDBC) TODO("JDBC version") else TemperatureDataServiceJPAImpl(emf, Temperature::class.java)
     }
 
-    private val salleSalleAttrService: SalleSalleAttrDataService by lazy {
-        if (JDBC) TODO("JDBC version") else SalleSalleAttrDataServiceJPAImpl(emf, SalleSalleAttr::class.java)
+    private val roomRoomAttrService: RoomRoomAttrDataService by lazy {
+        if (JDBC) TODO("JDBC version") else RoomRoomAttrDataServiceJPAImpl(emf, RoomRoomAttr::class.java)
     }
 
-    private val favoriService: FavoriDataService by lazy {
-        if (JDBC) TODO("JDBC version") else FavoriDataServiceJPAImpl(emf, Favori::class.java)
+    private val favoriteService: FavoriteDataService by lazy {
+        if (JDBC) TODO("JDBC version") else FavoriteDataServiceJPAImpl(emf, Favorite::class.java)
     }
 
-    private val salleImageService: SalleImageDataService by lazy {
-        if (JDBC) TODO("JDBC version") else SalleImageDataServiceJPAImpl(emf, SalleImage::class.java)
+    private val roomImageService: RoomImageDataService by lazy {
+        if (JDBC) TODO("JDBC version") else RoomImageDataServiceJPAImpl(emf, RoomImage::class.java)
     }
 
-    private val accesService: AccesDataService by lazy {
-        if (JDBC) TODO("JDBC version") else AccesDataServiceJPAImpl(emf, Acces::class.java)
+    private val accessService: AccessDataService by lazy {
+        if (JDBC) TODO("JDBC version") else AccessDataServiceJPAImpl(emf, Access::class.java)
     }
 
-    fun getAccesDataService(): AccesDataService = accesService
+    fun getAccessDataService(): AccessDataService = accessService
 
-    private val groupeService: GroupeDataService by lazy { GroupeDataServiceJPAImpl(emf, Groupe::class.java) }
+    private val userGroupService: UserGroupDataService by lazy { UserGroupDataServiceJPAImpl(emf, UserGroup::class.java) }
 
-    fun getGroupeDataService(): GroupeDataService = groupeService
+    fun getUserGroupDataService(): UserGroupDataService = userGroupService
 
     fun getUserDataService(): UserDataService = userService
 
-    fun getSalleDataService(): SalleDataService = salleService
+    fun getRoomDataService(): RoomDataService = roomService
 
-    fun getSalleTempAttrDataService(): SalleTempAttrDataService = salleTempAttrService
+    fun getRoomTempAttrDataService(): RoomTempAttrDataService = roomTempAttrService
 
     fun getTemperatureDataService(): TemperatureDataService = temperatureService
 
-    fun getSalleSalleAttrDataService(): SalleSalleAttrDataService = salleSalleAttrService
+    fun getRoomRoomAttrDataService(): RoomRoomAttrDataService = roomRoomAttrService
 
-    fun getFavoriDataService(): FavoriDataService = favoriService
+    fun getFavoriteDataService(): FavoriteDataService = favoriteService
 
-    fun getSalleImageDataService(): SalleImageDataService = salleImageService
+    fun getRoomImageDataService(): RoomImageDataService = roomImageService
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()
     }
 
     /** Full SQL dump of the database (gzip), with the same connection settings as JPA. */
-    fun sauvegarderBase(fichier: Path): ResultatSauvegarde =
-        SauvegardeBase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD")).ecrire(fichier)
+    fun backupDatabase(file: Path): BackupResult =
+        DatabaseBackup(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD")).write(file)
 
     private fun databaseUrl(): String = System.getenv("THERMOBOX_DB_URL") ?: DEFAULT_DB_URL
 

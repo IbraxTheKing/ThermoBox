@@ -1,15 +1,17 @@
 package ax.ibr.thermobox.jsf.beans
 
+import ax.ibr.thermobox.jsf.util.Libelles
+
 import ax.ibr.thermobox.business.implementations.BusinessFactory
-import ax.ibr.thermobox.common.update.EtatEtape
-import ax.ibr.thermobox.common.update.EtatInstallation
-import ax.ibr.thermobox.common.update.EtatMisesAJour
-import ax.ibr.thermobox.common.update.NiveauControle
-import ax.ibr.thermobox.common.update.OptionsInstallation
+import ax.ibr.thermobox.common.update.StepState
+import ax.ibr.thermobox.common.update.InstallationState
+import ax.ibr.thermobox.common.update.UpdateStatus
+import ax.ibr.thermobox.common.update.CheckLevel
+import ax.ibr.thermobox.common.update.InstallOptions
 import ax.ibr.thermobox.common.update.Preparation
-import ax.ibr.thermobox.common.update.TypeMiseAJour
+import ax.ibr.thermobox.common.update.UpdateType
 import ax.ibr.thermobox.common.update.Version
-import ax.ibr.thermobox.common.update.VersionDisponible
+import ax.ibr.thermobox.common.update.AvailableVersion
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.util.Faces
 import ax.ibr.thermobox.jsf.util.Markdown
@@ -37,7 +39,7 @@ class UpdateBean : Serializable {
     private val service get() = BusinessFactory.getUpdateService()
 
     @Transient
-    var etat: EtatMisesAJour? = null
+    var etat: UpdateStatus? = null
 
     /** Version picked for installation (dialog). */
     @Transient
@@ -52,7 +54,7 @@ class UpdateBean : Serializable {
     /** One chip per channel present, in this order: RC, Beta, Nightly, Stable. */
     val chipsCanaux: List<ChipCanal>
         get() {
-            val toutes = etat?.let { it.disponibles + it.anterieures }.orEmpty()
+            val toutes = etat?.let { it.available + it.olderVersions }.orEmpty()
             val parCle = toutes.groupingBy { cle(it.version) }.eachCount()
             val ordre = listOf("rc", "beta", "nightly", "stable")
             return (ordre + (parCle.keys - ordre.toSet()).sorted())
@@ -65,7 +67,7 @@ class UpdateBean : Serializable {
     }
 
     /** [liste] restricted to the picked channel. */
-    fun filtrees(liste: List<VersionDisponible>?): List<VersionDisponible> =
+    fun filtrees(liste: List<AvailableVersion>?): List<AvailableVersion> =
         liste.orEmpty().filter { canalFiltre == null || cle(it.version) == canalFiltre }
 
     @PostConstruct
@@ -73,16 +75,16 @@ class UpdateBean : Serializable {
 
     /** Also called by the p:poll while an installation runs. */
     fun rafraichir() {
-        etat = service.getEtat()
+        etat = service.getStatus()
     }
 
     fun verifier() {
         if (!login.require(login.isAdmin)) return
-        val e = service.verifier()
+        val e = service.check()
         etat = e
         when {
-            e.erreur != null -> Faces.error("Vérification impossible", e.erreur)
-            e.miseAJourDisponible -> Faces.info("Nouvelle version disponible", e.disponibles.first().version.tag)
+            e.error != null -> Faces.error("Vérification impossible", e.error)
+            e.updateAvailable -> Faces.info("Nouvelle version disponible", e.available.first().version.tag)
             else -> Faces.info("ThermoBox est à jour")
         }
     }
@@ -90,10 +92,10 @@ class UpdateBean : Serializable {
     fun preparer(tag: String) {
         if (!login.require(login.isAdmin)) return
         try {
-            val p = service.preparer(tag)
+            val p = service.prepare(tag)
             preparation = p
             // A corrective doesn't touch the database: the backup is offered, not ticked.
-            sauvegarder = p.sauvegardeObligatoire
+            sauvegarder = p.backupRequired
             risquesAcceptes = false
             PrimeFaces.current().ajax().addCallbackParam("ok", true)
         } catch (e: IllegalArgumentException) {
@@ -106,7 +108,7 @@ class UpdateBean : Serializable {
         if (!login.require(login.isAdmin)) return
         val p = preparation ?: return
         try {
-            service.installer(p.version.version.tag, login.currentUser?.username.orEmpty(), OptionsInstallation(sauvegarder, risquesAcceptes))
+            service.install(p.version.version.tag, login.currentUser?.username.orEmpty(), InstallOptions(sauvegarder, risquesAcceptes))
             Faces.info("Installation de ${p.version.version} lancée", "Le déroulement s'affiche ci-dessous.")
             PrimeFaces.current().ajax().addCallbackParam("ok", true)
         } catch (e: IllegalArgumentException) {
@@ -119,7 +121,7 @@ class UpdateBean : Serializable {
 
     /** The page polls while an installation runs, and reloads once the interface is redeployed. */
     val isSuivi: Boolean
-        get() = etat?.installation?.etat.let { it == EtatInstallation.EN_COURS || it == EtatInstallation.REDEMARRAGE }
+        get() = etat?.installation?.state.let { it == InstallationState.RUNNING || it == InstallationState.RESTARTING }
 
     fun notes(texte: String?): String = Markdown.versHtml(texte)
 
@@ -144,27 +146,27 @@ class UpdateBean : Serializable {
         else -> cle.replaceFirstChar { it.uppercase() }
     }
 
-    fun severiteType(type: TypeMiseAJour): String = if (type == TypeMiseAJour.CORRECTIVE) "success" else "warning"
+    fun severiteType(type: UpdateType): String = if (type == UpdateType.PATCH) "success" else "warning"
 
-    fun iconeControle(niveau: NiveauControle): String = when (niveau) {
-        NiveauControle.OK -> "pi-check-circle"
-        NiveauControle.INFO -> "pi-info-circle"
-        NiveauControle.AVERTISSEMENT -> "pi-exclamation-triangle"
-        NiveauControle.BLOQUANT -> "pi-ban"
+    fun iconeControle(niveau: CheckLevel): String = when (niveau) {
+        CheckLevel.OK -> "pi-check-circle"
+        CheckLevel.INFO -> "pi-info-circle"
+        CheckLevel.WARNING -> "pi-exclamation-triangle"
+        CheckLevel.BLOCKING -> "pi-ban"
     }
 
-    fun iconeEtape(etat: EtatEtape): String = when (etat) {
-        EtatEtape.EN_ATTENTE -> "pi-circle"
-        EtatEtape.EN_COURS -> "pi-spin pi-spinner"
-        EtatEtape.OK -> "pi-check"
-        EtatEtape.IGNOREE -> "pi-minus"
-        EtatEtape.ECHEC -> "pi-times"
+    fun iconeEtape(etat: StepState): String = when (etat) {
+        StepState.PENDING -> "pi-circle"
+        StepState.RUNNING -> "pi-spin pi-spinner"
+        StepState.OK -> "pi-check"
+        StepState.SKIPPED -> "pi-minus"
+        StepState.FAILED -> "pi-times"
     }
 
-    fun severiteInstallation(etat: EtatInstallation): String = when (etat) {
-        EtatInstallation.EN_COURS, EtatInstallation.REDEMARRAGE -> "info"
-        EtatInstallation.TERMINEE -> "success"
-        EtatInstallation.ECHEC -> "danger"
+    fun severiteInstallation(etat: InstallationState): String = when (etat) {
+        InstallationState.RUNNING, InstallationState.RESTARTING -> "info"
+        InstallationState.DONE -> "success"
+        InstallationState.FAILED -> "danger"
     }
 
     private companion object {
@@ -183,15 +185,15 @@ class UpdateNoticeBean {
     @Inject
     private lateinit var login: LoginBean
 
-    private val etat: EtatMisesAJour? by lazy {
-        if (login.isAdmin) runCatching { BusinessFactory.getUpdateService().getEtat() }.getOrNull() else null
+    private val etat: UpdateStatus? by lazy {
+        if (login.isAdmin) runCatching { BusinessFactory.getUpdateService().getStatus() }.getOrNull() else null
     }
 
-    val isDisponible: Boolean get() = etat?.miseAJourDisponible == true
+    val isDisponible: Boolean get() = etat?.updateAvailable == true
 
     /** « 26.11.0 (fonctionnelle) et 26.10.2 (corrective) » */
     val resume: String
-        get() = listOfNotNull(etat?.corrective, etat?.fonctionnelle).joinToString(" et ") {
-            "${it.version} (${it.type.label.lowercase()}${if (it.type == TypeMiseAJour.CORRECTIVE) ", recommandée" else ""})"
+        get() = listOfNotNull(etat?.latestPatch, etat?.latestFeature).joinToString(" et ") {
+            "${it.version} (${Libelles.updateType(it.type).lowercase()}${if (it.type == UpdateType.PATCH) ", recommandée" else ""})"
         }
 }

@@ -21,8 +21,8 @@ object ChartBuilder {
         val chartData = ChartData()
         chartData.labels = dates.map { fmt.format(it) }
 
-        series.filter { it.points.isNotEmpty() }.forEach { serie ->
-            val byDate = serie.points.associate { it.date to it.value }
+        series.filter { it.points.isNotEmpty() }.forEach { series ->
+            val byDate = series.points.associate { it.date to it.value }
             // On reporte la dernière valeur connue : une consigne reste valable jusqu'à la suivante
             var last: Float? = null
             val values = ArrayList<Any?>()
@@ -31,9 +31,9 @@ object ChartBuilder {
                 values.add(last)
             }
             val dataSet = LineChartDataSet()
-            dataSet.label = serie.label
-            dataSet.borderColor = serie.color
-            dataSet.backgroundColor = serie.color
+            dataSet.label = series.label
+            dataSet.borderColor = series.color
+            dataSet.backgroundColor = series.color
             dataSet.fill = false
             dataSet.data = values.map { v -> (v as Float?)?.let { Math.round(unite.depuisCelsius(it) * 10f) / 10f } }
             chartData.addChartDataSet(dataSet)

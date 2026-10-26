@@ -53,7 +53,7 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_DB_MIGRATE` | `true` | `false` : pas de migration de schéma au démarrage |
 | `THERMOBOX_JWT_SECRET` | *obligatoire* | Clé de signature des jetons (32 caractères minimum) |
 | `THERMOBOX_JWT_TTL_MINUTES` | `60` | Durée de vie d'un jeton |
-| `THERMOBOX_DRIVER` | `simule` | `simule` (boîtiers simulés) ou `mqtt` (vrais boîtiers) |
+| `THERMOBOX_DRIVER` | `simulated` | `simulated` (boîtiers simulés) ou `mqtt` (vrais boîtiers) ; l'ancienne valeur `simule` est acceptée |
 | `THERMOBOX_MQTT_URL` | `tcp://localhost:1883` | Broker MQTT (`ssl://hôte:8883` pour TLS) |
 | `THERMOBOX_MQTT_USER` / `THERMOBOX_MQTT_PASSWORD` | *aucun* | Identifiants du broker, si demandés |
 | `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
@@ -81,6 +81,24 @@ fonctions à travers l'API REST. Garder deux interfaces double la maintenance et
 avec ce serveur REST comme API (`http://localhost:8080` avec Docker). Les comptes, salles, consignes et
 groupes sont dans la base et restent tels quels. Les préférences personnelles de l'interface JSF
 (unité, teinte, animations, raccourcis) sont des cookies du navigateur et sont à refaire dans le client.
+
+## Noms anglais (26.12)
+
+Depuis 26.12, le code, la base et l'API sont en anglais (salle → `Room`, bâtiment → `Building`,
+étage → `Floor`, boîtier → `Device`, consigne → `Setpoint`, mesure → `Measurement`, gestionnaire →
+`MANAGER`…). Les interfaces restent en français.
+
+- **API REST** : l'API anglaise est sous `/api/v2`. L'ancienne API (`/api/salles`, `/api/hierarchie`,
+  `/api/climat`…) répond toujours à l'identique pour les clients existants ; voir
+  [RestServer/README.md](RestServer/README.md#-ancienne-api-api-dépréciée) pour les correspondances.
+- **Base de données** : la migration `V4__english_names.sql` renomme les tables et les colonnes
+  (`salle` → `room`, `groupe` → `user_group`, `acces` → `user_access`…) et les types enregistrés
+  (`Batiment` → `Building`…). C'est une mise à jour fonctionnelle : une version antérieure ne peut
+  plus ouvrir la base, revenir en arrière demande de restaurer la sauvegarde faite avant la mise à jour.
+- **Boîtiers MQTT** : topics `thermobox/rooms` et `thermobox/setpoints/<id>` ; les anciens topics
+  (`thermobox/salles`, `thermobox/consignes/<id>`) restent servis.
+- **Fichiers du dossier de données** : `interface.properties` (`style=glass` ou `panel`) et
+  `updates/installation.json` sont écrits en anglais ; les versions françaises sont toujours lues.
 
 ## Architecture du Projet
 
@@ -239,11 +257,11 @@ API REST :
 
 | Méthode | Route | Rôle |
 |---|---|---|
-| GET | `/api/updates` | Authentifié : version installée, versions disponibles (`latestPatch`, `latestFeature`) |
-| POST | `/api/updates/check` | ADMIN : vérifier maintenant |
-| GET | `/api/updates/{version}` | ADMIN : contrôles et risques avant installation |
-| POST | `/api/updates/{version}/install` | ADMIN : `{"backupDatabase": true, "acceptRisks": true}`, réponse 202 |
-| GET | `/api/updates/installation` | ADMIN : déroulement de la dernière installation |
+| GET | `/api/v2/updates` | Authentifié : version installée, versions disponibles (`latestPatch`, `latestFeature`) |
+| POST | `/api/v2/updates/check` | ADMIN : vérifier maintenant |
+| GET | `/api/v2/updates/{version}` | ADMIN : contrôles et risques avant installation |
+| POST | `/api/v2/updates/{version}/install` | ADMIN : `{"backupDatabase": true, "acceptRisks": true}`, réponse 202 |
+| GET | `/api/v2/updates/installation` | ADMIN : déroulement de la dernière installation |
 
 Variables : `THERMOBOX_UPDATE_CHANNEL` (`stable` / `prerelease`), `THERMOBOX_UPDATE_CHECK`
 (`false` coupe la vérification quotidienne), `THERMOBOX_DATA_DIR`, `THERMOBOX_UPDATE_REPO`,
@@ -253,12 +271,12 @@ pas à côté de l'application dépliée).
 ## Accès aux bâtiments, étages et salles
 
 Un administrateur choisit ce que chaque utilisateur peut consulter : **Administration → Utilisateurs**,
-bouton **Accès** (clé) d'un utilisateur, ou `PUT /api/users/{id}/acces`.
+bouton **Accès** (clé) d'un utilisateur, ou `PUT /api/v2/users/{id}/access`.
 
 Règles :
 
 - un **ADMIN** voit et gère tout, quels que soient les accès enregistrés ;
-- un **GESTIONNAIRE** ou un **VIEWER** a soit accès à tout, soit seulement à des éléments choisis ;
+- un **MANAGER** (gestionnaire) ou un **VIEWER** a soit accès à tout, soit seulement à des éléments choisis ;
 - un accès à un bâtiment ou à un étage couvre tout ce qu'il contient (étages, salles, boîtiers),
   y compris ce qui y sera ajouté plus tard. Les accès s'additionnent, il n'y a pas de refus
   explicite : aucune règle ne peut en contredire une autre ;
@@ -266,7 +284,7 @@ Règles :
   (fil d'Ariane, arbre, regroupement de l'aperçu), sans leurs données : leur moyenne parlerait des
   salles non autorisées. La moyenne d'un bâtiment sur l'aperçu est calculée sur les seules salles
   accessibles ;
-- un GESTIONNAIRE n'envoie de consigne qu'aux éléments auxquels il a accès.
+- un MANAGER n'envoie de consigne qu'aux éléments auxquels il a accès.
 
 Les accès sont vérifiés côté serveur à chaque requête, dans l'interface JSF comme dans l'API REST :
 listes, recherches, pages de détail, photos, températures, consignes. Un élément non autorisé
@@ -276,23 +294,23 @@ d'accès s'applique dès la requête suivante.
 **Comptes existants et nouveaux comptes.** Les comptes créés avant cette fonctionnalité gardent
 l'accès à tout (rien ne change pour eux tant qu'un administrateur ne les limite pas). Un compte créé
 ensuite, y compris par l'inscription publique, n'a accès à rien tant qu'un administrateur ne lui en
-donne pas ; un ADMIN rétrogradé aussi. Les accès sont stockés dans deux nouvelles tables (`acces`,
-`acces_restreint`), créées au démarrage : la base existante n'a pas besoin de migration.
+donne pas ; un ADMIN rétrogradé aussi. Les accès sont stockés dans deux tables (`user_access`,
+`restricted_access`).
 
 API REST :
 
 | Méthode | Route | Rôle |
 |---|---|---|
-| GET | `/api/users/{id}/acces` | ADMIN, ou l'utilisateur lui-même : `{"restricted": true, "elements": [...]}` |
-| PUT | `/api/users/{id}/acces` | ADMIN : `{"restricted": true, "elements": [ids de bâtiments, étages, salles]}` |
-| GET / POST | `/api/groups` | ADMIN : groupes ; `{"name", "description", "members": [ids], "elements": [ids]}` |
-| GET / PUT / DELETE | `/api/groups/{id}` | ADMIN : un groupe |
+| GET | `/api/v2/users/{id}/access` | ADMIN, ou l'utilisateur lui-même : `{"restricted": true, "elements": [...]}` |
+| PUT | `/api/v2/users/{id}/access` | ADMIN : `{"restricted": true, "elements": [ids de bâtiments, étages, salles]}` |
+| GET / POST | `/api/v2/groups` | ADMIN : groupes ; `{"name", "description", "members": [ids], "elements": [ids]}` |
+| GET / PUT / DELETE | `/api/v2/groups/{id}` | ADMIN : un groupe |
 
 **Groupes d'utilisateurs.** Un ADMIN crée des groupes (page Gérer → « Utilisateurs et groupes ») :
 chaque membre d'un groupe voit en plus les bâtiments, étages et salles du groupe, avec ce qu'ils
 contiennent. Les accès s'additionnent (les siens et ceux de tous ses groupes) ; un utilisateur qui
-voit tout n'est pas limité par ses groupes. Tables `groupe`, `groupe_membre`, `groupe_acces`
-(migration `V3__groupes.sql`).
+voit tout n'est pas limité par ses groupes. Tables `user_group`, `user_group_member`, `user_group_access`
+(migrations `V3__groupes.sql` puis `V4__english_names.sql`).
 
 ## Notes importantes
 - Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.

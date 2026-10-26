@@ -3,8 +3,8 @@ package ax.ibr.thermobox.business.implementations
 import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
-import ax.ibr.thermobox.common.services.AccesService
-import ax.ibr.thermobox.common.services.FavoriService
+import ax.ibr.thermobox.common.services.AccessService
+import ax.ibr.thermobox.common.services.FavoriteService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.io.Serializable
@@ -17,8 +17,8 @@ class UserServiceImpl(
 ) : UserService, Serializable {
 
     // Only needed by remove(); lazy so tests of the other methods don't open the database.
-    private val favoris: FavoriService by lazy { PersistenceFactory.getFavoriDataService() }
-    private val acces: AccesService by lazy { BusinessFactory.getAccesService() }
+    private val favorites: FavoriteService by lazy { PersistenceFactory.getFavoriteDataService() }
+    private val access: AccessService by lazy { BusinessFactory.getAccessService() }
 
     override fun getByUsername(username: String): User? {
         return userService.getByUsername(username)
@@ -34,13 +34,13 @@ class UserServiceImpl(
             throw InvalidNameException("Username should only contains letters.")
         userService.add(t)
         // New accounts see nothing until an ADMIN grants them accesses (no excessive rights by default).
-        if (t.id != null) acces.initialiser(t)
+        if (t.id != null) access.initialize(t)
     }
 
     override fun update(t: User) {
-        // An ADMIN turned into a GESTIONNAIRE / VIEWER doesn't keep a view on everything.
-        val avant = t.id?.let { userService.getById(it) }?.type
-        if (avant == UserType.ADMIN && t.type != UserType.ADMIN) acces.initialiser(t)
+        // An ADMIN turned into a MANAGER / VIEWER doesn't keep a view on everything.
+        val before = t.id?.let { userService.getById(it) }?.type
+        if (before == UserType.ADMIN && t.type != UserType.ADMIN) access.initialize(t)
         hashPassword(t)
         if (!UserVerification.verifyUsername(t.username!!))
             throw InvalidNameException("Username should only contains letters.")
@@ -51,8 +51,8 @@ class UserServiceImpl(
     override fun remove(t: User) {
         // A user never saved (no id) has no favourites: no need to reach the database for them.
         if (t.id != null) {
-            favoris.getByUser(t).forEach { favoris.remove(it) }
-            acces.oublierUtilisateur(t)
+            favorites.getByUser(t).forEach { favorites.remove(it) }
+            access.forgetUser(t)
         }
         userService.remove(t)
     }

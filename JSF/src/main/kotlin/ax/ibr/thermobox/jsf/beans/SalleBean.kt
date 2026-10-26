@@ -1,8 +1,10 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Boitier
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleKind
+import ax.ibr.thermobox.jsf.util.Libelles
+
+import ax.ibr.thermobox.common.entities.Device
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
@@ -23,20 +25,20 @@ import java.io.Serializable
  * (name only, no data, no page).
  */
 data class Noeud(
-    val salle: Salle,
+    val salle: Room,
     val temperature: Float?,
     val boitiers: Int,
     val rattache: Boolean,
     val accessible: Boolean = true,
 ) : Serializable {
-    val kind: SalleKind get() = salle.kind
+    val kind: RoomKind get() = salle.kind
 
     val icon: String
         get() = when (kind) {
-            SalleKind.BATIMENT -> "pi-building"
-            SalleKind.ETAGE -> "pi-server"
-            SalleKind.SALLE -> "pi-home"
-            SalleKind.BOITIER -> "pi-wifi"
+            RoomKind.BUILDING -> "pi-building"
+            RoomKind.FLOOR -> "pi-server"
+            RoomKind.ROOM -> "pi-home"
+            RoomKind.DEVICE -> "pi-wifi"
         }
 }
 
@@ -55,10 +57,10 @@ class SalleBean : Serializable {
 
     // Formulaire du dialogue (création ou modification)
     var editingId: Long? = null
-    var formKind: SalleKind = SalleKind.BATIMENT
+    var formKind: RoomKind = RoomKind.BUILDING
     var formName: String = ""
     var formParentId: Long? = null
-    var parentsPossibles: List<Salle> = emptyList()
+    var parentsPossibles: List<Room> = emptyList()
 
     /** Element whose actions are open in the bottom sheet (phones). */
     var selection: Noeud? = null
@@ -69,15 +71,15 @@ class SalleBean : Serializable {
     // Every node of the tree by id, for the phone list
     private var index: Map<Long, TreeNode<Noeud>> = emptyMap()
 
-    val kinds: List<SalleKind> = SalleKind.entries.toList()
+    val kinds: List<RoomKind> = RoomKind.entries.toList()
     val isEditMode: Boolean get() = editingId != null
 
     @PostConstruct
     fun load() {
         val racine = DefaultTreeNode<Noeud>()
         val acces = login.perimetre
-        Services.hierarchie.getRacines().filter { acces.estVisible(it) }
-            .forEach { ajouter(it, racine, rattache = it.kind == SalleKind.BATIMENT) }
+        Services.hierarchie.getRoots().filter { acces.isVisible(it) }
+            .forEach { ajouter(it, racine, rattache = it.kind == RoomKind.BUILDING) }
         arbre = racine
         index = buildMap { indexer(racine, this) }
         // The opened folder may have been deleted meanwhile.
@@ -105,7 +107,7 @@ class SalleBean : Serializable {
     fun nombreEnfants(n: Noeud): Int = n.salle.id?.let { index[it]?.childCount } ?: 0
 
     /** Bâtiments and étages open in the list; salles and boîtiers open their page. */
-    fun estDossier(n: Noeud): Boolean = n.kind == SalleKind.BATIMENT || n.kind == SalleKind.ETAGE
+    fun estDossier(n: Noeud): Boolean = n.kind == RoomKind.BUILDING || n.kind == RoomKind.FLOOR
 
     fun ouvrir(id: Long?) {
         dossierId = id?.takeIf { it in index }
@@ -115,18 +117,18 @@ class SalleBean : Serializable {
         dossierId = dossierId?.let { index[it]?.parent?.data?.salle?.id }
     }
 
-    private fun ajouter(salle: Salle, parent: TreeNode<Noeud>, rattache: Boolean) {
-        if (salle is Boitier && !login.canSeeBoitiers) return
-        if (!login.perimetre.estVisible(salle)) return
+    private fun ajouter(salle: Room, parent: TreeNode<Noeud>, rattache: Boolean) {
+        if (salle is Device && !login.canSeeBoitiers) return
+        if (!login.perimetre.isVisible(salle)) return
         val noeud = DefaultTreeNode(noeud(salle, rattache), parent)
-        noeud.isExpanded = salle.kind != SalleKind.SALLE
+        noeud.isExpanded = salle.kind != RoomKind.ROOM
         Services.hierarchie.getChildren(salle).forEach { ajouter(it, noeud, rattache = true) }
     }
 
-    private fun noeud(salle: Salle, rattache: Boolean): Noeud {
-        if (!login.perimetre.peutVoir(salle)) return Noeud(salle, null, 0, rattache, accessible = false)
-        val mesures = Services.climat.getMesures(salle)
-        val temperature = if (salle is Boitier) mesures.firstOrNull()?.mesure?.value else Services.climat.getMoyenne(salle)
+    private fun noeud(salle: Room, rattache: Boolean): Noeud {
+        if (!login.perimetre.canSee(salle)) return Noeud(salle, null, 0, rattache, accessible = false)
+        val mesures = Services.climat.getMeasurements(salle)
+        val temperature = if (salle is Device) mesures.firstOrNull()?.measurement?.value else Services.climat.getAverage(salle)
         return Noeud(salle, temperature, mesures.size, rattache)
     }
 
@@ -157,7 +159,7 @@ class SalleBean : Serializable {
     }
 
     /** Nouvel élément, éventuellement déjà rattaché à [parent]. */
-    fun create(kind: SalleKind, parent: Salle?) {
+    fun create(kind: RoomKind, parent: Room?) {
         editingId = null
         formKind = kind
         formName = ""
@@ -165,7 +167,7 @@ class SalleBean : Serializable {
         refreshParents()
     }
 
-    fun edit(salle: Salle) {
+    fun edit(salle: Room) {
         editingId = salle.id
         formKind = salle.kind
         formName = salle.name.orEmpty()
@@ -177,15 +179,15 @@ class SalleBean : Serializable {
     fun refreshParents() {
         parentsPossibles = formKind.parentKinds
             .flatMap { Services.salles.getAllByType(it.create(null)) }
-            .sortedWith(compareBy<Salle>({ it.kind }, { it.name?.lowercase() }))
+            .sortedWith(compareBy<Room>({ it.kind }, { it.name?.lowercase() }))
         if (parentsPossibles.none { it.id == formParentId }) formParentId = null
     }
 
     /** Option of the parent list, which can mix étages and bâtiments. */
-    fun libelle(salle: Salle): String = "${salle.name} (${salle.kind.label})"
+    fun libelle(salle: Room): String = "${salle.name} (${Libelles.kind(salle.kind)})"
 
     /** « étage ou bâtiment » : libellé du champ parent du dialogue. */
-    val parentsLabel: String get() = formKind.parentKinds.joinToString(" ou ") { it.label.lowercase() }
+    val parentsLabel: String get() = formKind.parentKinds.joinToString(" ou ") { Libelles.kind(it).lowercase() }
 
     fun save() {
         if (!login.require(login.isAdmin)) return
@@ -203,7 +205,7 @@ class SalleBean : Serializable {
             val parent = formParentId?.let { Services.salles.getById(it) }
             Services.hierarchie.setParent(salle, parent)
 
-            Faces.info("${salle.kind.label} « $name » enregistré(e)")
+            Faces.info("${Libelles.kind(salle.kind)} « $name » enregistré(e)")
             PrimeFaces.current().ajax().addCallbackParam("saved", true)
         } catch (e: IllegalArgumentException) {
             Faces.error("Rattachement impossible", e.message)
@@ -213,7 +215,7 @@ class SalleBean : Serializable {
         load()
     }
 
-    fun detacher(salle: Salle) {
+    fun detacher(salle: Room) {
         if (!login.require(login.isAdmin)) return
         try {
             Services.hierarchie.setParent(salle, null)
@@ -224,7 +226,7 @@ class SalleBean : Serializable {
         load()
     }
 
-    fun delete(salle: Salle) {
+    fun delete(salle: Room) {
         if (!login.require(login.isAdmin)) return
         try {
             Services.salles.getById(salle.id!!)?.let { Services.salles.remove(it) }

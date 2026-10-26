@@ -1,6 +1,6 @@
 package ax.ibr.thermobox.jsf
 
-import ax.ibr.thermobox.business.update.ConfigMisesAJour
+import ax.ibr.thermobox.business.update.UpdateConfig
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -14,19 +14,21 @@ import java.util.Properties
 object ReglagesSite {
 
     /** How the pages look for everyone. */
-    enum class Style(val code: String) {
+    enum class Style(val code: String, val stored: String) {
         /** Translucent surfaces, coloured background, blur. */
-        VERRE("verre"),
+        VERRE("verre", "glass"),
         /** Control panel: flat solid surfaces, no blur nor coloured background, no tint. */
-        PANNEAU("panneau");
+        PANNEAU("panneau", "panel");
 
         companion object {
-            fun depuis(code: String?): Style = entries.firstOrNull { it.code == code } ?: VERRE
+            // The file holds the English value (shared with the REST server); the French one
+            // was written before 26.11.
+            fun depuis(code: String?): Style = entries.firstOrNull { it.stored == code || it.code == code } ?: VERRE
         }
     }
 
     private val fichier: Path by lazy {
-        runCatching { ConfigMisesAJour.depuisEnvironnement().dossier }.getOrElse { Path.of(System.getProperty("user.home"), ".thermobox") }
+        runCatching { UpdateConfig.fromEnvironment().directory }.getOrElse { Path.of(System.getProperty("user.home"), ".thermobox") }
             .resolve("interface.properties")
     }
 
@@ -37,7 +39,7 @@ object ReglagesSite {
     @Synchronized
     fun changerStyle(style: Style) {
         val p = Properties().apply { putAll(lire()) }
-        p.setProperty("style", style.code)
+        p.setProperty("style", style.stored)
         Files.createDirectories(fichier.parent)
         // Written aside then moved: a reader never sees half a file
         val tmp = fichier.resolveSibling("interface.properties.tmp")
