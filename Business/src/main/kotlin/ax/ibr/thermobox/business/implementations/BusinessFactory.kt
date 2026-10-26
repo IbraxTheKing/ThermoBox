@@ -1,75 +1,75 @@
 package ax.ibr.thermobox.business.implementations
 
 import ax.ibr.thermobox.business.io.mqtt.MqttDriver
-import ax.ibr.thermobox.common.services.SalleService
-import ax.ibr.thermobox.common.services.SalleTempAttrService
+import ax.ibr.thermobox.common.services.RoomService
+import ax.ibr.thermobox.common.services.RoomTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.common.services.UserService
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.business.io.mqtt.SimulatedProtocolDriver
-import ax.ibr.thermobox.common.services.SalleSalleAttrService
-import ax.ibr.thermobox.common.services.ClimatService
-import ax.ibr.thermobox.common.services.FavoriService
-import ax.ibr.thermobox.common.services.HierarchieService
-import ax.ibr.thermobox.common.services.SalleImageService
-import ax.ibr.thermobox.common.services.AccesService
-import ax.ibr.thermobox.common.services.GroupeService
+import ax.ibr.thermobox.common.services.RoomRoomAttrService
+import ax.ibr.thermobox.common.services.ClimateService
+import ax.ibr.thermobox.common.services.FavoriteService
+import ax.ibr.thermobox.common.services.HierarchyService
+import ax.ibr.thermobox.common.services.RoomImageService
+import ax.ibr.thermobox.common.services.AccessService
+import ax.ibr.thermobox.common.services.UserGroupService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
 import ax.ibr.thermobox.business.config.ConfigDriver
 
 object BusinessFactory {
 
     private val temperatureServiceInstance: TemperatureService by lazy { TemperatureServiceImpl() }
-    private val salleServiceInstance: SalleService by lazy { SalleServiceImpl() }
+    private val roomServiceInstance: RoomService by lazy { RoomServiceImpl() }
     private val userServiceInstance: UserService by lazy { UserServiceImpl() }
-    private val salleTempAttrServiceInstance: SalleTempAttrService by lazy { SalleTempAttrServiceImpl() }
-    private val salleSalleAttrServiceInstance: SalleSalleAttrService by lazy { SalleSalleAttrServiceImpl() }
-    private val hierarchieServiceInstance: HierarchieService by lazy { HierarchieServiceImpl() }
-    private val climatServiceInstance: ClimatService by lazy { ClimatServiceImpl() }
-    private val favoriServiceInstance: FavoriService by lazy { FavoriServiceImpl() }
-    private val salleImageServiceInstance: SalleImageService by lazy { SalleImageServiceImpl() }
+    private val roomTempAttrServiceInstance: RoomTempAttrService by lazy { RoomTempAttrServiceImpl() }
+    private val roomRoomAttrServiceInstance: RoomRoomAttrService by lazy { RoomRoomAttrServiceImpl() }
+    private val hierarchyServiceInstance: HierarchyService by lazy { HierarchyServiceImpl() }
+    private val climateServiceInstance: ClimateService by lazy { ClimateServiceImpl() }
+    private val favoriteServiceInstance: FavoriteService by lazy { FavoriteServiceImpl() }
+    private val roomImageServiceInstance: RoomImageService by lazy { RoomImageServiceImpl() }
 
-    private val accesServiceInstance: AccesService by lazy { AccesServiceImpl() }
+    private val accessServiceInstance: AccessService by lazy { AccessServiceImpl() }
 
     private val updateServiceInstance: UpdateServiceImpl by lazy { UpdateServiceImpl() }
 
     private val driverInstance: ProtocolDriver by lazy {
         // THERMOBOX_DRIVER / THERMOBOX_MQTT_* (see ConfigDriver)
-        val config = ConfigDriver.depuisEnvironnement()
+        val config = ConfigDriver.fromEnvironment()
         when (config.type) {
-            ConfigDriver.TypeDriver.MQTT -> MqttDriver(config.urlMqtt, utilisateur = config.utilisateurMqtt, motDePasse = config.motDePasseMqtt)
-            ConfigDriver.TypeDriver.SIMULE -> SimulatedProtocolDriver()
+            ConfigDriver.DriverType.MQTT -> MqttDriver(config.mqttUrl, brokerUser = config.mqttUser, brokerPassword = config.mqttPassword)
+            ConfigDriver.DriverType.SIMULATED -> SimulatedProtocolDriver()
         }
     }
 
     fun getTemperatureService(): TemperatureService = temperatureServiceInstance
 
-    fun getSalleService(): SalleService = salleServiceInstance
+    fun getRoomService(): RoomService = roomServiceInstance
 
     fun getUserService(): UserService = userServiceInstance
 
-    fun getSalleTempAttrService(): SalleTempAttrService = salleTempAttrServiceInstance
+    fun getRoomTempAttrService(): RoomTempAttrService = roomTempAttrServiceInstance
 
-    fun getSalleSalleAttrService(): SalleSalleAttrService = salleSalleAttrServiceInstance
+    fun getRoomRoomAttrService(): RoomRoomAttrService = roomRoomAttrServiceInstance
 
-    fun getHierarchieService(): HierarchieService = hierarchieServiceInstance
+    fun getHierarchyService(): HierarchyService = hierarchyServiceInstance
 
-    fun getClimatService(): ClimatService = climatServiceInstance
+    fun getClimateService(): ClimateService = climateServiceInstance
 
-    fun getFavoriService(): FavoriService = favoriServiceInstance
+    fun getFavoriteService(): FavoriteService = favoriteServiceInstance
 
-    fun getSalleImageService(): SalleImageService = salleImageServiceInstance
+    fun getRoomImageService(): RoomImageService = roomImageServiceInstance
 
-    /** Implementation type: the servers also call demarrer() / arreter() on it. */
+    /** Implementation type: the servers also call start() / stop() on it. */
     fun getUpdateService(): UpdateServiceImpl = updateServiceInstance
 
-    /** Who sees which bâtiments, étages and salles. */
-    fun getAccesService(): AccesService = accesServiceInstance
+    /** Who sees which buildings, floors and rooms. */
+    fun getAccessService(): AccessService = accessServiceInstance
 
-    private val groupeServiceInstance: GroupeService by lazy { GroupeServiceImpl() }
+    private val userGroupServiceInstance: UserGroupService by lazy { UserGroupServiceImpl() }
 
     /** Groups of users and the accesses they give. */
-    fun getGroupeService(): GroupeService = groupeServiceInstance
+    fun getUserGroupService(): UserGroupService = userGroupServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
 }

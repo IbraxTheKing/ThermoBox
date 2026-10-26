@@ -1,4 +1,4 @@
-import ax.ibr.thermobox.common.entities.Mesurer
+import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.jsf.util.Comparaison
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,9 +16,9 @@ class ComparaisonTest {
         val pas = Comparaison.pas(debut, fin)
         assertEquals(Duration.ofMinutes(15), pas)
         val points = listOf(
-            Mesurer(20f, debut.plusMinutes(1)), Mesurer(22f, debut.plusMinutes(14)),   // tranche 0 : 21
-            Mesurer(19f, debut.plusMinutes(31)),                                         // tranche 2
-            Mesurer(30f, debut.minusMinutes(5)),                                         // avant la période
+            Measurement(20f, debut.plusMinutes(1)), Measurement(22f, debut.plusMinutes(14)),   // tranche 0 : 21
+            Measurement(19f, debut.plusMinutes(31)),                                         // tranche 2
+            Measurement(30f, debut.minusMinutes(5)),                                         // avant la période
         )
         val c = Comparaison.courbe(points, debut, fin, pas)
         assertEquals(96, c.valeurs.size)

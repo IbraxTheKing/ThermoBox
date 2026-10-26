@@ -58,7 +58,7 @@ interface CrudService<T> {
      * @param t entity to delete
      */
     fun delete(t: T) {
-        return delete(t)
+        return remove(t)
     }
 
     /**

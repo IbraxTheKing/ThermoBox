@@ -1,6 +1,6 @@
 package ax.ibr.thermobox.jsf.media
 
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.AuthFilter
 import ax.ibr.thermobox.jsf.auth.AuthenticatedUser
@@ -26,10 +26,10 @@ class SalleImageServlet : HttpServlet() {
         val id = req.pathInfo?.removePrefix("/")?.toLongOrNull()
             ?: return res.sendError(HttpServletResponse.SC_NOT_FOUND)
         // A photo outside the user's accesses answers like a missing one.
-        if (!auth.hasRole("ADMIN") && !Services.acces.perimetre(auth.user).peutVoir(id)) {
+        if (!auth.hasRole("ADMIN") && !Services.acces.scope(auth.user).canSee(id)) {
             return res.sendError(HttpServletResponse.SC_NOT_FOUND)
         }
-        val image = Services.images.getBySalle(Salle().apply { this.id = id })
+        val image = Services.images.getByRoom(Room().apply { this.id = id })
             ?: return res.sendError(HttpServletResponse.SC_NOT_FOUND)
 
         val etag = "\"${version(image.updated)}\""

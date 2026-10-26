@@ -1,15 +1,15 @@
 #!/bin/sh
 
-# Lu automatiquement par catalina.sh au démarrage de Tomcat.
-# Pour ajouter des options : variable CATALINA_OPTS dans docker-compose.yml.
+# Read by catalina.sh when Tomcat starts.
+# To add options: CATALINA_OPTS variable in docker-compose.yml.
 
-# Mémoire : 75 % de celle allouée au conteneur
+# Memory: 75 % of what the container is given
 CATALINA_OPTS="${CATALINA_OPTS:-} -XX:MaxRAMPercentage=75"
 
-# Les photos de salles passent par ImageIO : pas d'écran dans un conteneur
+# Room photos go through ImageIO: no display in a container
 CATALINA_OPTS="$CATALINA_OPTS -Djava.awt.headless=true"
 
-# Démarrage plus rapide (pas de blocage sur /dev/random)
+# Faster startup (no blocking on /dev/random)
 CATALINA_OPTS="$CATALINA_OPTS -Djava.security.egd=file:/dev/./urandom"
 
 export CATALINA_OPTS

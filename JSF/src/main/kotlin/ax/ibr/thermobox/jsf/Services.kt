@@ -2,23 +2,23 @@ package ax.ibr.thermobox.jsf
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
-import ax.ibr.thermobox.common.entities.Favori
-import ax.ibr.thermobox.common.entities.Salle
+import ax.ibr.thermobox.common.entities.Favorite
+import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.User
 
 
 /** JSF talks to the Business layer directly (never through the REST API). */
 object Services {
-    val salles get() = BusinessFactory.getSalleService()
-    val salleTemps get() = BusinessFactory.getSalleTempAttrService()
+    val salles get() = BusinessFactory.getRoomService()
+    val salleTemps get() = BusinessFactory.getRoomTempAttrService()
     val temperatures get() = BusinessFactory.getTemperatureService()
     val users get() = BusinessFactory.getUserService()
-    val hierarchie get() = BusinessFactory.getHierarchieService()
-    val climat get() = BusinessFactory.getClimatService()
-    val favoris get() = BusinessFactory.getFavoriService()
-    val images get() = BusinessFactory.getSalleImageService()
-    val acces get() = BusinessFactory.getAccesService()
-    val groupes get() = BusinessFactory.getGroupeService()
+    val hierarchie get() = BusinessFactory.getHierarchyService()
+    val climat get() = BusinessFactory.getClimateService()
+    val favoris get() = BusinessFactory.getFavoriteService()
+    val images get() = BusinessFactory.getRoomImageService()
+    val acces get() = BusinessFactory.getAccessService()
+    val groupes get() = BusinessFactory.getUserGroupService()
 
     val driver: ProtocolDriver get() = BusinessFactory.getDriver()
 }
@@ -35,15 +35,15 @@ fun usernameTaken(user: User): Boolean {
 
 /** Ids of the salles [user] pinned. */
 fun favorisDe(user: User?): Set<Long> =
-    user?.let { u -> Services.favoris.getByUser(u).mapNotNull { it.salle.id }.toSet() }.orEmpty()
+    user?.let { u -> Services.favoris.getByUser(u).mapNotNull { it.room.id }.toSet() }.orEmpty()
 
 /** Adds or removes [salle] from [user]'s favourites; returns whether it is now a favourite. */
-fun basculerFavori(user: User, salle: Salle): Boolean {
-    val existant = Services.favoris.getByUser(user).firstOrNull { it.salle.id == salle.id }
+fun basculerFavori(user: User, salle: Room): Boolean {
+    val existant = Services.favoris.getByUser(user).firstOrNull { it.room.id == salle.id }
     if (existant != null) {
         Services.favoris.remove(existant)
         return false
     }
-    Services.favoris.add(Favori(user, salle))
+    Services.favoris.add(Favorite(user, salle))
     return true
 }

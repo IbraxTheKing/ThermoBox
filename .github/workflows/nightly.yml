@@ -1,25 +1,25 @@
 name: Nightly pre-release
 
-# Nightly de la prochaine version fonctionnelle, construite depuis la branche dev/ :
-# après la stable 26.10.x, dev/ prépare 26.11.0 et les nightly s'appellent 26.11.0-nightly.<n>
-# (format du README ; les anciennes nightly en -nightly-<n> sont encore comptées).
-# Les correctifs (26.10.x) ne passent pas par ici : ils sont publiés comme versions stables.
+# Nightly of the next feature version, built from the dev/ branch: after the stable 26.10.x,
+# dev/ prepares 26.11.0 and the nightlies are named 26.11.0-nightly.<n> (README format; the older
+# nightlies named -nightly-<n> still count). Patches (26.10.x) don't go through here: they are
+# published as stable versions.
 #
-# Branche construite : dev/<série> (ex. dev/26.11) si elle existe, sinon la branche « dev »,
-# sinon la seule branche dev/*.
-# Un cron ne lit que le fichier du workflow présent sur la branche par défaut du dépôt.
+# Branch built: dev/<series> (e.g. dev/26.11) if it exists, otherwise the "dev" branch, otherwise
+# the only dev/* branch.
+# A cron only reads the workflow file of the repository's default branch.
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # chaque jour à 02:00 UTC (04:00 à Paris en été, 03:00 en hiver)
-  workflow_dispatch:       # lancement manuel possible depuis l'onglet Actions
+    - cron: '0 2 * * *'   # every day at 02:00 UTC (04:00 in Paris in summer, 03:00 in winter)
+  workflow_dispatch:       # can also be started by hand from the Actions tab
     inputs:
-      branche:
-        description: Branche dev/ à construire (vide = choix automatique)
+      branch:
+        description: dev/ branch to build (empty = automatic choice)
         required: false
 
 permissions:
-  contents: write          # nécessaire pour créer le tag et la release
+  contents: write          # needed to create the tag and the release
 
 concurrency:
   group: nightly
@@ -31,72 +31,72 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # tous les tags et toutes les branches
+          fetch-depth: 0   # every tag and every branch
 
-      # Série : celle qui suit la dernière stable (26.10.1 -> 26.11, 26.12.x -> 27.01).
-      # Sans aucune stable : la série du mois en cours.
-      - name: Branche dev/ et version
+      # Series: the one after the latest stable (26.10.1 -> 26.11, 26.12.x -> 27.01).
+      # Without any stable version: the series of the current month.
+      - name: dev/ branch and version
         id: version
         env:
-          DEMANDEE: ${{ inputs.branche }}
+          REQUESTED: ${{ inputs.branch }}
         run: |
           stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -n1 || true)
           if [ -n "$stable" ]; then
-            aa=$((10#$(echo "$stable" | cut -d. -f1)))
+            yy=$((10#$(echo "$stable" | cut -d. -f1)))
             mm=$((10#$(echo "$stable" | cut -d. -f2)))
-            if [ "$mm" -eq 12 ]; then aa=$((aa + 1)); mm=1; else mm=$((mm + 1)); fi
+            if [ "$mm" -eq 12 ]; then yy=$((yy + 1)); mm=1; else mm=$((mm + 1)); fi
           else
-            aa=$((10#$(date -u +%y)))
+            yy=$((10#$(date -u +%y)))
             mm=$((10#$(date -u +%m)))
           fi
-          serie=$(printf '%d.%02d' "$aa" "$mm")
+          series=$(printf '%d.%02d' "$yy" "$mm")
 
           branches=$(git branch -r --format='%(refname:short)' | sed -n 's#^origin/##p' | grep -E '^dev(/|$)' || true)
-          if [ -n "$DEMANDEE" ]; then
-            branche="$DEMANDEE"
-          elif echo "$branches" | grep -qx "dev/$serie"; then
-            branche="dev/$serie"
+          if [ -n "$REQUESTED" ]; then
+            branch="$REQUESTED"
+          elif echo "$branches" | grep -qx "dev/$series"; then
+            branch="dev/$series"
           elif echo "$branches" | grep -qx "dev"; then
-            branche="dev"
+            branch="dev"
           elif [ -n "$branches" ] && [ "$(echo "$branches" | wc -l)" -eq 1 ]; then
-            branche="$branches"
+            branch="$branches"
           else
-            echo "Pas de branche dev/ à construire (attendu : dev/$serie). Branches dev/ : ${branches:-aucune}"
+            echo "No dev/ branch to build (expected: dev/$series). dev/ branches: ${branches:-none}"
             echo "build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if ! git rev-parse -q --verify "origin/$branche^{commit}" >/dev/null; then
-            echo "::error::Branche $branche introuvable"
+          if ! git rev-parse -q --verify "origin/$branch^{commit}" >/dev/null; then
+            echo "::error::Branch $branch not found"
             exit 1
           fi
-          commit=$(git rev-parse "origin/$branche")
+          commit=$(git rev-parse "origin/$branch")
 
-          base="$serie.0"
+          base="$series.0"
           # Last nightly of the series, whichever separator it was named with
           last=$(git tag --list "${base}-nightly[.-]*" | sed -E "s/^${base//./\.}-nightly[.-]//" | grep -E '^[0-9]+$' | sort -n | tail -n1 || true)
           if [ -n "$last" ]; then
             last_tag=$(git tag --list "${base}-nightly.${last}" "${base}-nightly-${last}" | head -n1)
           fi
           if [ -n "$last" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
-            echo "Aucun nouveau commit sur $branche depuis $last_tag, rien à publier."
+            echo "No new commit on $branch since $last_tag, nothing to publish."
             echo "build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           tag="${base}-nightly.$(( ${last:-0} + 1 ))"
-          echo "Dernière stable : ${stable:-aucune} ; $branche -> $tag"
+          echo "Latest stable: ${stable:-none}; $branch -> $tag"
           {
             echo "build=true"
             echo "tag=$tag"
-            echo "branche=$branche"
+            echo "branch=$branch"
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Passer sur la branche dev/
+      - name: Check out the dev/ branch
         if: steps.version.outputs.build == 'true'
         run: git checkout --detach "${{ steps.version.outputs.commit }}"
 
-      - name: Installer le JDK 23
+      - name: Install JDK 23
         if: steps.version.outputs.build == 'true'
         uses: actions/setup-java@v4
         with:
@@ -104,16 +104,16 @@ jobs:
           java-version: '23'
           cache: maven
 
-      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner :
-      # on compile et on package sans les lancer. Le profil "deploy" remplit deploy/
-      # (base.jar, RestServer.jar, JsfClient.war), comme pour une mise en production.
-      - name: Compiler (Maven, profil deploy)
+      # The tests need MySQL and an MQTT broker, missing on the runner: compile and package
+      # without running them. The "deploy" profile fills deploy/ (base.jar, RestServer.jar,
+      # JsfClient.war), as for a production release.
+      - name: Build (Maven, deploy profile)
         if: steps.version.outputs.build == 'true'
         # -Dthermobox.version: the version the update system reads in the build
         run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
 
-      # Les trois fichiers de deploy/, plus le dossier entier dans une archive
-      - name: Rassembler les livrables
+      # The three files of deploy/, plus the whole folder in an archive
+      - name: Gather the deliverables
         if: steps.version.outputs.build == 'true'
         run: |
           mkdir -p dist
@@ -121,7 +121,7 @@ jobs:
           zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
           ls -l dist
 
-      - name: Créer la pre-release
+      - name: Create the pre-release
         if: steps.version.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -130,5 +130,5 @@ jobs:
           gh release create "$tag" dist/* \
             --target "${{ steps.version.outputs.commit }}" \
             --prerelease \
-            --title "$tag ($(date -u +%Y-%m-%d), ${{ steps.version.outputs.branche }})" \
+            --title "$tag ($(date -u +%Y-%m-%d), ${{ steps.version.outputs.branch }})" \
             --generate-notes

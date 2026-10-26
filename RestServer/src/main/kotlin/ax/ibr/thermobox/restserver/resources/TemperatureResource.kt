@@ -3,7 +3,7 @@ package ax.ibr.thermobox.restserver.resources
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.utils.exceptions.AlreadyExistsException
-import ax.ibr.thermobox.restserver.security.perimetre
+import ax.ibr.thermobox.restserver.security.scope
 import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole
 import jakarta.ws.rs.*
@@ -13,53 +13,53 @@ import jakarta.ws.rs.core.SecurityContext
 import jakarta.ws.rs.core.Response
 import java.time.LocalDateTime
 
-@Path("api/temperatures")
+@Path("api/v2/temperatures")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class TemperatureResource {
 
     private val service = BusinessFactory.getTemperatureService()
-    private val accesService = BusinessFactory.getAccesService()
+    private val accessService = BusinessFactory.getAccessService()
 
     @Context
     private lateinit var security: SecurityContext
 
-    // Temperatures of the salles / boxes the user may see only (all of them for unlimited users).
-    private val acces by lazy { security.perimetre }
+    // Temperatures of the rooms / devices the user may see only (all of them for unlimited users).
+    private val access by lazy { security.scope }
 
-    private fun autorisees(liste: List<Temperature>): List<Temperature> = accesService.filtrerTemperatures(acces, liste)
+    private fun allowed(list: List<Temperature>): List<Temperature> = accessService.filterTemperatures(access, list)
 
     @GET
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
+    @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
     fun getAll(): List<Temperature> {
-        return autorisees(service.getAll())
+        return allowed(service.getAll())
     }
 
     @GET
     @Path("/{id}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
+    @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
     fun getById(@PathParam("id") id: Long): Temperature? {
-        return service.getById(id)?.let { autorisees(listOf(it)).firstOrNull() }
+        return service.getById(id)?.let { allowed(listOf(it)).firstOrNull() }
     }
 
     @GET
     @Path("/type/{type}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
+    @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
     fun getByType(@PathParam("type") type: String): List<Temperature>? {
         val sample = resolveSample(type) ?: return null
-        return service.getByType(sample)?.let { autorisees(it) }
+        return service.getByType(sample)?.let { allowed(it) }
     }
 
     @GET
     @Path("/average/{type}")
-    @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE", "VIEWER"])
+    @RequiresAuth(roles = ["ADMIN", "MANAGER", "VIEWER"])
     fun getAverage(@PathParam("type") type: String): Temperature? {
         val sample = resolveSample(type) ?: return null
-        if (acces.tout) return service.getAverage(sample)
+        if (access.all) return service.getAverage(sample)
         // Limited user: the average over their temperatures only.
-        val valeurs = autorisees(service.getByType(sample).orEmpty()).mapNotNull { it.value }
-        if (valeurs.isEmpty()) return null
-        return sample.apply { value = valeurs.average().toFloat() }
+        val values = allowed(service.getByType(sample).orEmpty()).mapNotNull { it.value }
+        if (values.isEmpty()) return null
+        return sample.apply { value = values.average().toFloat() }
     }
 
     @POST
@@ -79,8 +79,8 @@ class TemperatureResource {
     }
 
     /**
-     * Adds a measure ("mesurer") or a consigne ("consigne"): {"value": 21.5, "date": …}. The plain
-     * POST above can't say which one it is.
+     * Adds a measurement ("measurement") or a setpoint ("setpoint"): {"value": 21.5, "date": …}.
+     * The plain POST above can't say which one it is.
      */
     @POST
     @Path("/type/{type}")
@@ -100,16 +100,16 @@ class TemperatureResource {
     @Path("/{id}")
     @RequiresRole("ADMIN")
     fun updateById(@PathParam("id") id: Long, temperature: Temperature) {
-        // Changes the stored row, so a consigne stays a consigne and a measure a measure.
-        val existante = service.getById(id)
-        if (existante == null) {
+        // Changes the stored row, so a setpoint stays a setpoint and a measurement a measurement.
+        val existing = service.getById(id)
+        if (existing == null) {
             temperature.id = id
             service.update(temperature)
             return
         }
-        temperature.value?.let { existante.value = it }
-        temperature.date?.let { existante.date = it }
-        service.update(existante)
+        temperature.value?.let { existing.value = it }
+        temperature.date?.let { existing.date = it }
+        service.update(existing)
     }
 
     @DELETE
@@ -124,8 +124,8 @@ class TemperatureResource {
 
     private fun resolveSample(type: String): Temperature? {
         return when (type.lowercase()) {
-            "consigne" -> ax.ibr.thermobox.common.entities.Consigne(0f, LocalDateTime.now())
-            "mesurer" -> ax.ibr.thermobox.common.entities.Mesurer(0f, LocalDateTime.now())
+            "setpoint" -> ax.ibr.thermobox.common.entities.Setpoint(0f, LocalDateTime.now())
+            "measurement" -> ax.ibr.thermobox.common.entities.Measurement(0f, LocalDateTime.now())
             else -> null
         }
     }

@@ -1,4 +1,4 @@
-# Secrets : ne jamais les envoyer dans le contexte de build
+# Secrets: never send them in the build context
 .env
 .env.*
 !.env.example
@@ -11,7 +11,7 @@
 .vscode
 **/.DS_Store
 
-# Artefacts générés (le build Docker les recrée)
+# Generated artifacts (the Docker build creates them again)
 **/target
 deploy
 **/*.class

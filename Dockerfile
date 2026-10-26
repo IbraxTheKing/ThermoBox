@@ -5,13 +5,13 @@ WORKDIR /workspace
 
 COPY . /workspace
 
-# Construire les artefacts de déploiement du projet (RestServer.jar + base.jar)
+# Build the deployment artifacts of the project (RestServer.jar + base.jar)
 RUN mvn -B -Pdeploy -DskipTests clean package
 
 FROM eclipse-temurin:23-jre-jammy
 WORKDIR /app
 
-# Copie des artefacts de production
+# Copy of the production artifacts
 COPY --from=build /workspace/deploy/RestServer.jar /app/RestServer.jar
 COPY --from=build /workspace/deploy/base.jar /app/base.jar
 

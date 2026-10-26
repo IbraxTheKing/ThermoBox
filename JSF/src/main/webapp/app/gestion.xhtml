@@ -67,7 +67,7 @@
                 <ui:repeat value="#{gestionBean.types}" var="k">
                     <p:commandLink action="#{gestionBean.filtrerType(k)}" process="@this" update=":gestForm:table :gestForm:filtres"
                                    styleClass="tb-summary-chip #{gestionBean.type eq k ? 'tb-chip-on' : ''}">
-                        <i class="pi pi-check tb-chip-check"/>#{k.label}<span class="tb-chip-n">#{gestionBean.nombre(k)}</span>
+                        <i class="pi pi-check tb-chip-check"/>#{libelles.kind(k)}<span class="tb-chip-n">#{gestionBean.nombre(k)}</span>
                     </p:commandLink>
                 </ui:repeat>
                 <p:commandLink process="@this" update="table filtres"
@@ -126,7 +126,7 @@
                                 <strong>#{l.salle.name}</strong>
                             </h:link>
                             <span class="tb-muted">
-                                #{l.kind.label}
+                                #{libelles.kind(l.kind)}
                                 <h:outputText value=" · #{l.chemin}" rendered="#{not empty l.chemin}"/>
                             </span>
                             <p:tag value="Non rattaché" severity="warning" rendered="#{not l.rattache}"/>
@@ -243,7 +243,7 @@
                     <p:outputLabel for="accesGroupes" value="Groupes"/>
                     <p:selectCheckboxMenu id="accesGroupes" value="#{gestionBean.accesGroupes}" multiple="true"
                                           emptyLabel="Aucun" updateLabel="true" styleClass="tb-full">
-                        <f:selectItems value="#{gestionBean.groupesExistants}" var="g" itemLabel="#{g.nom}" itemValue="#{g.id}"/>
+                        <f:selectItems value="#{gestionBean.groupesExistants}" var="g" itemLabel="#{g.name}" itemValue="#{g.id}"/>
                     </p:selectCheckboxMenu>
                 </div>
                 <div class="tb-actions">
@@ -284,7 +284,7 @@
                     <p:outputLabel for="groupeCible" value="Groupe"/>
                     <p:selectOneMenu id="groupeCible" value="#{droitsBean.groupeCibleId}" required="true" requiredMessage="Choisis un groupe" styleClass="tb-full">
                         <f:selectItem itemLabel="Choisir…" itemValue="#{null}" noSelectionOption="true"/>
-                        <f:selectItems value="#{droitsBean.groupes}" var="g" itemLabel="#{g.groupe.nom}" itemValue="#{g.id}"/>
+                        <f:selectItems value="#{droitsBean.groupes}" var="g" itemLabel="#{g.groupe.name}" itemValue="#{g.id}"/>
                     </p:selectOneMenu>
                     <p:message for="groupeCible"/>
                 </div>
@@ -346,7 +346,7 @@
                 <div class="tb-field">
                     <p:outputLabel for="kind" value="Type"/>
                     <p:selectOneMenu id="kind" value="#{gestionBean.formKind}" disabled="#{gestionBean.editionId ne null}">
-                        <f:selectItems value="#{gestionBean.types}" var="k" itemLabel="#{k.label}" itemValue="#{k}"/>
+                        <f:selectItems value="#{gestionBean.types}" var="k" itemLabel="#{libelles.kind(k)}" itemValue="#{k}"/>
                         <p:ajax update="parent"/>
                     </p:selectOneMenu>
                 </div>

@@ -1,9 +1,11 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Boitier
-import ax.ibr.thermobox.common.entities.Groupe
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleKind
+import ax.ibr.thermobox.jsf.util.Libelles
+
+import ax.ibr.thermobox.common.entities.Device
+import ax.ibr.thermobox.common.entities.UserGroup
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.common.entities.kind
@@ -51,7 +53,7 @@ class DroitsBean : Serializable {
     }
 
     /** A group as shown in its card. */
-    data class LigneGroupe(val groupe: Groupe, val membres: List<String>, val elements: List<String>) : Serializable {
+    data class LigneGroupe(val groupe: UserGroup, val membres: List<String>, val elements: List<String>) : Serializable {
         val id: Long get() = groupe.id!!
     }
 
@@ -72,8 +74,8 @@ class DroitsBean : Serializable {
     var formDescription: String = ""
     var formMembres: List<Long> = emptyList()
     @Transient
-    var formArbre: TreeNode<Salle> = DefaultTreeNode()
-    var formSelection: Array<TreeNode<Salle>>? = null
+    var formArbre: TreeNode<Room> = DefaultTreeNode()
+    var formSelection: Array<TreeNode<Room>>? = null
 
     private var chargee = false
 
@@ -94,14 +96,14 @@ class DroitsBean : Serializable {
         users = Services.users.getAll().sortedBy { it.username?.lowercase() }.map { u ->
             LigneUser(
                 user = u,
-                illimite = u.type == UserType.ADMIN || !Services.acces.estRestreint(u),
-                elements = Services.acces.getAutorisations(u).size,
-                groupes = Services.groupes.getGroupesDe(u).map { it.nom },
+                illimite = u.type == UserType.ADMIN || !Services.acces.isRestricted(u),
+                elements = Services.acces.getGrants(u).size,
+                groupes = Services.groupes.getGroupsOf(u).map { it.name },
             )
         }
         groupes = Services.groupes.getAll().map { g ->
             val d = Services.groupes.detail(g)
-            LigneGroupe(g, d.membres.mapNotNull { it.username }, d.elements.mapNotNull { it.name })
+            LigneGroupe(g, d.members.mapNotNull { it.username }, d.elements.mapNotNull { it.name })
         }
         val ids = users.map { it.id }.toSet()
         selection = users.filter { l -> selection.any { it.id == l.id } && l.id in ids }
@@ -159,7 +161,7 @@ class DroitsBean : Serializable {
         var n = 0
         selection.filter { it.user.type != UserType.ADMIN }.forEach { l ->
             val u = Services.users.getById(l.id) ?: return@forEach
-            Services.acces.definir(u, !tout, if (tout) emptyList() else Services.acces.getAutorisations(u))
+            Services.acces.define(u, !tout, if (tout) emptyList() else Services.acces.getGrants(u))
             n++
         }
         Faces.info(if (tout) "$n utilisateur(s) voient tout ThermoBox" else "$n utilisateur(s) limités à leurs accès et groupes")
@@ -174,8 +176,8 @@ class DroitsBean : Serializable {
         if (!login.require(login.isAdmin)) return
         val g = groupeCibleId?.let { Services.groupes.getById(it) } ?: run { Faces.warn("Choisis un groupe"); return }
         val us = selection.map { it.user }
-        if (ajouter) Services.groupes.ajouterMembres(g, us) else Services.groupes.retirerMembres(g, us)
-        Faces.info(if (ajouter) "${us.size} utilisateur(s) ajouté(s) à « ${g.nom} »" else "${us.size} utilisateur(s) retiré(s) de « ${g.nom} »")
+        if (ajouter) Services.groupes.addMembers(g, us) else Services.groupes.removeMembers(g, us)
+        Faces.info(if (ajouter) "${us.size} utilisateur(s) ajouté(s) à « ${g.name} »" else "${us.size} utilisateur(s) retiré(s) de « ${g.name} »")
         charger()
     }
 
@@ -193,9 +195,9 @@ class DroitsBean : Serializable {
         val g = Services.groupes.getById(l.id) ?: return
         val d = Services.groupes.detail(g)
         editionId = g.id
-        formNom = g.nom
+        formNom = g.name
         formDescription = g.description.orEmpty()
-        formMembres = d.membres.mapNotNull { it.id }
+        formMembres = d.members.mapNotNull { it.id }
         construireArbre(d.elements.mapNotNull { it.id }.toSet())
     }
 
@@ -205,8 +207,8 @@ class DroitsBean : Serializable {
         val elements = retenir(formArbre, coches)
         val membres = formMembres.mapNotNull { Services.users.getById(it) }
         try {
-            val g = Services.groupes.enregistrer(editionId?.let { Services.groupes.getById(it) }, formNom, formDescription, membres, elements)
-            Faces.info("Groupe « ${g.nom} » enregistré", "${membres.size} membre(s), ${elements.size} élément(s) et leur contenu")
+            val g = Services.groupes.save(editionId?.let { Services.groupes.getById(it) }, formNom, formDescription, membres, elements)
+            Faces.info("Groupe « ${g.name} » enregistré", "${membres.size} membre(s), ${elements.size} élément(s) et leur contenu")
             PrimeFaces.current().ajax().addCallbackParam("saved", true)
             charger()
         } catch (e: IllegalArgumentException) {
@@ -216,33 +218,33 @@ class DroitsBean : Serializable {
 
     fun supprimerGroupe(l: LigneGroupe) {
         if (!login.require(login.isAdmin)) return
-        Services.groupes.getById(l.id)?.let { Services.groupes.supprimer(it) }
-        Faces.info("Groupe « ${l.groupe.nom} » supprimé", "Ses membres gardent leurs propres accès.")
+        Services.groupes.getById(l.id)?.let { Services.groupes.deleteGroup(it) }
+        Faces.info("Groupe « ${l.groupe.name} » supprimé", "Ses membres gardent leurs propres accès.")
         charger()
     }
 
     /** Bâtiments → étages → salles, ticked where the group gives access (no boxes: they follow their salle). */
     private fun construireArbre(accordes: Set<Long>) {
-        val racine = DefaultTreeNode<Salle>()
-        Services.hierarchie.getRacines().filter { it !is Boitier }.forEach { ajouter(it, racine, accordes, false) }
+        val racine = DefaultTreeNode<Room>()
+        Services.hierarchie.getRoots().filter { it !is Device }.forEach { ajouter(it, racine, accordes, false) }
         formArbre = racine
         formSelection = null
     }
 
-    private fun ajouter(salle: Salle, parent: TreeNode<Salle>, accordes: Set<Long>, herite: Boolean) {
+    private fun ajouter(salle: Room, parent: TreeNode<Room>, accordes: Set<Long>, herite: Boolean) {
         val noeud = DefaultTreeNode(salle, parent)
         val coche = herite || salle.id in accordes
         noeud.isSelected = coche
-        noeud.isExpanded = salle.kind != SalleKind.SALLE
-        Services.hierarchie.getChildren(salle).filter { it !is Boitier }.forEach { ajouter(it, noeud, accordes, coche) }
+        noeud.isExpanded = salle.kind != RoomKind.ROOM
+        Services.hierarchie.getChildren(salle).filter { it !is Device }.forEach { ajouter(it, noeud, accordes, coche) }
     }
 
     // Same rule as the Accès dialog: an element counts with all it contains only when fully ticked
-    private fun retenir(noeud: TreeNode<Salle>, coches: Set<Long>): List<Salle> =
-        noeud.children.flatMap { enfant -> if (complet(enfant, coches)) listOf(enfant.data) else retenir(enfant, coches) }
+    private fun retenir(noeud: TreeNode<Room>, coches: Set<Long>): List<Room> =
+        noeud.children.flatMap { child -> if (complet(child, coches)) listOf(child.data) else retenir(child, coches) }
 
-    private fun complet(noeud: TreeNode<Salle>, coches: Set<Long>): Boolean =
+    private fun complet(noeud: TreeNode<Room>, coches: Set<Long>): Boolean =
         noeud.data?.id in coches && noeud.children.all { complet(it, coches) }
 
-    fun libelleType(salle: Salle): String = salle.kind.label
+    fun libelleType(salle: Room): String = Libelles.kind(salle.kind)
 }

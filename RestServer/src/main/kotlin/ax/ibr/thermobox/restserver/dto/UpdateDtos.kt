@@ -1,15 +1,15 @@
 package ax.ibr.thermobox.restserver.dto
 
-import ax.ibr.thermobox.common.update.Controle
-import ax.ibr.thermobox.common.update.Etape
-import ax.ibr.thermobox.common.update.EtatMisesAJour
+import ax.ibr.thermobox.common.update.Check
+import ax.ibr.thermobox.common.update.Step
+import ax.ibr.thermobox.common.update.UpdateStatus
 import ax.ibr.thermobox.common.update.Installation
 import ax.ibr.thermobox.common.update.Preparation
-import ax.ibr.thermobox.common.update.TypeMiseAJour
-import ax.ibr.thermobox.common.update.VersionDisponible
+import ax.ibr.thermobox.common.update.UpdateType
+import ax.ibr.thermobox.common.update.AvailableVersion
 
 /**
- * JSON of /api/updates. Enums as names (CORRECTIVE / FONCTIONNELLE…), dates as ISO-8601 strings.
+ * JSON of /api/v2/updates. Enums as names (PATCH / FEATURE…), dates as ISO-8601 strings.
  * Third-party applications use [UpdateStatusDto.updateAvailable], [UpdateStatusDto.latestPatch]
  * and [UpdateStatusDto.latestFeature] to notify their users.
  */
@@ -34,19 +34,19 @@ data class UpdateStatusDto(
     val installation: InstallationDto?,
 ) {
     companion object {
-        fun from(e: EtatMisesAJour, admin: Boolean) = UpdateStatusDto(
-            component = e.composant?.name,
-            installedVersion = e.installee?.tag,
-            channel = e.canal.name,
-            dailyCheck = e.verificationAutomatique,
-            lastCheck = e.derniereVerification?.toString(),
-            error = e.erreur.takeIf { admin },
-            updateAvailable = e.miseAJourDisponible,
-            latestPatch = e.corrective?.let { AvailableVersionDto.from(it) },
-            latestFeature = e.fonctionnelle?.let { AvailableVersionDto.from(it) },
-            available = e.disponibles.map { AvailableVersionDto.from(it) },
-            olderVersions = e.anterieures.map { AvailableVersionDto.from(it) },
-            automaticInstall = e.mode.automatique.takeIf { admin },
+        fun from(e: UpdateStatus, admin: Boolean) = UpdateStatusDto(
+            component = e.component?.name,
+            installedVersion = e.installed?.tag,
+            channel = e.channel.name,
+            dailyCheck = e.automaticCheck,
+            lastCheck = e.lastCheck?.toString(),
+            error = e.error.takeIf { admin },
+            updateAvailable = e.updateAvailable,
+            latestPatch = e.latestPatch?.let { AvailableVersionDto.from(it) },
+            latestFeature = e.latestFeature?.let { AvailableVersionDto.from(it) },
+            available = e.available.map { AvailableVersionDto.from(it) },
+            olderVersions = e.olderVersions.map { AvailableVersionDto.from(it) },
+            automaticInstall = e.mode.automatic.takeIf { admin },
             installMode = e.mode.detail.takeIf { admin },
             installation = e.installation?.takeIf { admin }?.let { InstallationDto.from(it) },
         )
@@ -55,7 +55,7 @@ data class UpdateStatusDto(
 
 data class AvailableVersionDto(
     val version: String,
-    /** CORRECTIVE (same monthly series) or FONCTIONNELLE (new series, may be incompatible). */
+    /** PATCH (same monthly series) or FEATURE (new series, may be incompatible). */
     val type: String,
     val typeLabel: String,
     /** Corrective: bug and security fixes only, the database is untouched; installing is recommended. */
@@ -74,11 +74,11 @@ data class AvailableVersionDto(
     val incompatible: Boolean,
 ) {
     companion object {
-        fun from(v: VersionDisponible) = AvailableVersionDto(
+        fun from(v: AvailableVersion) = AvailableVersionDto(
             version = v.version.tag, type = v.type.name, typeLabel = v.type.label,
-            recommended = v.type == TypeMiseAJour.CORRECTIVE && !v.incompatible && !v.anterieure, prerelease = v.version.estPrerelease,
-            channel = v.version.canal, older = v.anterieure,
-            title = v.titre, publishedAt = v.publieeLe?.toString(), url = v.page, notes = v.notes,
+            recommended = v.type == UpdateType.PATCH && !v.incompatible && !v.older, prerelease = v.version.isPrerelease,
+            channel = v.version.channel, older = v.older,
+            title = v.title, publishedAt = v.publishedAt?.toString(), url = v.page, notes = v.notes,
             migration = v.migration, incompatible = v.incompatible,
         )
     }
@@ -86,7 +86,7 @@ data class AvailableVersionDto(
 
 data class CheckDto(val level: String, val title: String, val detail: String) {
     companion object {
-        fun from(c: Controle) = CheckDto(c.niveau.name, c.titre, c.detail)
+        fun from(c: Check) = CheckDto(c.level.name, c.title, c.detail)
     }
 }
 
@@ -104,8 +104,8 @@ data class PreparationDto(
 ) {
     companion object {
         fun from(p: Preparation) = PreparationDto(
-            AvailableVersionDto.from(p.version), p.installee?.tag, p.installable, p.controles.map { CheckDto.from(it) },
-            p.sauvegardeObligatoire, p.retourSimple, p.confirmationRequise,
+            AvailableVersionDto.from(p.version), p.installed?.tag, p.installable, p.checks.map { CheckDto.from(it) },
+            p.backupRequired, p.simpleRollback, p.confirmationRequired,
         )
     }
 }
@@ -117,7 +117,7 @@ class InstallRequest {
 
 data class StepDto(val title: String, val state: String, val detail: String) {
     companion object {
-        fun from(e: Etape) = StepDto(e.titre, e.etat.name, e.detail)
+        fun from(e: Step) = StepDto(e.title, e.state.name, e.detail)
     }
 }
 
@@ -129,7 +129,7 @@ data class InstallationDto(
     val component: String,
     val user: String,
     val startedAt: String,
-    /** EN_COURS, REDEMARRAGE, TERMINEE or ECHEC. */
+    /** RUNNING, RESTARTING, DONE or FAILED. */
     val state: String,
     val message: String,
     val backupFile: String?,
@@ -138,8 +138,8 @@ data class InstallationDto(
 ) {
     companion object {
         fun from(i: Installation) = InstallationDto(
-            i.id, i.cible, i.depuis, i.type.name, i.composant.name, i.utilisateur, i.demarreeLe.toString(), i.etat.name,
-            i.message, i.sauvegarde, i.termineeLe?.toString(), i.etapes.map { StepDto.from(it) },
+            i.id, i.target, i.from, i.type.name, i.component.name, i.user, i.startedAt.toString(), i.state.name,
+            i.message, i.backup, i.finishedAt?.toString(), i.steps.map { StepDto.from(it) },
         )
     }
 }

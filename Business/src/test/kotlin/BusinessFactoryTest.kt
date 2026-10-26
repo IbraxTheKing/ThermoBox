@@ -14,34 +14,34 @@ class BusinessFactoryTest {
 
     @BeforeEach
     fun setUp() {
-        // PersistenceFactory est un object : on le mocke pour tester BusinessFactory sans base réelle.
+        // PersistenceFactory is an object: it is mocked to test BusinessFactory without a real database.
         mockkObject(PersistenceFactory)
         every { PersistenceFactory.getUserDataService() } returns mockk(relaxed = true)
-        every { PersistenceFactory.getSalleDataService() } returns mockk(relaxed = true)
+        every { PersistenceFactory.getRoomDataService() } returns mockk(relaxed = true)
         every { PersistenceFactory.getTemperatureDataService() } returns mockk(relaxed = true)
-        every { PersistenceFactory.getSalleTempAttrDataService() } returns mockk(relaxed = true)
+        every { PersistenceFactory.getRoomTempAttrDataService() } returns mockk(relaxed = true)
     }
 
     @AfterEach
     fun tearDown() = unmockkObject(PersistenceFactory)
 
     @Test
-    fun `getUserService renvoie toujours la meme instance`() {
+    fun `getUserService always returns the same instance`() {
         assertSame(BusinessFactory.getUserService(), BusinessFactory.getUserService())
     }
 
     @Test
-    fun `getSalleService renvoie toujours la meme instance`() {
-        assertSame(BusinessFactory.getSalleService(), BusinessFactory.getSalleService())
+    fun `getRoomService always returns the same instance`() {
+        assertSame(BusinessFactory.getRoomService(), BusinessFactory.getRoomService())
     }
 
     @Test
-    fun `getTemperatureService renvoie toujours la meme instance`() {
+    fun `getTemperatureService always returns the same instance`() {
         assertSame(BusinessFactory.getTemperatureService(), BusinessFactory.getTemperatureService())
     }
 
     @Test
-    fun `getSalleTempAttrService renvoie toujours la meme instance`() {
-        assertSame(BusinessFactory.getSalleTempAttrService(), BusinessFactory.getSalleTempAttrService())
+    fun `getRoomTempAttrService always returns the same instance`() {
+        assertSame(BusinessFactory.getRoomTempAttrService(), BusinessFactory.getRoomTempAttrService())
     }
 }

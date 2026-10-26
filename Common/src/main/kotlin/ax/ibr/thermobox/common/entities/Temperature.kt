@@ -9,7 +9,7 @@ import jakarta.persistence.Table
 import java.time.LocalDateTime
 
 
-// Open because Consigne and Mesurer extend it.
+// Open because Setpoint and Measurement extend it.
 @Entity
 @Table(name = "temperature")
 open class Temperature {

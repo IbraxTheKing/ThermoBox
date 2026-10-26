@@ -1,12 +1,12 @@
 #!/bin/sh
-# Lance le serveur REST hors Docker, en le relançant quand il s'arrête pour une mise à jour
-# installée depuis l'interface (code 75). À utiliser à la place de « java -jar RestServer.jar »,
-# par exemple dans un service systemd :
+# Runs the REST server outside Docker, and starts it again when it stops for an update installed
+# from the interface (exit code 75). Use it instead of "java -jar RestServer.jar", for example in a
+# systemd service:
 #
 #   ExecStart=/opt/thermobox/scripts/thermobox-rest.sh /opt/thermobox/deploy
 #
-# Utilisation : thermobox-rest.sh [dossier contenant RestServer.jar et base.jar]  (défaut : ./deploy)
-# Les variables THERMOBOX_* (base, JWT, THERMOBOX_DATA_DIR…) sont lues dans l'environnement.
+# Usage: thermobox-rest.sh [folder holding RestServer.jar and base.jar]  (default: ./deploy)
+# The THERMOBOX_* variables (database, JWT, THERMOBOX_DATA_DIR…) are read from the environment.
 
 DEPLOY="${1:-deploy}"
 DATA="${THERMOBOX_DATA_DIR:-$HOME/.thermobox}"
@@ -21,7 +21,7 @@ while true; do
     v="$(cat "$DATA/updates/current" 2>/dev/null || true)"
     if [ -n "$v" ] && [ -f "$DATA/updates/$v/RestServer.jar" ] && [ -f "$DATA/updates/$v/base.jar" ]; then
         JAR="$DATA/updates/$v/RestServer.jar"
-        echo "ThermoBox : version $v, installée depuis l'interface ($JAR)"
+        echo "ThermoBox: version $v, installed from the interface ($JAR)"
     fi
     # shellcheck disable=SC2086
     java ${JAVA_OPTS:-} -jar "$JAR" &
@@ -30,5 +30,5 @@ while true; do
     code=$?
     pid=""
     [ "$code" -eq 75 ] || exit "$code"
-    echo "ThermoBox : redémarrage pour la mise à jour"
+    echo "ThermoBox: restarting for the update"
 done

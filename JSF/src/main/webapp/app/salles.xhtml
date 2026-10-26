@@ -17,7 +17,7 @@
                 <p:linkButton value="Gérer en tableau" icon="pi pi-table" outcome="/app/gestion"
                               rendered="#{loginBean.gestionnaire}" styleClass="tb-tonal tb-hide-sm"/>
                 <p:commandButton value="Nouveau bâtiment" icon="pi pi-plus" rendered="#{loginBean.admin}"
-                                 action="#{salleBean.create('BATIMENT', null)}" process="@this"
+                                 action="#{salleBean.create('BUILDING', null)}" process="@this"
                                  update=":salleDlgForm" oncomplete="PF('salleDlg').show()" styleClass="tb-btn-lg tb-fab"/>
             </header>
 
@@ -56,7 +56,7 @@
                     <div class="tb-drill-head-text">
                         <strong>#{salleBean.dossier.salle.name}</strong>
                         <span class="tb-muted">
-                            #{salleBean.dossier.kind.label}
+                            #{libelles.kind(salleBean.dossier.kind)}
                             <h:outputText value=" · " rendered="#{salleBean.dossier.temperature ne null}"/>
                             <h:outputText value="#{unite.t(salleBean.dossier.temperature)}" rendered="#{salleBean.dossier.temperature ne null}"/>
                             <h:outputText value=" #{unite.symbole}" rendered="#{salleBean.dossier.temperature ne null}"/>
@@ -113,7 +113,7 @@
                         <span class="tb-node-main">
                             <i class="pi #{n.icon} tb-tree-icon"/>
                             <span class="tb-node-name">#{n.salle.name}</span>
-                            <span class="tb-muted">#{n.kind.label}</span>
+                            <span class="tb-muted">#{libelles.kind(n.kind)}</span>
                             <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
                         </span>
 
@@ -122,7 +122,7 @@
                             <h:outputText value=" #{unite.symbole}" rendered="#{n.temperature ne null}"/>
                             <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
                             <h:outputText styleClass="tb-muted" value="#{n.boitiers} boîtier(s)"
-                                          rendered="#{loginBean.canSeeBoitiers and n.kind ne 'BOITIER' and n.boitiers gt 0}"/>
+                                          rendered="#{loginBean.canSeeBoitiers and n.kind ne 'DEVICE' and n.boitiers gt 0}"/>
                         </span>
 
                         <span class="tb-node-actions">
@@ -141,7 +141,7 @@
                                              update=":salleDlgForm" oncomplete="PF('salleDlg').show()"
                                              styleClass="ui-button-flat"/>
                             <p:commandButton icon="pi pi-link" title="Détacher"
-                                             rendered="#{loginBean.admin and n.rattache and n.kind ne 'BATIMENT'}"
+                                             rendered="#{loginBean.admin and n.rattache and n.kind ne 'BUILDING'}"
                                              action="#{salleBean.detacher(n.salle)}" process="@this"
                                              update=":sallesForm:arbre :sallesForm:drill" styleClass="ui-button-flat"/>
                             <p:commandButton icon="pi pi-trash" title="Supprimer" rendered="#{loginBean.admin}"
@@ -216,7 +216,7 @@
                         <div>
                             <strong>#{salleBean.selection.salle.name}</strong>
                             <span class="tb-muted">
-                                #{salleBean.selection.kind.label}
+                                #{libelles.kind(salleBean.selection.kind)}
                                 <h:outputText value=" · " rendered="#{salleBean.selection.temperature ne null}"/>
                                 <h:outputText value="#{unite.t(salleBean.selection.temperature)}" rendered="#{salleBean.selection.temperature ne null}"/>
                                 <h:outputText value=" #{unite.symbole}" rendered="#{salleBean.selection.temperature ne null}"/>
@@ -239,7 +239,7 @@
                                        oncomplete="PF('actionsDlg').hide(); PF('salleDlg').show()">
                             <i class="pi pi-pencil"/>Modifier ou déplacer
                         </p:commandLink>
-                        <p:commandLink rendered="#{salleBean.selection.rattache and salleBean.selection.kind ne 'BATIMENT'}"
+                        <p:commandLink rendered="#{salleBean.selection.rattache and salleBean.selection.kind ne 'BUILDING'}"
                                        styleClass="tb-sheet-item" action="#{salleBean.detacher(salleBean.selection.salle)}"
                                        process="@this" update=":sallesForm:arbre :sallesForm:drill" oncomplete="PF('actionsDlg').hide()">
                             <i class="pi pi-link"/>Détacher
@@ -264,7 +264,7 @@
                     <p:outputLabel for="kind" value="Type"/>
                     <!-- The type of an existing element can't change (it decides where it fits). -->
                     <p:selectOneMenu id="kind" value="#{salleBean.formKind}" disabled="#{salleBean.editMode}">
-                        <f:selectItems value="#{salleBean.kinds}" var="k" itemLabel="#{k.label}" itemValue="#{k}"/>
+                        <f:selectItems value="#{salleBean.kinds}" var="k" itemLabel="#{libelles.kind(k)}" itemValue="#{k}"/>
                         <p:ajax listener="#{salleBean.refreshParents}" update="parentField"/>
                     </p:selectOneMenu>
                 </div>

@@ -7,11 +7,11 @@ import java.util.Properties
 object BuildInfo {
 
     /** Tag of the release, or "dev" for a build without -Dthermobox.version. */
-    val texte: String by lazy {
+    val text: String by lazy {
         val props = Properties()
         BuildInfo::class.java.getResourceAsStream("/thermobox-version.properties")?.use { props.load(it) }
         props.getProperty("version")?.trim()?.takeUnless { it.isEmpty() || it.startsWith("\${") } ?: "dev"
     }
 
-    val version: Version? by lazy { Version.parse(texte) }
+    val version: Version? by lazy { Version.parse(text) }
 }

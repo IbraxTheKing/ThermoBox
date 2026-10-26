@@ -1,9 +1,9 @@
 package ax.ibr.thermobox.business.mqtt
 
-import ax.ibr.thermobox.common.entities.Consigne
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.services.SalleService
-import ax.ibr.thermobox.common.services.SalleTempAttrService
+import ax.ibr.thermobox.common.entities.Setpoint
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.services.RoomService
+import ax.ibr.thermobox.common.services.RoomTempAttrService
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.utils.exceptions.NullException
 import io.mockk.*
@@ -18,27 +18,27 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * NOTE: les propriétés exactes de Salle/Temperature/Consigne (autres que
- * `id` / `value`, déjà visibles dans MqttDriver.kt) ne sont pas
- * connues ici -> les entités sont mockées plutôt que construites, et les
- * assertions portent sur les interactions plutôt que sur le contenu des
- * objets.
+ * NOTE: the exact properties of Room/Temperature/Setpoint (other than
+ * `id` / `value`, already visible in MqttDriver.kt) are not known
+ * here -> the entities are mocked rather than built, and the
+ * assertions check the interactions rather than the content of the
+ * objects.
  */
 /*
 class MqttSendReceiverTest {
 
-    private lateinit var salleService: SalleService
+    private lateinit var roomService: RoomService
     private lateinit var temperatureService: TemperatureService
-    private lateinit var salleTempAttrService: SalleTempAttrService
+    private lateinit var roomTempAttrService: RoomTempAttrService
     private lateinit var receiver: MqttSendReceiver
 
     private val subscribedListeners = mutableMapOf<String, IMqttMessageListener>()
 
     @BeforeEach
     fun setUp() {
-        salleService = mockk()
+        roomService = mockk()
         temperatureService = mockk()
-        salleTempAttrService = mockk()
+        roomTempAttrService = mockk()
         subscribedListeners.clear()
 
         mockkConstructor(MqttClient::class)
@@ -48,7 +48,7 @@ class MqttSendReceiverTest {
         }
         every { anyConstructed<MqttClient>().publish(any<String>(), any<MqttMessage>()) } just Runs
 
-        receiver = MqttSendReceiver(salleService, temperatureService, salleTempAttrService)
+        receiver = MqttSendReceiver(roomService, temperatureService, roomTempAttrService)
     }
 
     @AfterEach
@@ -59,131 +59,131 @@ class MqttSendReceiverTest {
     // --- listenToRooms ---
 
     @Test
-    fun `listenToRooms cree la salle si elle n'existe pas encore`() {
+    fun `listenToRooms creates the room if it does not exist yet`() {
         receiver.listenToRooms()
         val listener = subscribedListeners.values.single()
 
-        every { salleService.getByName("Salle101") } returns null
-        every { salleService.update(any()) } just Runs
+        every { roomService.getByName("Room101") } returns null
+        every { roomService.update(any()) } just Runs
 
-        listener.messageArrived("thermobox/salles", MqttMessage("Salle101".toByteArray()))
+        listener.messageArrived("thermobox/rooms", MqttMessage("Room101".toByteArray()))
 
-        verify(exactly = 1) { salleService.update(any()) }
+        verify(exactly = 1) { roomService.update(any()) }
     }
 
     @Test
-    fun `listenToRooms ne recree pas une salle deja existante`() {
+    fun `listenToRooms does not create an existing room again`() {
         receiver.listenToRooms()
         val listener = subscribedListeners.values.single()
 
-        every { salleService.getByName("Salle101") } returns mockk<Salle>()
+        every { roomService.getByName("Room101") } returns mockk<Room>()
 
-        listener.messageArrived("thermobox/salles", MqttMessage("Salle101".toByteArray()))
+        listener.messageArrived("thermobox/rooms", MqttMessage("Room101".toByteArray()))
 
-        verify(exactly = 0) { salleService.update(any()) }
+        verify(exactly = 0) { roomService.update(any()) }
     }
 
     @Test
-    fun `listenToRooms ignore un message vide`() {
+    fun `listenToRooms ignores an empty message`() {
         receiver.listenToRooms()
         val listener = subscribedListeners.values.single()
 
-        listener.messageArrived("thermobox/salles", MqttMessage("   ".toByteArray()))
+        listener.messageArrived("thermobox/rooms", MqttMessage("   ".toByteArray()))
 
-        verify(exactly = 0) { salleService.getByName(any()) }
-        verify(exactly = 0) { salleService.update(any()) }
+        verify(exactly = 0) { roomService.getByName(any()) }
+        verify(exactly = 0) { roomService.update(any()) }
     }
 
     // --- listenToTemperatures ---
 
     @Test
-    fun `listenToTemperatures met a jour temperature et salleTempAttr pour un message valide`() {
+    fun `listenToTemperatures updates temperature and roomTempAttr for a valid message`() {
         receiver.listenToTemperatures()
         val listener = subscribedListeners.values.single()
 
-        every { salleService.getById(42L) } returns mockk<Salle>()
+        every { roomService.getById(42L) } returns mockk<Room>()
         every { temperatureService.update(any()) } just Runs
-        every { salleTempAttrService.update(any()) } just Runs
+        every { roomTempAttrService.update(any()) } just Runs
 
         listener.messageArrived("thermobox/temperatures/42", MqttMessage("21.5".toByteArray()))
 
         verify(exactly = 1) { temperatureService.update(any()) }
-        verify(exactly = 1) { salleTempAttrService.update(any()) }
+        verify(exactly = 1) { roomTempAttrService.update(any()) }
     }
 
     @Test
-    fun `listenToTemperatures ignore un id de salle non numerique`() {
+    fun `listenToTemperatures ignores a non-numeric room id`() {
         receiver.listenToTemperatures()
         val listener = subscribedListeners.values.single()
 
         listener.messageArrived("thermobox/temperatures/abc", MqttMessage("21.5".toByteArray()))
 
-        verify(exactly = 0) { salleService.getById(any()) }
+        verify(exactly = 0) { roomService.getById(any()) }
         verify(exactly = 0) { temperatureService.update(any()) }
     }
 
     @Test
-    fun `listenToTemperatures ignore une valeur non numerique`() {
+    fun `listenToTemperatures ignores a non-numeric value`() {
         receiver.listenToTemperatures()
         val listener = subscribedListeners.values.single()
 
-        listener.messageArrived("thermobox/temperatures/42", MqttMessage("chaud".toByteArray()))
+        listener.messageArrived("thermobox/temperatures/42", MqttMessage("hot".toByteArray()))
 
         verify(exactly = 0) { temperatureService.update(any()) }
     }
 
     @Test
-    fun `listenToTemperatures ignore un message si la salle est introuvable`() {
+    fun `listenToTemperatures ignores a message when the room is not found`() {
         receiver.listenToTemperatures()
         val listener = subscribedListeners.values.single()
 
-        every { salleService.getById(42L) } returns null
+        every { roomService.getById(42L) } returns null
 
         listener.messageArrived("thermobox/temperatures/42", MqttMessage("21.5".toByteArray()))
 
         verify(exactly = 0) { temperatureService.update(any()) }
-        verify(exactly = 0) { salleTempAttrService.update(any()) }
+        verify(exactly = 0) { roomTempAttrService.update(any()) }
     }
 
-    // --- sendConsigne ---
+    // --- sendSetpoint ---
 
     @Test
-    fun `sendConsigne leve une NullException si la salle n'a pas d'id`() {
-        val salle = mockk<Salle>()
-        every { salle.id } returns null
-        val consigne = mockk<Consigne>()
+    fun `sendSetpoint throws a NullException when the room has no id`() {
+        val room = mockk<Room>()
+        every { room.id } returns null
+        val setpoint = mockk<Setpoint>()
 
         assertThrows(NullException::class.java) {
-            receiver.sendConsigne(salle, consigne)
+            receiver.sendSetpoint(room, setpoint)
         }
     }
 
     @Test
-    fun `sendConsigne ne publie rien si la consigne n'a pas de valeur`() {
-        val salle = mockk<Salle>()
-        every { salle.id } returns 7L
-        val consigne = mockk<Consigne>()
-        every { consigne.value } returns null
+    fun `sendSetpoint publishes nothing when the setpoint has no value`() {
+        val room = mockk<Room>()
+        every { room.id } returns 7L
+        val setpoint = mockk<Setpoint>()
+        every { setpoint.value } returns null
 
-        receiver.sendConsigne(salle, consigne)
+        receiver.sendSetpoint(room, setpoint)
 
         verify(exactly = 0) { anyConstructed<MqttClient>().publish(any(), any()) }
     }
 
     @Test
-    fun `sendConsigne publie sur le bon topic avec la valeur de la consigne`() {
-        val salle = mockk<Salle>()
-        every { salle.id } returns 7L
-        val consigne = mockk<Consigne>()
-        every { consigne.value } returns 21.5F
+    fun `sendSetpoint publishes on the right topic with the setpoint value`() {
+        val room = mockk<Room>()
+        every { room.id } returns 7L
+        val setpoint = mockk<Setpoint>()
+        every { setpoint.value } returns 21.5F
 
         val topicSlot = slot<String>()
         val messageSlot = slot<MqttMessage>()
         every { anyConstructed<MqttClient>().publish(capture(topicSlot), capture(messageSlot)) } just Runs
 
-        receiver.sendConsigne(salle, consigne)
+        receiver.sendSetpoint(room, setpoint)
 
-        assertEquals("thermobox/consignes/7", topicSlot.captured)
+        assertEquals("thermobox/setpoints/7", topicSlot.captured)
         assertEquals("21.5", String(messageSlot.captured.payload))
         assertEquals(1, messageSlot.captured.qos)
         assertEquals(true, messageSlot.captured.isRetained)

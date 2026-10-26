@@ -15,21 +15,21 @@
 
         <class>ax.ibr.thermobox.common.entities.User</class>
         <class>ax.ibr.thermobox.common.entities.Temperature</class>
-        <class>ax.ibr.thermobox.common.entities.Salle</class>
-        <class>ax.ibr.thermobox.common.entities.Batiment</class>
-        <class>ax.ibr.thermobox.common.entities.Etage</class>
-        <class>ax.ibr.thermobox.common.entities.Boitier</class>
-        <class>ax.ibr.thermobox.common.entities.SalleSalleAttr</class>
-        <class>ax.ibr.thermobox.common.entities.Favori</class>
-        <class>ax.ibr.thermobox.common.entities.SalleImage</class>
-        <class>ax.ibr.thermobox.common.entities.SalleTempAttr</class>
-        <class>ax.ibr.thermobox.common.entities.Consigne</class>
-        <class>ax.ibr.thermobox.common.entities.Mesurer</class>
-        <class>ax.ibr.thermobox.common.entities.Acces</class>
-        <class>ax.ibr.thermobox.common.entities.AccesRestreint</class>
-        <class>ax.ibr.thermobox.common.entities.Groupe</class>
-        <class>ax.ibr.thermobox.common.entities.GroupeMembre</class>
-        <class>ax.ibr.thermobox.common.entities.GroupeAcces</class>
+        <class>ax.ibr.thermobox.common.entities.Room</class>
+        <class>ax.ibr.thermobox.common.entities.Building</class>
+        <class>ax.ibr.thermobox.common.entities.Floor</class>
+        <class>ax.ibr.thermobox.common.entities.Device</class>
+        <class>ax.ibr.thermobox.common.entities.RoomRoomAttr</class>
+        <class>ax.ibr.thermobox.common.entities.Favorite</class>
+        <class>ax.ibr.thermobox.common.entities.RoomImage</class>
+        <class>ax.ibr.thermobox.common.entities.RoomTempAttr</class>
+        <class>ax.ibr.thermobox.common.entities.Setpoint</class>
+        <class>ax.ibr.thermobox.common.entities.Measurement</class>
+        <class>ax.ibr.thermobox.common.entities.Access</class>
+        <class>ax.ibr.thermobox.common.entities.RestrictedAccess</class>
+        <class>ax.ibr.thermobox.common.entities.UserGroup</class>
+        <class>ax.ibr.thermobox.common.entities.UserGroupMember</class>
+        <class>ax.ibr.thermobox.common.entities.UserGroupAccess</class>
 
         <properties>
 
@@ -38,7 +38,7 @@
 
             <!-- URL, user and password come from environment variables (see PersistenceFactory). -->
 
-            <!-- The schema belongs to the Flyway migrations (db/migration, see MigrationsBase). -->
+            <!-- The schema belongs to the Flyway migrations (db/migration, see DatabaseMigrations). -->
             <property name="jakarta.persistence.schema-generation.database.action"
                       value="none"/>
 

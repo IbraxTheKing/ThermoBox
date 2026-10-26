@@ -126,7 +126,7 @@
             <h:form id="accesDlgForm">
                 <h:panelGroup rendered="#{userBean.accesUser ne null}">
                     <p class="tb-muted tb-acces-intro">
-                        Ce que <strong>#{userBean.accesUser.username}</strong> (#{userBean.accesUser.type}) peut consulter#{userBean.accesUser.type eq 'GESTIONNAIRE' ? ' et piloter' : ''}.
+                        Ce que <strong>#{userBean.accesUser.username}</strong> (#{userBean.accesUser.type}) peut consulter#{userBean.accesUser.type eq 'MANAGER' ? ' et piloter' : ''}.
                     </p>
                     <p:selectOneRadio id="mode" value="#{userBean.accesRestreint}" layout="pageDirection" styleClass="tb-acces-mode">
                         <f:selectItem itemValue="#{false}" itemLabel="Tout ThermoBox"/>

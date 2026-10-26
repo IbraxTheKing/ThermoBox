@@ -4,8 +4,8 @@ package ax.ibr.thermobox.restserver.resources
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
-import ax.ibr.thermobox.restserver.dto.AccesDto
-import ax.ibr.thermobox.restserver.dto.AccesRequest
+import ax.ibr.thermobox.restserver.dto.AccessDto
+import ax.ibr.thermobox.restserver.dto.AccessRequest
 import ax.ibr.thermobox.restserver.dto.UserDto
 import ax.ibr.utils.exceptions.AlreadyExistsException
 import ax.ibr.utils.rest.PublicEndpoint
@@ -26,13 +26,13 @@ import jakarta.ws.rs.core.SecurityContext
 import javax.naming.InvalidNameException
 
 
-@Path("api/users")
+@Path("api/v2/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class UserResource {
     private val service = BusinessFactory.getUserService()
-    private val salleService = BusinessFactory.getSalleService()
-    private val acces = BusinessFactory.getAccesService()
+    private val roomService = BusinessFactory.getRoomService()
+    private val access = BusinessFactory.getAccessService()
 
     @GET
     @Path("/{id}")
@@ -136,30 +136,30 @@ class UserResource {
     }
 
     /**
-     * Accesses of a user: unlimited, or limited to some bâtiments / étages / salles and what
+     * Accesses of a user: unlimited, or limited to some buildings / floors / rooms and what
      * they contain. An ADMIN reads anyone's, a user their own.
      */
     @GET
-    @Path("/{id}/acces")
+    @Path("/{id}/access")
     @RequiresAuth(roles = ["ADMIN"], allowOwner = true)
-    fun getAcces(@PathParam("id") id: Long): Response {
+    fun getAccess(@PathParam("id") id: Long): Response {
         val user = service.getById(id) ?: return notFound()
-        return Response.ok(AccesDto.of(user)).build()
+        return Response.ok(AccessDto.of(user)).build()
     }
 
     /** Replaces the accesses of a user (ADMIN). An ADMIN account can't be limited. */
     @PUT
-    @Path("/{id}/acces")
+    @Path("/{id}/access")
     @RequiresRole("ADMIN")
-    fun setAcces(@PathParam("id") id: Long, demande: AccesRequest?): Response {
+    fun setAccess(@PathParam("id") id: Long, request: AccessRequest?): Response {
         val user = service.getById(id) ?: return notFound()
-        if (demande == null) return error(Response.Status.BAD_REQUEST, "Missing body")
-        val salles = demande.elements.map { sid ->
-            salleService.getById(sid) ?: return error(Response.Status.BAD_REQUEST, "Unknown element $sid")
+        if (request == null) return error(Response.Status.BAD_REQUEST, "Missing body")
+        val rooms = request.elements.map { sid ->
+            roomService.getById(sid) ?: return error(Response.Status.BAD_REQUEST, "Unknown element $sid")
         }
         return try {
-            acces.definir(user, demande.restricted, salles)
-            Response.ok(AccesDto.of(user)).build()
+            access.define(user, request.restricted, rooms)
+            Response.ok(AccessDto.of(user)).build()
         } catch (e: IllegalArgumentException) {
             error(Response.Status.BAD_REQUEST, e.message ?: "Invalid accesses")
         }

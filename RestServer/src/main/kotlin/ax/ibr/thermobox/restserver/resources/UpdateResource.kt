@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
-import ax.ibr.thermobox.common.update.OptionsInstallation
+import ax.ibr.thermobox.common.update.InstallOptions
 import ax.ibr.thermobox.restserver.dto.ErrorResponse
 import ax.ibr.thermobox.restserver.dto.InstallRequest
 import ax.ibr.thermobox.restserver.dto.InstallationDto
@@ -25,7 +25,7 @@ import jakarta.ws.rs.core.SecurityContext
  * Updates of this REST server. Reading is open to every authenticated user (a third-party
  * application can tell its users that a version is out); checking and installing are ADMIN only.
  */
-@Path("api/updates")
+@Path("api/v2/updates")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class UpdateResource {
@@ -40,50 +40,50 @@ class UpdateResource {
     /** Installed version, available versions (patch / feature), last check. */
     @GET
     @RequiresAuth
-    fun etat(): UpdateStatusDto = UpdateStatusDto.from(service.getEtat(), admin)
+    fun state(): UpdateStatusDto = UpdateStatusDto.from(service.getStatus(), admin)
 
     /** Checks GitHub now (also done once a day). */
     @POST
     @Path("check")
     @RequiresRole("ADMIN")
-    fun verifier(): UpdateStatusDto = UpdateStatusDto.from(service.verifier(), admin = true)
+    fun check(): UpdateStatusDto = UpdateStatusDto.from(service.check(), admin = true)
 
     /** Progress of the last installation; 204 if there has been none. */
     @GET
     @Path("installation")
     @RequiresRole("ADMIN")
     fun installation(): Response =
-        service.getEtat().installation?.let { Response.ok(InstallationDto.from(it)).build() } ?: Response.noContent().build()
+        service.getStatus().installation?.let { Response.ok(InstallationDto.from(it)).build() } ?: Response.noContent().build()
 
     /** Checks, risks and backup policy before installing [version]. */
     @GET
     @Path("{version}")
     @RequiresRole("ADMIN")
-    fun preparer(@PathParam("version") version: String): Response = try {
-        Response.ok(PreparationDto.from(service.preparer(version))).build()
+    fun prepare(@PathParam("version") version: String): Response = try {
+        Response.ok(PreparationDto.from(service.prepare(version))).build()
     } catch (e: IllegalArgumentException) {
-        erreur(Response.Status.NOT_FOUND, e)
+        error(Response.Status.NOT_FOUND, e)
     }
 
     /**
-     * Starts the installation (202): progress at GET /api/updates/installation. The server then
+     * Starts the installation (202): progress at GET /api/v2/updates/installation. The server then
      * restarts on the new version. A feature update needs "acceptRisks": true.
      */
     @POST
     @Path("{version}/install")
     @RequiresRole("ADMIN")
-    fun installer(@PathParam("version") version: String, demande: InstallRequest?): Response {
-        val options = OptionsInstallation(sauvegarderBase = demande?.backupDatabase ?: true, risquesAcceptes = demande?.acceptRisks ?: false)
+    fun install(@PathParam("version") version: String, request: InstallRequest?): Response {
+        val options = InstallOptions(backupDatabase = request?.backupDatabase ?: true, risksAccepted = request?.acceptRisks ?: false)
         return try {
-            val installation = service.installer(version, security.currentUser.username.orEmpty(), options)
+            val installation = service.install(version, security.currentUser.username.orEmpty(), options)
             Response.accepted(InstallationDto.from(installation)).build()
         } catch (e: IllegalArgumentException) {
-            erreur(Response.Status.BAD_REQUEST, e)
+            error(Response.Status.BAD_REQUEST, e)
         } catch (e: IllegalStateException) {
-            erreur(Response.Status.CONFLICT, e)
+            error(Response.Status.CONFLICT, e)
         }
     }
 
-    private fun erreur(status: Response.Status, e: Exception): Response =
+    private fun error(status: Response.Status, e: Exception): Response =
         Response.status(status).entity(ErrorResponse(status.statusCode, e.message ?: status.reasonPhrase)).build()
 }

@@ -10,17 +10,17 @@ class PersistenceFactoryTest {
     private val factory = PersistenceFactory
 
     @Test
-    fun `test getSalleDataService returns SalleDataServiceJPAImpl`() {
-        val service = factory.getSalleDataService()
+    fun `test getRoomDataService returns RoomDataServiceJPAImpl`() {
+        val service = factory.getRoomDataService()
         assertNotNull(service, "The SalleDataService should not be null")
-        assertTrue(service is SalleDataServiceJPAImpl, "Expected SalleDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
+        assertTrue(service is RoomDataServiceJPAImpl, "Expected SalleDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
     }
 
     @Test
-    fun `test getSalleTempAttrDataService returns SalleTempAttrDataServiceJPAImpl`() {
-        val service = factory.getSalleTempAttrDataService()
+    fun `test getRoomTempAttrDataService returns RoomTempAttrDataServiceJPAImpl`() {
+        val service = factory.getRoomTempAttrDataService()
         assertNotNull(service, "The SalleTempAttrDataService should not be null")
-        assertTrue(service is SalleTempAttrDataServiceJPAImpl, "Expected SalleTempAttrDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
+        assertTrue(service is RoomTempAttrDataServiceJPAImpl, "Expected SalleTempAttrDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
     }
 
     @Test

@@ -25,18 +25,18 @@ class TemperatureServiceImpl(
     override fun add(t: Temperature) {
         t.value?.let {
             if (isFahrenheit) {
-                // TODO: Faire la section de vérification des températures en Fahrenheit.
+                // TODO: check temperatures given in Fahrenheit too.
             }
             else {
                 if (it > 50f) {
                     if (it > 100f){
-                        throw ImpossibleValueException("La valeur est impossible OU la maison brule là (${it} °C)")
+                        throw ImpossibleValueException("Impossible value, or the house is on fire (${it} °C)")
                     }
-                    throw TooHotException("La valeur est beaucoup trop haute [${it} °C]")
+                    throw TooHotException("The value is far too high [${it} °C]")
                 }
 
                 if (it < -10f) {
-                    throw ImpossibleValueException("La valeur est impossible OU c'est l'age de glace (${it} °C)")
+                    throw ImpossibleValueException("Impossible value, or this is the ice age (${it} °C)")
                 }
             }
 

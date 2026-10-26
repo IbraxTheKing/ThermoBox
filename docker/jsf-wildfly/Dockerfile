@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1.7
 #
-# Interface JSF sur WildFly -> deploy/JsfClient.war adapté et déployé en ROOT.war (URL : /)
-# Contexte de build : racine du dépôt (voir docker-compose.yml)
+# JSF interface on WildFly -> deploy/JsfClient.war adapted and deployed as ROOT.war (URL: /)
+# Build context: root of the repository (see docker-compose.yml)
 #
-# Le bytecode du projet est en Java 23 : WildFly (livré en JDK 17 dans l'image officielle)
-# est donc copié sur une base Temurin 23 au lieu d'être utilisé tel quel.
-# Si WildFly refuse de démarrer sur Java 23, montez WILDFLY_IMAGE vers une version plus récente.
+# The bytecode of the project is Java 23: WildFly (shipped with JDK 17 in the official image) is
+# therefore copied onto a Temurin 23 base instead of being used as is.
+# If WildFly refuses to start on Java 23, move WILDFLY_IMAGE to a newer version.
 
 ARG JAVA_VERSION=23
 ARG WILDFLY_IMAGE=quay.io/wildfly/wildfly:36.0.1.Final-jdk21
 
 # ---------------------------------------------------------------------------
-# Étape de build (identique dans les 3 Dockerfiles, voir docker/rest/Dockerfile)
+# Build stage (the same in the 3 Dockerfiles, see docker/rest/Dockerfile)
 # ---------------------------------------------------------------------------
 FROM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 WORKDIR /workspace
@@ -31,17 +31,17 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -ntp -Pdeploy -DskipTests -Dthermobox.version=${THERMOBOX_VERSION} clean package
 
 # ---------------------------------------------------------------------------
-# Adaptation du WAR pour WildFly (voir prepare-war.sh pour le détail)
+# Adapting the WAR to WildFly (see prepare-war.sh for the details)
 # ---------------------------------------------------------------------------
 FROM build AS war
 COPY docker/jsf-wildfly/prepare-war.sh /tmp/prepare-war.sh
 RUN sh /tmp/prepare-war.sh /workspace/deploy/JsfClient.war /workspace/deploy/ROOT.war
 
-# Distribution WildFly (sert uniquement de source de fichiers)
+# WildFly distribution (only used as a source of files)
 FROM ${WILDFLY_IMAGE} AS wildfly-dist
 
 # ---------------------------------------------------------------------------
-# Image d'exécution : Temurin 23 + WildFly
+# Runtime image: Temurin 23 + WildFly
 # ---------------------------------------------------------------------------
 FROM eclipse-temurin:${JAVA_VERSION}-jre
 
@@ -57,18 +57,18 @@ COPY docker/jsf-wildfly/configure.cli /tmp/configure.cli
 
 USER jboss
 
-# Configuration du serveur au build (sans `|| true` : une erreur ici doit faire échouer le build)
+# Server configuration at build time (no `|| true`: an error here must fail the build)
 RUN ${JBOSS_HOME}/bin/jboss-cli.sh --file=/tmp/configure.cli \
  && rm -rf ${JBOSS_HOME}/standalone/configuration/standalone_xml_history
 
 COPY --from=war --chown=jboss:jboss /workspace/deploy/ROOT.war ${JBOSS_HOME}/standalone/deployments/ROOT.war
 
-# Si vous surchargez JAVA_OPTS, gardez ces options : WildFly n'ajoute plus ses valeurs par défaut
-# dès que JAVA_OPTS est défini (preferIPv4Stack et modules.system.pkgs notamment).
+# If you override JAVA_OPTS, keep these options: WildFly no longer adds its defaults once
+# JAVA_OPTS is set (preferIPv4Stack and modules.system.pkgs in particular).
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true"
 
 EXPOSE 8080
 
-# THERMOBOX_DB_URL / USER / PASSWORD et THERMOBOX_JWT_SECRET sont fournis au démarrage
-# (docker-compose.yml / .env) : WildFly les transmet à la JVM, PersistenceFactory les lit.
+# THERMOBOX_DB_URL / USER / PASSWORD and THERMOBOX_JWT_SECRET are given at startup
+# (docker-compose.yml / .env): WildFly passes them to the JVM, PersistenceFactory reads them.
 ENTRYPOINT ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0"]

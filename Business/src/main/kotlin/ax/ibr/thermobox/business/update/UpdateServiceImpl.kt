@@ -1,21 +1,21 @@
 package ax.ibr.thermobox.business.update
 
-import ax.ibr.thermobox.common.update.Canal
-import ax.ibr.thermobox.common.update.Composant
-import ax.ibr.thermobox.common.update.Controle
-import ax.ibr.thermobox.common.update.Etape
-import ax.ibr.thermobox.common.update.EtatEtape
-import ax.ibr.thermobox.common.update.EtatInstallation
-import ax.ibr.thermobox.common.update.EtatMisesAJour
+import ax.ibr.thermobox.common.update.Channel
+import ax.ibr.thermobox.common.update.Component
+import ax.ibr.thermobox.common.update.Check
+import ax.ibr.thermobox.common.update.Step
+import ax.ibr.thermobox.common.update.StepState
+import ax.ibr.thermobox.common.update.InstallationState
+import ax.ibr.thermobox.common.update.UpdateStatus
 import ax.ibr.thermobox.common.update.Installation
-import ax.ibr.thermobox.common.update.ModeInstallation
-import ax.ibr.thermobox.common.update.NiveauControle
-import ax.ibr.thermobox.common.update.OptionsInstallation
+import ax.ibr.thermobox.common.update.InstallMode
+import ax.ibr.thermobox.common.update.CheckLevel
+import ax.ibr.thermobox.common.update.InstallOptions
 import ax.ibr.thermobox.common.update.Preparation
-import ax.ibr.thermobox.common.update.TypeMiseAJour
+import ax.ibr.thermobox.common.update.UpdateType
 import ax.ibr.thermobox.common.update.UpdateService
 import ax.ibr.thermobox.common.update.Version
-import ax.ibr.thermobox.common.update.VersionDisponible
+import ax.ibr.thermobox.common.update.AvailableVersion
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -35,395 +35,395 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Checks GitHub for new versions (once a day, or on demand) and installs one:
  * database backup, download checked by SHA-256, files put in the shared folder, then the
- * program switches to them ([ComposantLocal]). The other program (REST or JSF) notices the new
+ * program switches to them ([LocalComponent]). The other program (REST or JSF) notices the new
  * version in the shared folder and switches too, within a minute.
  */
 class UpdateServiceImpl(
-    private val config: ConfigMisesAJour = ConfigMisesAJour.depuisEnvironnement(),
+    private val config: UpdateConfig = UpdateConfig.fromEnvironment(),
     private val github: GitHubReleases = GitHubReleases(config),
-    private val telechargeur: Telechargeur = Telechargeur(config),
+    private val downloader: Downloader = Downloader(config),
     /** Writes a database dump to the file and describes it. */
-    private val sauvegarderBase: (Path) -> String = { f ->
-        PersistenceFactory.sauvegarderBase(f).let { "${it.tables} tables, ${it.lignes} lignes, ${mo(it.octets)}" }
+    private val backupDatabase: (Path) -> String = { f ->
+        PersistenceFactory.backupDatabase(f).let { "${it.tables} tables, ${it.lines} rows, ${mb(it.bytes)}" }
     },
-    private val horloge: Clock = Clock.systemUTC(),
-    private val versionDuBuild: Version? = BuildInfo.version,
-    private val javaDuServeur: Int = Runtime.version().feature(),
+    private val clock: Clock = Clock.systemUTC(),
+    private val buildVersion: Version? = BuildInfo.version,
+    private val serverJava: Int = Runtime.version().feature(),
     /** Lets the HTTP response that started the installation reach the browser before the switch. */
-    private val delaiBascule: Duration = Duration.ofSeconds(3),
+    private val switchDelay: Duration = Duration.ofSeconds(3),
 ) : UpdateService {
 
-    val dossier = DossierMisesAJour(config.dossier)
+    val directory = UpdateDirectory(config.directory)
 
-    @Volatile private var local: ComposantLocal? = null
-    @Volatile private var releases: List<ReleaseGitHub> = emptyList()
-    @Volatile private var derniereVerification: Instant? = null
-    @Volatile private var erreur: String? = null
+    @Volatile private var local: LocalComponent? = null
+    @Volatile private var releases: List<GitHubRelease> = emptyList()
+    @Volatile private var lastCheck: Instant? = null
+    @Volatile private var error: String? = null
     @Volatile private var installation: Installation? = null
-    @Volatile private var enAttente: String? = null
-    private val enCours = AtomicBoolean(false)
-    private val bascule = AtomicBoolean(false)
-    private var planificateur: ScheduledExecutorService? = null
+    @Volatile private var pending: String? = null
+    private val running = AtomicBoolean(false)
+    private val switching = AtomicBoolean(false)
+    private var scheduler: ScheduledExecutorService? = null
 
     /** Called once by the program at startup: daily check, and follows the shared folder. */
     @Synchronized
-    fun demarrer(composant: ComposantLocal, planifier: Boolean = true) {
-        local = composant
-        if (planificateur != null || !planifier) return
-        val p = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "thermobox-mises-a-jour").apply { isDaemon = true } }
-        if (config.verificationAutomatique) {
-            p.scheduleAtFixedRate({ verifier() }, 1, config.intervalleVerification.toMinutes(), TimeUnit.MINUTES)
+    fun start(component: LocalComponent, schedule: Boolean = true) {
+        local = component
+        if (scheduler != null || !schedule) return
+        val p = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "thermobox-updates").apply { isDaemon = true } }
+        if (config.automaticCheck) {
+            p.scheduleAtFixedRate({ check() }, 1, config.checkInterval.toMinutes(), TimeUnit.MINUTES)
         }
-        p.scheduleWithFixedDelay({ runCatching { suivre() }.onFailure { journal("suivi : ${it.message}") } }, 5, 60, TimeUnit.SECONDS)
-        planificateur = p
+        p.scheduleWithFixedDelay({ runCatching { follow() }.onFailure { log("follow-up: ${it.message}") } }, 5, 60, TimeUnit.SECONDS)
+        scheduler = p
     }
 
     /** At shutdown (and when Tomcat undeploys the WAR, so the old version's threads stop). */
     @Synchronized
-    fun arreter() {
-        planificateur?.shutdownNow()
-        planificateur = null
+    fun stop() {
+        scheduler?.shutdownNow()
+        scheduler = null
     }
 
     // ------------------------------------------------------------------ state
 
-    private fun installee(): Version? =
-        local?.let { runCatching { it.versionDuDossier(dossier) }.getOrNull() }?.let { Version.parse(it) } ?: versionDuBuild
+    private fun installed(): Version? =
+        local?.let { runCatching { it.versionInDirectory(directory) }.getOrNull() }?.let { Version.parse(it) } ?: buildVersion
 
-    override fun getEtat(): EtatMisesAJour {
-        val installee = installee()
-        val partagee = dossier.lireInstallation()?.let { InstallationJson.depuisJson(it) }
-        return EtatMisesAJour(
-            composant = local?.composant,
-            installee = installee,
-            canal = config.canal,
-            verificationAutomatique = config.verificationAutomatique,
-            derniereVerification = derniereVerification,
-            erreur = erreur,
-            disponibles = disponibles(installee),
-            anterieures = anterieures(installee),
+    override fun getStatus(): UpdateStatus {
+        val installed = installed()
+        val shared = directory.readInstallation()?.let { InstallationJson.fromJson(it) }
+        return UpdateStatus(
+            component = local?.component,
+            installed = installed,
+            channel = config.channel,
+            automaticCheck = config.automaticCheck,
+            lastCheck = lastCheck,
+            error = error,
+            available = available(installed),
+            olderVersions = olderVersions(installed),
             mode = mode(),
             // The other program may have installed something since: the shared file wins.
-            installation = listOfNotNull(installation, partagee).maxByOrNull { it.demarreeLe },
-            enAttente = enAttente,
+            installation = listOfNotNull(installation, shared).maxByOrNull { it.startedAt },
+            pending = pending,
         )
     }
 
     @Synchronized
-    override fun verifier(): EtatMisesAJour {
+    override fun check(): UpdateStatus {
         try {
-            releases = github.lister()
-            erreur = null
-            val etat = getEtat()
-            if (etat.miseAJourDisponible) {
-                journal("nouvelle version disponible : ${etat.disponibles.joinToString { "${it.version} (${it.type.label.lowercase()})" }}")
+            releases = github.list()
+            error = null
+            val state = getStatus()
+            if (state.updateAvailable) {
+                log("new version available: ${state.available.joinToString { "${it.version} (${it.type.label.lowercase()})" }}")
             }
         } catch (e: Exception) {
-            erreur = e.message ?: e.javaClass.simpleName
-            journal("vérification impossible : $erreur")
+            error = e.message ?: e.javaClass.simpleName
+            log("check failed: $error")
         }
-        derniereVerification = horloge.instant()
-        return getEtat()
+        lastCheck = clock.instant()
+        return getStatus()
     }
 
-    private fun disponibles(installee: Version?): List<VersionDisponible> {
-        val prereleases = config.canal == Canal.PRERELEASE || installee?.estPrerelease == true
-        val liste = releases.asSequence()
-            .filter { !it.brouillon }
+    private fun available(installed: Version?): List<AvailableVersion> {
+        val prereleases = config.channel == Channel.PRERELEASE || installed?.isPrerelease == true
+        val list = releases.asSequence()
+            .filter { !it.draft }
             .mapNotNull { r -> Version.parse(r.tag)?.let { r to it } }
-            .filter { (r, v) -> prereleases || (!r.prerelease && !v.estPrerelease) }
-            .filter { (_, v) -> installee == null || v > installee }
+            .filter { (r, v) -> prereleases || (!r.prerelease && !v.isPrerelease) }
+            .filter { (_, v) -> installed == null || v > installed }
             .sortedByDescending { it.second }
             .map { (r, v) ->
-                VersionDisponible(
-                    version = v, type = v.typeDepuis(installee), titre = r.titre, notes = r.notes,
-                    publieeLe = r.publieeLe, page = r.page, artefacts = r.artefacts,
-                    migration = NotesDeVersion.migration(r.notes), incompatible = NotesDeVersion.incompatible(r.notes),
+                AvailableVersion(
+                    version = v, type = v.typeFrom(installed), title = r.title, notes = r.notes,
+                    publishedAt = r.publishedAt, page = r.page, artifacts = r.artifacts,
+                    migration = ReleaseNotes.migration(r.notes), incompatible = ReleaseNotes.incompatible(r.notes),
                 )
             }
             .toList()
         // A development build is older than everything: the ten most recent are enough.
-        return if (installee == null) liste.take(10) else liste
+        return if (installed == null) list.take(10) else list
     }
 
     /**
      * Prerelease channel: the versions older than the installed one stay installable, to go
-     * back after testing a nightly. Same series: corrective; older series: feature (risky).
+     * back after testing a nightly. Same series: patch; older series: feature (risky).
      */
-    private fun anterieures(installee: Version?): List<VersionDisponible> {
-        if (config.canal != Canal.PRERELEASE || installee == null) return emptyList()
+    private fun olderVersions(installed: Version?): List<AvailableVersion> {
+        if (config.channel != Channel.PRERELEASE || installed == null) return emptyList()
         return releases.asSequence()
-            .filter { !it.brouillon }
+            .filter { !it.draft }
             .mapNotNull { r -> Version.parse(r.tag)?.let { r to it } }
-            .filter { (_, v) -> v < installee }
+            .filter { (_, v) -> v < installed }
             .sortedByDescending { it.second }
-            .take(MAX_ANTERIEURES)
+            .take(MAX_OLDER)
             .map { (r, v) ->
-                VersionDisponible(
-                    version = v, type = v.typeDepuis(installee), titre = r.titre, notes = r.notes,
-                    publieeLe = r.publieeLe, page = r.page, artefacts = r.artefacts,
-                    migration = NotesDeVersion.migration(r.notes), incompatible = NotesDeVersion.incompatible(r.notes),
-                    anterieure = true,
+                AvailableVersion(
+                    version = v, type = v.typeFrom(installed), title = r.title, notes = r.notes,
+                    publishedAt = r.publishedAt, page = r.page, artifacts = r.artifacts,
+                    migration = ReleaseNotes.migration(r.notes), incompatible = ReleaseNotes.incompatible(r.notes),
+                    older = true,
                 )
             }
             .toList()
     }
 
-    private fun mode(): ModeInstallation {
-        val composant = local ?: return ModeInstallation(false, "Le système de mise à jour n'est pas démarré sur ce serveur.")
-        if (!dossier.inscriptible()) {
-            return ModeInstallation(false, "Le dossier de données ${config.dossier} n'est pas accessible en écriture (variable THERMOBOX_DATA_DIR).")
+    private fun mode(): InstallMode {
+        val component = local ?: return InstallMode(false, "The update system is not started on this server.")
+        if (!directory.writable()) {
+            return InstallMode(false, "The data folder ${config.directory} is not writable (THERMOBOX_DATA_DIR variable).")
         }
-        return composant.empechement()?.let { ModeInstallation(false, it) } ?: ModeInstallation(true, composant.effetBascule)
+        return component.blocker()?.let { InstallMode(false, it) } ?: InstallMode(true, component.switchEffect)
     }
 
     // ------------------------------------------------------------------ preparation
 
-    override fun preparer(tag: String): Preparation {
-        val installee = installee()
-        val dispo = (disponibles(installee) + anterieures(installee)).firstOrNull { it.version.tag == tag || it.version == Version.parse(tag) }
-            ?: throw IllegalArgumentException("Version $tag inconnue, ou pas plus récente que la version installée")
-        val v = dispo.version
-        val controles = ArrayList<Controle>()
+    override fun prepare(tag: String): Preparation {
+        val installed = installed()
+        val candidate = (available(installed) + olderVersions(installed)).firstOrNull { it.version.tag == tag || it.version == Version.parse(tag) }
+            ?: throw IllegalArgumentException("Version $tag is unknown, or not newer than the installed version")
+        val v = candidate.version
+        val checks = ArrayList<Check>()
 
-        if (dispo.anterieure) {
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Retour à une version antérieure : $installee → $v",
-                "$installee a pu modifier la base de données : $v peut ne pas la comprendre. Si elle ne démarre pas " +
-                    "ou se comporte mal, restaurez la sauvegarde faite avant l'installation de $installee.")
-        } else if (dispo.type == TypeMiseAJour.CORRECTIVE) {
-            controles += Controle(NiveauControle.OK, "Mise à jour corrective, recommandée : ${installee} → $v",
-                "Corrections de bugs et de sécurité de la série ${v.serie}, sans nouvelle fonctionnalité : la base de données " +
-                    "n'est pas modifiée, et revenir à $installee reste possible.")
+        if (candidate.older) {
+            checks += Check(CheckLevel.WARNING, "Rollback to an older version: $installed → $v",
+                "$installed may have changed the database: $v may not understand it. If it does not start " +
+                    "or misbehaves, restore the backup made before $installed was installed.")
+        } else if (candidate.type == UpdateType.PATCH) {
+            checks += Check(CheckLevel.OK, "Patch update, recommended: ${installed} → $v",
+                "Bug and security fixes of the ${v.series} series, with no new feature: the database " +
+                    "is not changed, and going back to $installed stays possible.")
         } else {
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Mise à jour fonctionnelle : ${installee?.serie ?: "version inconnue"} → ${v.serie}",
-                "Une nouvelle série peut modifier le schéma de la base ou migrer des données. Le retour à " +
-                    "${installee?.let { "${it.serie}.x" } ?: "la version actuelle"} n'est pas garanti : il peut être impossible " +
-                    "sans restaurer la sauvegarde de la base faite avant l'installation.")
-            controles += Controle(NiveauControle.INFO, "Schéma de la base",
-                "Au premier démarrage de $v, ses migrations de schéma s'appliquent automatiquement (Flyway). " +
-                    "Revenir ensuite à une version plus ancienne reste possible tant que ces migrations n'ont fait " +
-                    "qu'ajouter des tables ou des colonnes ; sinon, restaurez la sauvegarde.")
+            checks += Check(CheckLevel.WARNING, "Feature update: ${installed?.series ?: "unknown version"} → ${v.series}",
+                "A new series may change the database schema or migrate data. Going back to " +
+                    "${installed?.let { "${it.series}.x" } ?: "the current version"} is not guaranteed: it may be impossible " +
+                    "without restoring the database backup made before the installation.")
+            checks += Check(CheckLevel.INFO, "Database schema",
+                "On the first start of $v, its schema migrations apply automatically (Flyway). " +
+                    "Going back to an older version afterwards stays possible as long as these migrations only " +
+                    "added tables or columns; otherwise, restore the backup.")
         }
-        if (installee == null) {
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Version installée inconnue",
-                "Ce serveur est un build de développement (${BuildInfo.texte}) : la compatibilité ne peut pas être vérifiée.")
+        if (installed == null) {
+            checks += Check(CheckLevel.WARNING, "Unknown installed version",
+                "This server is a development build (${BuildInfo.text}): compatibility cannot be checked.")
         }
-        if (v.estPrerelease) {
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Version de test",
-                "$v est une prépublication (${v.prerelease}) : elle n'est pas considérée comme stable.")
+        if (v.isPrerelease) {
+            checks += Check(CheckLevel.WARNING, "Test version",
+                "$v is a pre-release (${v.prerelease}): it is not considered stable.")
         }
-        if (installee != null && v.rangSerie - installee.rangSerie > 1) {
-            val sautees = releases.mapNotNull { Version.parse(it.tag) }
-                .filter { !it.estPrerelease && it.patch == 0 && it.rangSerie > installee.rangSerie && it.rangSerie < v.rangSerie }
+        if (installed != null && v.seriesRank - installed.seriesRank > 1) {
+            val skipped = releases.mapNotNull { Version.parse(it.tag) }
+                .filter { !it.isPrerelease && it.patch == 0 && it.seriesRank > installed.seriesRank && it.seriesRank < v.seriesRank }
                 .sorted().joinToString()
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Séries mensuelles sautées",
-                "De ${installee.serie} à ${v.serie} : les notes " + (if (sautees.isEmpty()) "des séries intermédiaires" else "de $sautees") +
-                    " s'appliquent aussi, lisez-les.")
+            checks += Check(CheckLevel.WARNING, "Skipped monthly series",
+                "From ${installed.series} to ${v.series}: the notes of " + (if (skipped.isEmpty()) "the series in between" else skipped) +
+                    " apply too, read them.")
         }
-        dispo.migration?.let { controles += Controle(NiveauControle.AVERTISSEMENT, "Opérations indiquées par les notes de version", it) }
-        if (dispo.incompatible) {
-            controles += Controle(NiveauControle.AVERTISSEMENT, "Les notes annoncent une incompatibilité",
-                "Lisez-les avant d'installer. En cas de retour arrière, la sauvegarde de la base devra être restaurée.")
+        candidate.migration?.let { checks += Check(CheckLevel.WARNING, "Operations given by the release notes", it) }
+        if (candidate.incompatible) {
+            checks += Check(CheckLevel.WARNING, "The notes announce an incompatibility",
+                "Read them before installing. To go back, the database backup will have to be restored.")
         }
 
-        val fichiers = Artefacts.choisir(dispo.artefacts)
-        val taille = fichiers?.sumOf { it.taille } ?: 0L
+        val files = Artifacts.choose(candidate.artifacts)
+        val size = files?.sumOf { it.size } ?: 0L
         when {
-            fichiers == null -> controles += Controle(NiveauControle.BLOQUANT, "Fichiers de déploiement absents",
-                "La version ne publie ni RestServer.jar, base.jar et le WAR, ni une archive .zip qui les contient.")
-            fichiers.any { it.sha256 == null } -> controles += Controle(NiveauControle.BLOQUANT, "Empreinte SHA-256 non publiée",
-                "Sans empreinte, l'intégrité des fichiers ne peut pas être garantie : installation refusée.")
-            else -> controles += Controle(NiveauControle.OK, "Fichiers : ${fichiers.joinToString { it.nom }} (${mo(taille)})",
-                "Leur empreinte SHA-256, publiée par GitHub, est vérifiée au téléchargement.")
+            files == null -> checks += Check(CheckLevel.BLOCKING, "Deployment files missing",
+                "The version publishes neither RestServer.jar, base.jar and the WAR, nor a .zip archive that contains them.")
+            files.any { it.sha256 == null } -> checks += Check(CheckLevel.BLOCKING, "SHA-256 digest not published",
+                "Without a digest, the integrity of the files cannot be guaranteed: installation refused.")
+            else -> checks += Check(CheckLevel.OK, "Files: ${files.joinToString { it.name }} (${mb(size)})",
+                "Their SHA-256 digest, published by GitHub, is checked on download.")
         }
-        controles += Controle(NiveauControle.INFO, "Java du serveur : $javaDuServeur",
-            "La version de Java demandée par les fichiers est contrôlée après le téléchargement : l'installation s'arrête si elle est plus récente.")
+        checks += Check(CheckLevel.INFO, "Server Java: $serverJava",
+            "The Java version the files need is checked after the download: the installation stops if it is newer.")
 
-        val libre = runCatching { dossier.preparer(); Files.getFileStore(dossier.versions).usableSpace }.getOrNull()
-        if (libre != null && libre < 3 * taille + MARGE_DISQUE) {
-            controles += Controle(NiveauControle.BLOQUANT, "Espace disque insuffisant",
-                "${mo(libre)} libres dans ${config.dossier}, il en faut ${mo(3 * taille + MARGE_DISQUE)}.")
+        val free = runCatching { directory.prepare(); Files.getFileStore(directory.versions).usableSpace }.getOrNull()
+        if (free != null && free < 3 * size + DISK_MARGIN) {
+            checks += Check(CheckLevel.BLOCKING, "Not enough disk space",
+                "${mb(free)} free in ${config.directory}, ${mb(3 * size + DISK_MARGIN)} needed.")
         }
 
         val mode = mode()
-        if (!mode.automatique) {
-            controles += Controle(NiveauControle.BLOQUANT, "Installation automatique impossible sur ce serveur", mode.detail)
+        if (!mode.automatic) {
+            checks += Check(CheckLevel.BLOCKING, "Automatic installation impossible on this server", mode.detail)
         } else {
-            val autre = local?.composant?.let { c -> Composant.entries.first { it != c } }
-            controles += Controle(NiveauControle.INFO, "Redémarrage", mode.detail +
-                (autre?.let { " L'autre composant (${it.label}) passe à $v de lui-même s'il partage le dossier ${config.dossier} ; sinon, installez la version depuis celui-ci aussi." } ?: ""))
+            val other = local?.component?.let { c -> Component.entries.first { it != c } }
+            checks += Check(CheckLevel.INFO, "Restart", mode.detail +
+                (other?.let { " The other component (${it.label}) moves to $v by itself if it shares the folder ${config.directory}; otherwise, install the version from it too." } ?: ""))
         }
         if (installationActive()) {
-            controles += Controle(NiveauControle.BLOQUANT, "Une installation est déjà en cours")
+            checks += Check(CheckLevel.BLOCKING, "An installation is already running")
         }
 
-        val obligatoire = dispo.type == TypeMiseAJour.FONCTIONNELLE || dispo.anterieure || dispo.migration != null ||
-            dispo.incompatible || installee == null
-        controles += Controle(NiveauControle.INFO, "Sauvegarde de la base de données",
-            (if (obligatoire) "Faite d'office avant l'installation" else "Facultative (une corrective ne modifie pas la base), faite avant l'installation si elle est cochée") +
-                ", dans ${dossier.sauvegardes}. Restauration : gunzip -c <fichier> | mysql -u <utilisateur> -p <base>.")
+        val mandatory = candidate.type == UpdateType.FEATURE || candidate.older || candidate.migration != null ||
+            candidate.incompatible || installed == null
+        checks += Check(CheckLevel.INFO, "Database backup",
+            (if (mandatory) "Always made before the installation" else "Optional (a patch does not change the database), made before the installation if ticked") +
+                ", in ${directory.backups}. Restore: gunzip -c <file> | mysql -u <user> -p <database>.")
 
         return Preparation(
-            version = dispo,
-            installee = installee,
-            controles = controles,
-            sauvegardeObligatoire = obligatoire,
-            retourSimple = !obligatoire,
-            confirmationRequise = controles.any { it.niveau == NiveauControle.AVERTISSEMENT },
+            version = candidate,
+            installed = installed,
+            checks = checks,
+            backupRequired = mandatory,
+            simpleRollback = !mandatory,
+            confirmationRequired = checks.any { it.level == CheckLevel.WARNING },
         )
     }
 
     /**
-     * An installation runs here, or in the other program (it holds the lock). An "en cours"
+     * An installation runs here, or in the other program (it holds the lock). A "running" one
      * left in the shared file by a program that stopped meanwhile is marked as interrupted.
      */
     private fun installationActive(): Boolean {
-        if (enCours.get()) return true
-        val i = dossier.lireInstallation()?.let { InstallationJson.depuisJson(it) } ?: return false
-        if (i.etat != EtatInstallation.EN_COURS) return false
-        val verrou = runCatching { dossier.verrouiller() }.getOrNull() ?: return true
-        verrou.use {
-            publier(i.copy(etat = EtatInstallation.ECHEC, message = "Installation interrompue (serveur arrêté pendant l'opération)",
-                termineeLe = horloge.instant()))
+        if (running.get()) return true
+        val i = directory.readInstallation()?.let { InstallationJson.fromJson(it) } ?: return false
+        if (i.state != InstallationState.RUNNING) return false
+        val lock = runCatching { directory.lock() }.getOrNull() ?: return true
+        lock.use {
+            publish(i.copy(state = InstallationState.FAILED, message = "Installation interrupted (server stopped during the operation)",
+                finishedAt = clock.instant()))
         }
         return false
     }
 
     // ------------------------------------------------------------------ installation
 
-    override fun installer(tag: String, utilisateur: String, options: OptionsInstallation): Installation {
-        val preparation = preparer(tag)
-        preparation.controles.firstOrNull { it.niveau == NiveauControle.BLOQUANT }?.let {
-            throw IllegalStateException(listOf(it.titre, it.detail).filter { d -> d.isNotBlank() }.joinToString(" : "))
+    override fun install(tag: String, user: String, options: InstallOptions): Installation {
+        val preparation = prepare(tag)
+        preparation.checks.firstOrNull { it.level == CheckLevel.BLOCKING }?.let {
+            throw IllegalStateException(listOf(it.title, it.detail).filter { d -> d.isNotBlank() }.joinToString(" : "))
         }
-        if (preparation.confirmationRequise && !options.risquesAcceptes) {
-            throw IllegalArgumentException("Confirmez avoir lu les avertissements avant d'installer ${preparation.version.version}")
+        if (preparation.confirmationRequired && !options.risksAccepted) {
+            throw IllegalArgumentException("Confirm you read the warnings before installing ${preparation.version.version}")
         }
-        val composant = local ?: throw IllegalStateException("Le système de mise à jour n'est pas démarré")
-        if (!enCours.compareAndSet(false, true)) throw IllegalStateException("Une installation est déjà en cours")
-        val verrou = try {
-            dossier.verrouiller()
+        val component = local ?: throw IllegalStateException("The update system is not started")
+        if (!running.compareAndSet(false, true)) throw IllegalStateException("An installation is already running")
+        val lock = try {
+            directory.lock()
         } catch (e: Exception) {
-            enCours.set(false)
-            throw IllegalStateException("Dossier de données inaccessible : ${e.message}")
+            running.set(false)
+            throw IllegalStateException("Data folder unreachable: ${e.message}")
         }
-        if (verrou == null) {
-            enCours.set(false)
-            throw IllegalStateException("Une installation est déjà en cours depuis l'autre composant")
+        if (lock == null) {
+            running.set(false)
+            throw IllegalStateException("An installation is already running from the other component")
         }
 
-        val sauvegarder = preparation.sauvegardeObligatoire || options.sauvegarderBase
-        val depart = Installation(
+        val withBackup = preparation.backupRequired || options.backupDatabase
+        val initial = Installation(
             id = UUID.randomUUID().toString(),
-            cible = preparation.version.version.tag,
-            depuis = preparation.installee?.tag,
+            target = preparation.version.version.tag,
+            from = preparation.installed?.tag,
             type = preparation.version.type,
-            composant = composant.composant,
-            utilisateur = utilisateur,
-            demarreeLe = horloge.instant(),
-            etat = EtatInstallation.EN_COURS,
-            etapes = ETAPES.map { Etape(it) } + Etape("Redémarrage : ${composant.composant.label}"),
+            component = component.component,
+            user = user,
+            startedAt = clock.instant(),
+            state = InstallationState.RUNNING,
+            steps = STEPS.map { Step(it) } + Step("Restart: ${component.component.label}"),
         )
-        publier(depart)
-        journal("installation de ${depart.cible} lancée par $utilisateur")
+        publish(initial)
+        log("installation of ${initial.target} started by $user")
         Thread({
             try {
-                executer(preparation, composant, sauvegarder)
+                execute(preparation, component, withBackup)
             } finally {
-                verrou.close()
-                enCours.set(false)
+                lock.close()
+                running.set(false)
             }
         }, "thermobox-installation").apply { isDaemon = true }.start()
-        return depart
+        return initial
     }
 
-    private fun executer(preparation: Preparation, composant: ComposantLocal, sauvegarder: Boolean) {
-        val dispo = preparation.version
-        val cible = dispo.version.tag
-        val temporaire = dossier.versions.resolve(".telechargement-$cible")
+    private fun execute(preparation: Preparation, component: LocalComponent, withBackup: Boolean) {
+        val candidate = preparation.version
+        val target = candidate.version.tag
+        val temporary = directory.versions.resolve(".download-$target")
         try {
-            etape(0) {
-                if (!sauvegarder) return@etape "Non demandée" to EtatEtape.IGNOREE
-                Files.createDirectories(dossier.sauvegardes)
-                val fichier = dossier.sauvegardes.resolve(
-                    "thermobox-${preparation.installee?.tag ?: BuildInfo.texte}-avant-$cible-${HORODATAGE.format(horloge.instant())}.sql.gz")
-                val detail = sauvegarderBase(fichier)
-                installation = installation?.copy(sauvegarde = fichier.toString())
-                "$detail : $fichier" to EtatEtape.OK
+            step(0) {
+                if (!withBackup) return@step "Not requested" to StepState.SKIPPED
+                Files.createDirectories(directory.backups)
+                val file = directory.backups.resolve(
+                    "thermobox-${preparation.installed?.tag ?: BuildInfo.text}-before-$target-${TIMESTAMP.format(clock.instant())}.sql.gz")
+                val detail = backupDatabase(file)
+                installation = installation?.copy(backup = file.toString())
+                "$detail : $file" to StepState.OK
             }
-            etape(1) {
-                supprimer(temporaire)
-                Files.createDirectories(temporaire)
-                val fichiers = Artefacts.choisir(dispo.artefacts) ?: error("Fichiers de déploiement absents")
-                for (a in fichiers) {
-                    var affiche = 0L
-                    telechargeur.telecharger(a, temporaire.resolve(Artefacts.nomLocal(a))) { recu ->
-                        if (recu - affiche >= 2 * 1024 * 1024) {
-                            affiche = recu
-                            detail(1, "${a.nom} : ${mo(recu)} / ${mo(a.taille)}")
+            step(1) {
+                delete(temporary)
+                Files.createDirectories(temporary)
+                val files = Artifacts.choose(candidate.artifacts) ?: error("Deployment files missing")
+                for (a in files) {
+                    var shown = 0L
+                    downloader.download(a, temporary.resolve(Artifacts.localName(a))) { received ->
+                        if (received - shown >= 2 * 1024 * 1024) {
+                            shown = received
+                            detail(1, "${a.name}: ${mb(received)} / ${mb(a.size)}")
                         }
                     }
-                    if (a.nom.endsWith(".zip", ignoreCase = true)) {
-                        val zip = temporaire.resolve(Artefacts.nomLocal(a))
-                        Artefacts.extraire(zip, temporaire)
+                    if (a.name.endsWith(".zip", ignoreCase = true)) {
+                        val zip = temporary.resolve(Artifacts.localName(a))
+                        Artifacts.extract(zip, temporary)
                         Files.delete(zip)
                     }
                 }
-                "${fichiers.joinToString { it.nom }} (${mo(fichiers.sumOf { it.taille })}), empreintes SHA-256 conformes" to EtatEtape.OK
+                "${files.joinToString { it.name }} (${mb(files.sumOf { it.size })}), SHA-256 digests match" to StepState.OK
             }
-            etape(2) {
-                val contenu = Artefacts.inspecter(temporaire)
-                if (contenu.javaRequis > javaDuServeur) {
-                    error("$cible demande Java ${contenu.javaRequis}, ce serveur tourne sous Java $javaDuServeur")
+            step(2) {
+                val content = Artifacts.inspect(temporary)
+                if (content.requiredJava > serverJava) {
+                    error("$target needs Java ${content.requiredJava}, this server runs Java $serverJava")
                 }
-                "Java ${contenu.javaRequis} requis (serveur : Java $javaDuServeur)" +
-                    (if (contenu.miseAJourIntegree) "" else " ; cette version n'intègre pas le système de mise à jour : les suivantes devront être installées à la main") to EtatEtape.OK
+                "Java ${content.requiredJava} required (server: Java $serverJava)" +
+                    (if (content.hasUpdater) "" else "; this version does not include the update system: the next ones will have to be installed by hand") to StepState.OK
             }
-            etape(3) {
-                val depuis = preparation.installee?.tag
-                    ?: return@etape "Version installée inconnue : rien à conserver" to EtatEtape.IGNOREE
-                conserver(composant, depuis)?.let { "Non conservée : $it" to EtatEtape.IGNOREE }
-                    ?: ("Fichiers actuels (${composant.composant.label} $depuis) gardés dans ${dossier.dossier(depuis)}, pour un retour arrière manuel" to EtatEtape.OK)
+            step(3) {
+                val from = preparation.installed?.tag
+                    ?: return@step "Unknown installed version: nothing to keep" to StepState.SKIPPED
+                keep(component, from)?.let { "Not kept: $it" to StepState.SKIPPED }
+                    ?: ("Current files (${component.component.label} $from) kept in ${directory.directory(from)}, for a manual rollback" to StepState.OK)
             }
-            etape(4) {
-                dossier.sceller(temporaire, cible)
-                val final = dossier.dossier(cible)
-                supprimer(final)
-                Files.move(temporaire, final, StandardCopyOption.ATOMIC_MOVE)
-                dossier.definirCourante(cible)
-                "Version courante : $cible ($final)" to EtatEtape.OK
+            step(4) {
+                directory.seal(temporary, target)
+                val final = directory.directory(target)
+                delete(final)
+                Files.move(temporary, final, StandardCopyOption.ATOMIC_MOVE)
+                directory.setCurrent(target)
+                "Current version: $target ($final)" to StepState.OK
             }
-            val n = installation!!.etapes.lastIndex
-            publier(installation!!.copy(etat = EtatInstallation.REDEMARRAGE, etapes = remplacer(n, EtatEtape.EN_COURS, composant.effetBascule)))
-            basculer(composant, cible)
+            val n = installation!!.steps.lastIndex
+            publish(installation!!.copy(state = InstallationState.RESTARTING, steps = replace(n, StepState.RUNNING, component.switchEffect)))
+            switchTo(component, target)
         } catch (e: Exception) {
-            supprimer(temporaire)
+            delete(temporary)
             val message = e.message ?: e.javaClass.simpleName
-            publier(installation!!.copy(etat = EtatInstallation.ECHEC, message = message, termineeLe = horloge.instant()))
-            journal("installation de $cible en échec : $message")
+            publish(installation!!.copy(state = InstallationState.FAILED, message = message, finishedAt = clock.instant()))
+            log("installation of $target failed: $message")
         }
     }
 
-    private fun etape(index: Int, bloc: () -> Pair<String, EtatEtape>) {
-        publier(installation!!.copy(etapes = remplacer(index, EtatEtape.EN_COURS, "")))
-        val (detail, etat) = try {
-            bloc()
+    private fun step(index: Int, block: () -> Pair<String, StepState>) {
+        publish(installation!!.copy(steps = replace(index, StepState.RUNNING, "")))
+        val (detail, state) = try {
+            block()
         } catch (e: Exception) {
-            publier(installation!!.copy(etapes = remplacer(index, EtatEtape.ECHEC, e.message ?: e.javaClass.simpleName)))
+            publish(installation!!.copy(steps = replace(index, StepState.FAILED, e.message ?: e.javaClass.simpleName)))
             throw e
         }
-        publier(installation!!.copy(etapes = remplacer(index, etat, detail)))
+        publish(installation!!.copy(steps = replace(index, state, detail)))
     }
 
     private fun detail(index: Int, detail: String) =
-        publier(installation!!.copy(etapes = remplacer(index, EtatEtape.EN_COURS, detail)))
+        publish(installation!!.copy(steps = replace(index, StepState.RUNNING, detail)))
 
-    private fun remplacer(index: Int, etat: EtatEtape, detail: String): List<Etape> =
-        installation!!.etapes.mapIndexed { i, e -> if (i == index) e.copy(etat = etat, detail = detail) else e }
+    private fun replace(index: Int, state: StepState, detail: String): List<Step> =
+        installation!!.steps.mapIndexed { i, e -> if (i == index) e.copy(state = state, detail = detail) else e }
 
-    private fun publier(i: Installation) {
+    private fun publish(i: Installation) {
         installation = i
-        runCatching { dossier.ecrireInstallation(InstallationJson.versJson(i)) }
+        runCatching { directory.writeInstallation(InstallationJson.toJson(i)) }
     }
 
     // ------------------------------------------------------------------ switch
@@ -432,91 +432,91 @@ class UpdateServiceImpl(
      * Every minute: when the shared folder holds a version this program doesn't run yet
      * (installed from the other one, or here before a restart), switch to it.
      */
-    internal fun suivre() {
-        val composant = local ?: return
-        val courante = dossier.courante()
-        val enService = composant.versionDuDossier(dossier)
-        cloturer(composant, enService)
-        if (courante == null || courante == enService || bascule.get() || enCours.get()) {
-            enAttente = null
+    internal fun follow() {
+        val component = local ?: return
+        val current = directory.current()
+        val inService = component.versionInDirectory(directory)
+        finish(component, inService)
+        if (current == null || current == inService || switching.get() || running.get()) {
+            pending = null
             return
         }
-        if (composant.empechement() != null || !dossier.complete(courante)) {
-            enAttente = courante
+        if (component.blocker() != null || !directory.complete(current)) {
+            pending = current
             return
         }
-        enAttente = null
-        journal("$courante installée depuis l'autre composant : bascule de ${composant.composant.label}")
-        installee()?.let { conserver(composant, it.tag) }
-        basculer(composant, courante)
+        pending = null
+        log("$current installed from the other component: switching ${component.component.label}")
+        installed()?.let { keep(component, it.tag) }
+        switchTo(component, current)
     }
 
     /** The installation this program restarted for is done once it runs the new version. */
-    private fun cloturer(composant: ComposantLocal, enService: String?) {
-        val i = dossier.lireInstallation()?.let { InstallationJson.depuisJson(it) } ?: return
-        if (i.etat != EtatInstallation.REDEMARRAGE || i.composant != composant.composant) return
-        val derniere = i.etapes.lastIndex
+    private fun finish(component: LocalComponent, inService: String?) {
+        val i = directory.readInstallation()?.let { InstallationJson.fromJson(it) } ?: return
+        if (i.state != InstallationState.RESTARTING || i.component != component.component) return
+        val last = i.steps.lastIndex
         when {
-            enService == i.cible -> publier(i.copy(
-                etat = EtatInstallation.TERMINEE, termineeLe = horloge.instant(), message = "Version ${i.cible} en service",
-                etapes = i.etapes.mapIndexed { n, e -> if (n == derniere) e.copy(etat = EtatEtape.OK, detail = "Version ${i.cible} en service") else e },
+            inService == i.target -> publish(i.copy(
+                state = InstallationState.DONE, finishedAt = clock.instant(), message = "Version ${i.target} in service",
+                steps = i.steps.mapIndexed { n, e -> if (n == last) e.copy(state = StepState.OK, detail = "Version ${i.target} in service") else e },
             ))
-            Duration.between(i.demarreeLe, horloge.instant()) > DELAI_REDEMARRAGE && !bascule.get() -> publier(i.copy(
-                etat = EtatInstallation.ECHEC, termineeLe = horloge.instant(),
-                message = "${composant.composant.label} tourne toujours sur ${enService ?: versionDuBuild ?: BuildInfo.texte} : redémarrage à vérifier",
-                etapes = i.etapes.mapIndexed { n, e -> if (n == derniere) e.copy(etat = EtatEtape.ECHEC, detail = "Pas de redémarrage sur ${i.cible}") else e },
+            Duration.between(i.startedAt, clock.instant()) > RESTART_TIMEOUT && !switching.get() -> publish(i.copy(
+                state = InstallationState.FAILED, finishedAt = clock.instant(),
+                message = "${component.component.label} still runs ${inService ?: buildVersion ?: BuildInfo.text}: check the restart",
+                steps = i.steps.mapIndexed { n, e -> if (n == last) e.copy(state = StepState.FAILED, detail = "No restart on ${i.target}") else e },
             ))
         }
     }
 
-    /** Keeps the files this program runs from in updates/<depuis>; the error message, or null. */
-    private fun conserver(composant: ComposantLocal, depuis: String): String? = try {
-        val garde = dossier.dossier(depuis)
-        Files.createDirectories(garde)
-        composant.conserverActuels(garde)
+    /** Keeps the files this program runs from in updates/<from>; the error message, or null. */
+    private fun keep(component: LocalComponent, from: String): String? = try {
+        val kept = directory.directory(from)
+        Files.createDirectories(kept)
+        component.keepCurrent(kept)
         null
     } catch (e: Exception) {
         e.message ?: e.javaClass.simpleName
     }
 
-    private fun basculer(composant: ComposantLocal, tag: String) {
-        if (!bascule.compareAndSet(false, true)) return
+    private fun switchTo(component: LocalComponent, tag: String) {
+        if (!switching.compareAndSet(false, true)) return
         Thread({
             try {
-                Thread.sleep(delaiBascule.toMillis())
-                composant.basculer(dossier.dossier(tag), tag)
+                Thread.sleep(switchDelay.toMillis())
+                component.switchTo(directory.directory(tag), tag)
             } catch (e: Exception) {
-                bascule.set(false)
-                val message = "Bascule vers $tag impossible : ${e.message ?: e.javaClass.simpleName}"
-                journal(message)
-                installation?.takeIf { it.cible == tag && it.etat == EtatInstallation.REDEMARRAGE }?.let {
-                    publier(it.copy(etat = EtatInstallation.ECHEC, message = message, termineeLe = horloge.instant(),
-                        etapes = it.etapes.mapIndexed { n, e2 -> if (n == it.etapes.lastIndex) e2.copy(etat = EtatEtape.ECHEC, detail = message) else e2 }))
+                switching.set(false)
+                val message = "Switching to $tag failed: ${e.message ?: e.javaClass.simpleName}"
+                log(message)
+                installation?.takeIf { it.target == tag && it.state == InstallationState.RESTARTING }?.let {
+                    publish(it.copy(state = InstallationState.FAILED, message = message, finishedAt = clock.instant(),
+                        steps = it.steps.mapIndexed { n, e2 -> if (n == it.steps.lastIndex) e2.copy(state = StepState.FAILED, detail = message) else e2 }))
                 }
             }
-        }, "thermobox-bascule").apply { isDaemon = true }.start()
+        }, "thermobox-switch").apply { isDaemon = true }.start()
     }
 
-    private fun supprimer(dossier: Path) {
-        if (!Files.exists(dossier)) return
-        Files.walk(dossier).use { chemins -> chemins.sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) } }
+    private fun delete(directory: Path) {
+        if (!Files.exists(directory)) return
+        Files.walk(directory).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) } }
     }
 
-    private fun journal(message: String) = println("[ThermoBox mises à jour] $message")
+    private fun log(message: String) = println("[ThermoBox updates] $message")
 
     companion object {
-        private val ETAPES = listOf(
-            "Sauvegarde de la base de données",
-            "Téléchargement",
-            "Vérification des fichiers",
-            "Conservation de la version actuelle",
-            "Mise en place",
+        private val STEPS = listOf(
+            "Database backup",
+            "Download",
+            "File check",
+            "Keeping the current version",
+            "Putting in place",
         )
-        private const val MARGE_DISQUE = 50L * 1024 * 1024
-        private const val MAX_ANTERIEURES = 20
-        private val DELAI_REDEMARRAGE: Duration = Duration.ofMinutes(10)
-        private val HORODATAGE = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault())
+        private const val DISK_MARGIN = 50L * 1024 * 1024
+        private const val MAX_OLDER = 20
+        private val RESTART_TIMEOUT: Duration = Duration.ofMinutes(10)
+        private val TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault())
 
-        fun mo(octets: Long): String = String.format(Locale.FRANCE, "%.1f Mo", octets / 1024.0 / 1024.0)
+        fun mb(bytes: Long): String = String.format(Locale.ROOT, "%.1f MB", bytes / 1024.0 / 1024.0)
     }
 }

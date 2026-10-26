@@ -13,10 +13,10 @@ class MisesAJourListener : ServletContextListener {
 
     override fun contextInitialized(event: ServletContextEvent) {
         event.servletContext.log("AVERTISSEMENT : ${Depreciation.MESSAGE}")
-        BusinessFactory.getUpdateService().demarrer(ComposantJsf(event.servletContext))
+        BusinessFactory.getUpdateService().start(ComposantJsf(event.servletContext))
     }
 
     override fun contextDestroyed(event: ServletContextEvent) {
-        BusinessFactory.getUpdateService().arreter()
+        BusinessFactory.getUpdateService().stop()
     }
 }

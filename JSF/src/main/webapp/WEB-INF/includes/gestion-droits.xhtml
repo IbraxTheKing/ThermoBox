@@ -107,14 +107,14 @@
                     <div class="tb-groupe-tete">
                         <span class="tb-section-icon"><i class="pi pi-users"/></span>
                         <div class="tb-groupe-titre">
-                            <strong>#{g.groupe.nom}</strong>
+                            <strong>#{g.groupe.name}</strong>
                             <h:outputText styleClass="tb-muted" value="#{g.groupe.description}" rendered="#{not empty g.groupe.description}"/>
                         </div>
-                        <p:commandButton icon="pi pi-pencil" title="Modifier #{g.groupe.nom}" action="#{droitsBean.modifierGroupe(g)}"
+                        <p:commandButton icon="pi pi-pencil" title="Modifier #{g.groupe.name}" action="#{droitsBean.modifierGroupe(g)}"
                                          process="@this" update=":groupeDlgForm" oncomplete="PF('groupeDlg').show()" styleClass="ui-button-flat"/>
-                        <p:commandButton icon="pi pi-trash" title="Supprimer #{g.groupe.nom}" action="#{droitsBean.supprimerGroupe(g)}"
+                        <p:commandButton icon="pi pi-trash" title="Supprimer #{g.groupe.name}" action="#{droitsBean.supprimerGroupe(g)}"
                                          process="@this" update=":gestForm:groupes :gestForm:users" styleClass="ui-button-flat ui-button-danger">
-                            <p:confirm header="Supprimer" message="Supprimer le groupe « #{g.groupe.nom} » ? Ses membres gardent leurs propres accès."
+                            <p:confirm header="Supprimer" message="Supprimer le groupe « #{g.groupe.name} » ? Ses membres gardent leurs propres accès."
                                        icon="pi pi-exclamation-triangle"/>
                         </p:commandButton>
                     </div>

@@ -8,10 +8,10 @@
     <span class="tb-drill-text">
         <span class="tb-drill-name">#{n.salle.name}</span>
         <span class="tb-drill-meta">
-            #{n.kind.label}
+            #{libelles.kind(n.kind)}
             <h:outputText value=" · #{salleBean.nombreEnfants(n)} élément(s)" rendered="#{salleBean.estDossier(n)}"/>
             <h:outputText value=" · #{n.boitiers} boîtier(s)"
-                          rendered="#{loginBean.canSeeBoitiers and n.kind eq 'SALLE' and n.boitiers gt 0}"/>
+                          rendered="#{loginBean.canSeeBoitiers and n.kind eq 'ROOM' and n.boitiers gt 0}"/>
             <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
         </span>
     </span>

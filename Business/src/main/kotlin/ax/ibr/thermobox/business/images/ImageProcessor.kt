@@ -29,12 +29,12 @@ object ImageProcessor {
     private const val MAX_PIXELS = 40_000_000L
 
     private const val QUALITY = 0.85f
-    private const val UNSUPPORTED = "Format d'image non reconnu (JPEG, PNG, GIF ou BMP)."
+    private const val UNSUPPORTED = "Unrecognized image format (JPEG, PNG, GIF or BMP)."
 
     /** @throws IllegalArgumentException if [bytes] is not a readable image, or is too big. */
     fun toJpeg(bytes: ByteArray): ByteArray {
-        require(bytes.isNotEmpty()) { "Le fichier est vide." }
-        require(bytes.size <= MAX_UPLOAD_BYTES) { "L'image ne doit pas dépasser ${MAX_UPLOAD_BYTES / 1024 / 1024} Mo." }
+        require(bytes.isNotEmpty()) { "The file is empty." }
+        require(bytes.size <= MAX_UPLOAD_BYTES) { "The image must not exceed ${MAX_UPLOAD_BYTES / 1024 / 1024} Mo." }
         val image = orient(decode(bytes), exifOrientation(bytes))
         return encode(resize(image))
     }
@@ -48,7 +48,7 @@ object ImageProcessor {
             try {
                 reader.input = input
                 val pixels = reader.getWidth(0).toLong() * reader.getHeight(0)
-                require(pixels <= MAX_PIXELS) { "L'image est trop grande (${MAX_PIXELS / 1_000_000} mégapixels au plus)." }
+                require(pixels <= MAX_PIXELS) { "The image is too large (${MAX_PIXELS / 1_000_000} megapixels at most)." }
                 return reader.read(0)
             } catch (e: IOException) {
                 throw IllegalArgumentException(UNSUPPORTED, e) // truncated file, CMYK JPEG…

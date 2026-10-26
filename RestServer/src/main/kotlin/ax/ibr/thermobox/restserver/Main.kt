@@ -4,7 +4,7 @@ import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.business.update.BuildInfo
-import ax.ibr.thermobox.restserver.update.ComposantRest
+import ax.ibr.thermobox.restserver.update.RestComponent
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import java.net.URI
@@ -36,14 +36,14 @@ fun main() {
 
     // Daily check for new versions, and switch when the JSF interface installed one.
     val updates = BusinessFactory.getUpdateService()
-    updates.demarrer(ComposantRest())
+    updates.start(RestComponent())
 
     // Release the database connection pool when the server stops.
     Runtime.getRuntime().addShutdownHook(Thread {
-        updates.arreter()
+        updates.stop()
         PersistenceFactory.close()
     })
 
-    println("ThermoBox ${BuildInfo.texte} - REST server started on $baseUri (JWT lifetime: ${tokenTtl.toMinutes()} min)")
+    println("ThermoBox ${BuildInfo.text} - REST server started on $baseUri (JWT lifetime: ${tokenTtl.toMinutes()} min)")
 
 }

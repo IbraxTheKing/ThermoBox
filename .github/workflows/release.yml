@@ -1,9 +1,9 @@
 name: Release assets
 
-# Une version publiée à la main (stable, beta, rc) reçoit les fichiers que le système de mise à
-# jour télécharge : RestServer.jar, base.jar, JsfClient.war (GitHub publie leur empreinte
-# SHA-256), construits depuis le tag avec ce numéro de version inscrit dedans.
-# Les notes de version restent celles écrites à la main. Les nightly ont leur propre workflow.
+# A version published by hand (stable, beta, rc) gets the files the update system downloads:
+# RestServer.jar, base.jar, JsfClient.war (GitHub publishes their SHA-256 digest), built from the
+# tag with this version number written into them.
+# The release notes stay the hand-written ones. The nightlies have their own workflow.
 
 on:
   release:
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag de la version à compléter (ex. 26.11.0)
+        description: Tag of the version to complete (e.g. 26.11.0)
         required: true
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
         id: check
         run: |
           case "$TAG" in
-            *nightly*) echo "Nightly : fichiers déjà publiés par nightly.yml"; echo "build=false" >> "$GITHUB_OUTPUT" ;;
+            *nightly*) echo "Nightly: files already published by nightly.yml"; echo "build=false" >> "$GITHUB_OUTPUT" ;;
             *) echo "build=true" >> "$GITHUB_OUTPUT" ;;
           esac
 
@@ -36,7 +36,7 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
-      - name: Installer le JDK 23
+      - name: Install JDK 23
         if: steps.check.outputs.build == 'true'
         uses: actions/setup-java@v4
         with:
@@ -44,12 +44,12 @@ jobs:
           java-version: '23'
           cache: maven
 
-      - name: Compiler (Maven, profil deploy)
+      - name: Build (Maven, deploy profile)
         if: steps.check.outputs.build == 'true'
         run: mvn -B -Pdeploy -DskipTests -Dthermobox.version="$TAG" package
 
-      # --clobber : relancer le workflow remplace les fichiers au lieu d'échouer
-      - name: Joindre les fichiers à la version
+      # --clobber: running the workflow again replaces the files instead of failing
+      - name: Attach the files to the release
         if: steps.check.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}

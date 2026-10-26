@@ -11,15 +11,15 @@ object HashExistingPasswords {
     @JvmStatic
     fun main(args: Array<String>) {
         val users = BusinessFactory.getUserService()
-        val enClair = users.getAll().filter { it.password != null && !PasswordHasher.isHash(it.password) }
-        enClair.forEach { user ->
+        val plainText = users.getAll().filter { it.password != null && !PasswordHasher.isHash(it.password) }
+        plainText.forEach { user ->
             try {
                 users.update(user) // UserService hashes clear-text passwords
-                println("Haché : ${user.username}")
+                println("Hashed: ${user.username}")
             } catch (e: IllegalArgumentException) {
-                println("Ignoré : ${user.username} (${e.message}) : changer son mot de passe")
+                println("Skipped: ${user.username} (${e.message}): change their password")
             }
         }
-        println("${enClair.size} mot(s) de passe traité(s).")
+        println("${plainText.size} password(s) processed.")
     }
 }

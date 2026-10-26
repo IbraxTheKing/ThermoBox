@@ -1,11 +1,13 @@
 package ax.ibr.thermobox.jsf.beans
 
-import ax.ibr.thermobox.common.entities.Boitier
-import ax.ibr.thermobox.common.entities.Groupe
+import ax.ibr.thermobox.jsf.util.Libelles
+
+import ax.ibr.thermobox.common.entities.Device
+import ax.ibr.thermobox.common.entities.UserGroup
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
-import ax.ibr.thermobox.common.entities.Salle
-import ax.ibr.thermobox.common.entities.SalleKind
+import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.LoginBean
@@ -34,7 +36,7 @@ class GestionBean : Serializable {
 
     /** One row: an element with its place, temperature and consigne (in Celsius). */
     data class Ligne(
-        val salle: Salle,
+        val salle: Room,
         val chemin: String,
         val parentId: Long?,
         val temperature: Float?,
@@ -45,15 +47,15 @@ class GestionBean : Serializable {
         val etat: EtatSalle,
     ) : Serializable {
         val id: Long get() = salle.id!!
-        val kind: SalleKind get() = salle.kind
-        val boitier: Boolean get() = salle is Boitier
-        val rattache: Boolean get() = parentId != null || kind == SalleKind.BATIMENT
+        val kind: RoomKind get() = salle.kind
+        val boitier: Boolean get() = salle is Device
+        val rattache: Boolean get() = parentId != null || kind == RoomKind.BUILDING
         val icone: String
             get() = when (kind) {
-                SalleKind.BATIMENT -> "pi-building"
-                SalleKind.ETAGE -> "pi-server"
-                SalleKind.SALLE -> "pi-home"
-                SalleKind.BOITIER -> "pi-wifi"
+                RoomKind.BUILDING -> "pi-building"
+                RoomKind.FLOOR -> "pi-server"
+                RoomKind.ROOM -> "pi-home"
+                RoomKind.DEVICE -> "pi-wifi"
             }
     }
 
@@ -63,7 +65,7 @@ class GestionBean : Serializable {
     // Filters
     var recherche: String = ""
     /** null: every kind */
-    var type: SalleKind? = null
+    var type: RoomKind? = null
     /**
      * Only the elements off their consigne, or the boxes not attached. Not "aTraiter": its getter
      * getATraiter() makes the EL property "ATraiter", unreachable as gestionBean.aTraiter.
@@ -86,11 +88,11 @@ class GestionBean : Serializable {
 
     // Create / edit dialog (ADMIN)
     var editionId: Long? = null
-    var formKind: SalleKind = SalleKind.SALLE
+    var formKind: RoomKind = RoomKind.ROOM
     var formNom: String = ""
     var formParentId: Long? = null
 
-    val types: List<SalleKind> get() = SalleKind.entries.filter { it != SalleKind.BOITIER || login.canSeeBoitiers }
+    val types: List<RoomKind> get() = RoomKind.entries.filter { it != RoomKind.DEVICE || login.canSeeBoitiers }
     val admin: Boolean get() = login.isAdmin
 
     /** f:viewAction: GESTIONNAIRE and ADMIN only; the others go back to the dashboard. */
@@ -106,22 +108,22 @@ class GestionBean : Serializable {
 
     fun charger() {
         val acces = login.perimetre
-        val toutes = Services.salles.getAll().filter { it.id != null && acces.peutVoir(it) }
-            .filter { it !is Boitier || login.canSeeBoitiers }
+        val toutes = Services.salles.getAll().filter { it.id != null && acces.canSee(it) }
+            .filter { it !is Device || login.canSeeBoitiers }
         lignes = toutes.map { s ->
-            val chemin = Services.hierarchie.getChemin(s)
-            val effective = if (s is Boitier) null else Services.climat.getConsigneEffective(s)
-            val mesures = Services.climat.getMesures(s)
-            val temperature = if (s is Boitier) mesures.firstOrNull()?.mesure?.value else Services.climat.getMoyenne(s)
+            val chemin = Services.hierarchie.getPath(s)
+            val effective = if (s is Device) null else Services.climat.getEffectiveSetpoint(s)
+            val mesures = Services.climat.getMeasurements(s)
+            val temperature = if (s is Device) mesures.firstOrNull()?.measurement?.value else Services.climat.getAverage(s)
             Ligne(
                 salle = s,
                 chemin = chemin.joinToString(" › ") { it.name.orEmpty() },
                 parentId = chemin.lastOrNull()?.id,
                 temperature = temperature,
-                consigne = effective?.consigne?.value,
-                heriteeDe = effective?.takeIf { it.heritee }?.source?.name,
+                consigne = effective?.setpoint?.value,
+                heriteeDe = effective?.takeIf { it.inherited }?.source?.name,
                 boitiers = mesures.size,
-                etat = EtatSalle.of(temperature, effective?.consigne?.value),
+                etat = EtatSalle.of(temperature, effective?.setpoint?.value),
             )
         }.sortedWith(compareBy({ normaliser(it.chemin) }, { it.kind.ordinal }, { normaliser(it.salle.name.orEmpty()) }))
         // Keep the selection on what still exists
@@ -140,10 +142,10 @@ class GestionBean : Serializable {
             }
         }
 
-    fun nombre(k: SalleKind?): Int = if (k == null) lignes.size else lignes.count { it.kind == k }
+    fun nombre(k: RoomKind?): Int = if (k == null) lignes.size else lignes.count { it.kind == k }
     val nombreATraiter: Int get() = lignes.count { it.etat == EtatSalle.EN_CHAUFFE || it.etat == EtatSalle.TROP_CHAUD || (it.boitier && !it.rattache) }
 
-    fun filtrerType(k: SalleKind?) {
+    fun filtrerType(k: RoomKind?) {
         type = if (type == k) null else k
         // "Tout": every element again
         if (k == null) seulementATraiter = false
@@ -167,7 +169,7 @@ class GestionBean : Serializable {
         if (!login.require(login.canSetConsigne)) return false
         val unite = Unite.courante()
         val celsius = Math.round(unite.versCelsius(saisie) * 10f) / 10f
-        val elements = cibles.filter { !it.boitier && login.perimetre.peutVoir(it.salle) }
+        val elements = cibles.filter { !it.boitier && login.perimetre.canSee(it.salle) }
         if (elements.isEmpty()) {
             Faces.warn("Rien à régler", "Une consigne se règle sur un bâtiment, un étage ou une salle.")
             return false
@@ -176,7 +178,7 @@ class GestionBean : Serializable {
         var boitiers = 0
         for (l in elements) {
             try {
-                boitiers += Services.climat.envoyerConsigne(l.salle, celsius, forcer).boitiers.size
+                boitiers += Services.climat.sendSetpoint(l.salle, celsius, forcer).devices.size
             } catch (e: Exception) {
                 refusees += "${l.salle.name} (${e.message})"
             }
@@ -203,7 +205,7 @@ class GestionBean : Serializable {
     /** Users who can be given accesses: not the ADMINs, who see everything anyway. */
     val utilisateursLimitables: List<User> get() = Services.users.getAll().filter { it.type != UserType.ADMIN }.sortedBy { it.username?.lowercase() }
 
-    val groupesExistants: List<Groupe> get() = Services.groupes.getAll()
+    val groupesExistants: List<UserGroup> get() = Services.groupes.getAll()
 
     fun donnerAcces() = changerAcces(true)
 
@@ -223,14 +225,14 @@ class GestionBean : Serializable {
         val faits = ArrayList<String>()
         val ignores = ArrayList<String>()
         accesUsers.mapNotNull { Services.users.getById(it) }.forEach { u ->
-            if (u.type == UserType.ADMIN || !Services.acces.estRestreint(u)) {
+            if (u.type == UserType.ADMIN || !Services.acces.isRestricted(u)) {
                 ignores += "${u.username} (voit déjà tout)"
                 return@forEach
             }
-            val actuels = Services.acces.getAutorisations(u)
+            val actuels = Services.acces.getGrants(u)
             val nouveaux = if (donner) actuels + elements.filter { e -> actuels.none { it.id == e.id } } else actuels.filter { it.id !in ids }
             try {
-                Services.acces.definir(u, true, nouveaux)
+                Services.acces.define(u, true, nouveaux)
                 faits += u.username.orEmpty()
             } catch (e: Exception) {
                 ignores += "${u.username} (${e.message})"
@@ -238,10 +240,10 @@ class GestionBean : Serializable {
         }
         accesGroupes.mapNotNull { Services.groupes.getById(it) }.forEach { g ->
             try {
-                if (donner) Services.groupes.ajouterElements(g, elements) else Services.groupes.retirerElements(g, elements)
-                faits += "groupe ${g.nom}"
+                if (donner) Services.groupes.addElements(g, elements) else Services.groupes.removeElements(g, elements)
+                faits += "groupe ${g.name}"
             } catch (e: Exception) {
-                ignores += "groupe ${g.nom} (${e.message})"
+                ignores += "groupe ${g.name} (${e.message})"
             }
         }
         if (faits.isNotEmpty()) Faces.info(
@@ -256,7 +258,7 @@ class GestionBean : Serializable {
 
     fun nouveau() {
         editionId = null
-        formKind = type?.takeIf { it != SalleKind.BOITIER } ?: SalleKind.SALLE
+        formKind = type?.takeIf { it != RoomKind.DEVICE } ?: RoomKind.ROOM
         formNom = ""
         formParentId = selection.singleOrNull()?.takeIf { formKind.parentKinds.contains(it.kind) }?.id
     }
@@ -279,7 +281,7 @@ class GestionBean : Serializable {
             return lignes.filter { c -> c.id !in ids && kinds.all { k -> c.kind in k.parentKinds } }
         }
 
-    fun libelle(l: Ligne): String = if (l.chemin.isEmpty()) "${l.salle.name} (${l.kind.label})" else "${l.salle.name} (${l.kind.label}, ${l.chemin})"
+    fun libelle(l: Ligne): String = if (l.chemin.isEmpty()) "${l.salle.name} (${Libelles.kind(l.kind)})" else "${l.salle.name} (${Libelles.kind(l.kind)}, ${l.chemin})"
 
     fun enregistrer() {
         if (!login.require(login.isAdmin)) return
@@ -293,7 +295,7 @@ class GestionBean : Serializable {
             salle.name = nom
             if (salle.id == null) Services.salles.add(salle) else Services.salles.update(salle)
             Services.hierarchie.setParent(salle, formParentId?.let { Services.salles.getById(it) })
-            Faces.info("${salle.kind.label} « $nom » enregistré(e)")
+            Faces.info("${Libelles.kind(salle.kind)} « $nom » enregistré(e)")
             PrimeFaces.current().ajax().addCallbackParam("saved", true)
         } catch (e: Exception) {
             Faces.error("Enregistrement impossible", e.message)
