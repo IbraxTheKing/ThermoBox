@@ -231,7 +231,7 @@ La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 ### 🏷 Serveur (`/api/v2/server`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Nom et version du serveur, adresse et origine du logo (`{"name": "ThermoBox", "version": "…", "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). | Public |
+| `GET` | `/` | Nom et version du serveur, API servies, adresse et origine du logo (`{"name": "ThermoBox", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). `version` vaut `dev` pour un build sans numéro. | Public |
 | `GET` | `/logo` | Le logo du serveur, dans son format. Avec `?size=192`, un PNG d'au plus 192 px quand le logo peut être redimensionné (PNG, JPEG, GIF, logo ThermoBox) ; un logo SVG, ICO ou WebP est servi tel quel. Avec `ETag`. | Public |
 | `PUT` | `/logo` | Remplace le logo : le corps est l'image (PNG, JPEG ou GIF, gardée en PNG de 1024 px au plus ; ou SVG sans script), 5 Mo max. | ADMIN |
 | `DELETE` | `/logo` | Revient au logo automatique. | ADMIN |
@@ -253,7 +253,12 @@ Voir la section « Mises à jour depuis l'interface » du README principal.
 
 Les chemins de ThermoBox 26.10 restent servis tels quels pour les clients existants (le client Angular actuel, des scripts) : tout chemin sous `/api/` qui n'est pas sous `/api/v2/` est l'ancienne API. Le serveur réécrit la requête vers l'API anglaise et traduit le JSON dans les deux sens (`LegacyApi`, dans `filters`) : un ancien client reçoit les mêmes clés et les mêmes valeurs qu'avant. Seuls les textes libres (messages d'erreur, intitulés des contrôles de mise à jour) sont désormais en anglais.
 
-Les nouveaux clients doivent utiliser `/api/v2`. Correspondances :
+Les nouveaux clients doivent utiliser `/api/v2`. Pour savoir lequel employer, un client appelle
+`GET /api/server` (public), servi depuis 26.11 : `apiVersions` vaut `["v1"]` en 26.11 et `["v1", "v2"]`
+à partir de 26.12 ; un serveur plus ancien répond 404. La réponse a les mêmes clés que
+`GET /api/v2/server`.
+
+Correspondances :
 
 | Ancienne API | API v2 |
 | :--- | :--- |

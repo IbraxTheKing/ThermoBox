@@ -44,7 +44,12 @@ class ServerResource {
 
     private val logos get() = ServerLogo.instance
 
-    /** {"name": "ThermoBox", "version": "26.12.0", "logo": "/api/v2/server/logo?v=…", "logoSource": "site"} */
+    /**
+     * {"name": "ThermoBox", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "site"}
+     *
+     * Also served as GET /api/server (old API, through [ax.ibr.thermobox.restserver.filters.LegacyApi]):
+     * the same keys as the 26.11 answer, which only has name, version and apiVersions ["v1"].
+     */
     @GET
     @PublicEndpoint
     @Produces(MediaType.APPLICATION_JSON)
@@ -177,9 +182,23 @@ class ServerResource {
     }
 }
 
-data class ServerInfoDto(val name: String, val version: String, val logo: String, val logoSource: String) {
+/**
+ * [version]: tag of the release ("26.12.0", "26.12.0-rc.2"), or "dev" for a build without a version.
+ * [apiVersions]: the REST APIs this server answers, oldest first ("v1": /api/…, "v2": /api/v2/…).
+ */
+data class ServerInfoDto(
+    val name: String,
+    val version: String,
+    val apiVersions: List<String>,
+    val logo: String,
+    val logoSource: String,
+) {
     companion object {
-        fun of(logo: Logo) = ServerInfoDto("ThermoBox", BuildInfo.text, "/api/v2/server/logo?v=${logo.version}", logo.source.name.lowercase())
+        val API_VERSIONS = listOf("v1", "v2")
+
+        fun of(logo: Logo) = ServerInfoDto(
+            "ThermoBox", BuildInfo.text, API_VERSIONS, "/api/v2/server/logo?v=${logo.version}", logo.source.name.lowercase(),
+        )
     }
 }
 
