@@ -13,7 +13,7 @@ ThermoBox est une application de supervision thermique permettant la gestion des
 ### Prérequis
 - JDK 23
 - Maven 3.9+
-- MySQL (ou autre base de données compatible JDBC)
+- MySQL 8 ou MariaDB
 
 ### Installation & Configuration
 1. Clonez le dépôt :
@@ -38,7 +38,7 @@ ThermoBox est une application de supervision thermique permettant la gestion des
 ### Lancement de l'API REST
 Pour lancer le serveur API, exécutez la classe principale du module `RestServer` depuis votre IDE ou via Maven en ciblant le module spécifique. Le serveur est accessible sur :
 - URL : http://localhost:8080/
-- Préfixe API : /api
+- Préfixe API : /api/v2 (voir [RestServer/README.md](RestServer/README.md))
 
 ## Configuration (variables d'environnement)
 
@@ -101,16 +101,71 @@ Depuis 26.12, le code, la base et l'API sont en anglais (salle → `Room`, bâti
 
 ## Architecture du Projet
 
-Le projet est structuré en modules Maven pour assurer une séparation des responsabilités :
+Le projet est un ensemble de modules Maven ; chacun a son README, qui détaille ses dossiers et ses
+fichiers.
 
-| Module | Rôle | Description |
+| Module | Rôle | Documentation |
 | :--- | :--- | :--- |
-| Common | Domain | Contient les entités JPA, les modèles de données et les interfaces partagées. |
-| Persistence | Data Access | Gère l'accès aux données via JPA et fournit les services de persistance. |
-| Business | Core Logic | Contient la logique métier, les règles de calcul des consignes et les pilotes de communication (MQTT/Simulé). |
-| RestServer | Entry Point | Exposition des ressources via une API REST sécurisée par JWT (Jersey + Jetty). |
-| ibr-utils | Shared Utils | Utilitaires transversaux : Logging JSON, Cryptographie, Gestion d'exceptions personnalisées. |
-| Base | Deployment | Module de packaging regroupant les modules internes pour faciliter le déploiement (Fat Jar). |
+| `ibr-utils` | Briques génériques : contrat CRUD, service JPA générique, annotations de sécurité REST, exceptions. | [ibr-utils/README.md](ibr-utils/README.md) |
+| `Common` | Le modèle : entités (hiérarchie, températures, utilisateurs, accès…), interfaces des services, types des mises à jour. | [Common/README.md](Common/README.md) |
+| `Persistence` | La base : services de stockage en JPA ou en JDBC, migrations Flyway, sauvegarde SQL. | [Persistence/README.md](Persistence/README.md) |
+| `Business` | Les règles et calculs : hiérarchie, consignes héritées, accès, limites de température, pilotes des boîtiers (MQTT, simulation), sécurité, mises à jour. | [Business/README.md](Business/README.md) |
+| `RestServer` | Le programme lancé : API REST (Jersey + Jetty) sécurisée par JWT, logo du serveur. | [RestServer/README.md](RestServer/README.md) |
+| `Base` | Pas de code : fabrique `base.jar` (les modules du projet) pour le déploiement. | [Base/README.md](Base/README.md) |
+
+Chaque module ne dépend que de ceux à sa gauche :
+
+```
+ibr-utils  ←  Common  ←  Persistence  ←  Business  ←  RestServer
+```
+
+Une requête traverse les couches dans l'ordre : `RestServer` (filtres : ancienne API, CORS, jeton JWT
+et droits ; puis la ressource) → `Business` (règles, accès, calculs, via `BusinessFactory`) →
+`Persistence` (SQL, via `PersistenceFactory`) → MySQL. Les mesures suivent un autre chemin : le pilote
+de boîtiers (`Business/io`) les reçoit (MQTT ou simulation) et les enregistre directement par les
+services métier.
+
+### Dossiers du dépôt
+
+```
+ThermoBox/
+├── ibr-utils/, Common/, Persistence/, Business/, RestServer/, Base/   les modules (voir ci-dessus)
+├── pom.xml                Maven parent : modules, versions, profil deploy
+├── deploy/                (créé par mvn -Pdeploy) RestServer.jar, base.jar, JsfClient.war
+├── docker/
+│   ├── rest/              Dockerfile du serveur REST et entrypoint.sh (relance après une mise à jour)
+│   └── mosquitto/         configuration du broker MQTT (profil compose mqtt)
+├── docker-compose.yml     MySQL + REST (+ Mosquitto) ; voir DOCKER.md
+├── Dockerfile             image REST simple (build Maven puis JRE), sans relance automatique
+├── .env.example           modèle du fichier .env de docker compose
+├── scripts/
+│   ├── init-env.sh        crée .env avec des secrets aléatoires
+│   └── thermobox-rest.sh  lance le serveur hors Docker et le relance après une mise à jour (systemd…)
+├── .github/workflows/
+│   ├── nightly.yml        chaque nuit : pré-version AA.MM.0-nightly.N depuis la branche dev
+│   ├── prerelease.yml     à la demande : beta ou rc
+│   ├── release.yml        version publiée à la main : joint RestServer.jar, base.jar, JsfClient.war
+│   ├── qodana_code_quality.yml  analyse de code (Qodana) sur les pull requests et dev
+│   └── summary.yml        résumé automatique des nouvelles issues
+├── qodana.yaml            réglages de Qodana
+├── DOCKER.md              tout sur Docker
+└── README.md              ce fichier
+```
+
+### Dossier de données (`THERMOBOX_DATA_DIR`)
+
+Ce que le serveur écrit hors de la base, dans `~/.thermobox` (volume `thermobox_data` sous Docker).
+Plusieurs serveurs REST peuvent le partager.
+
+```
+interface.properties             style d'affichage choisi par un administrateur (glass / panel)
+temperature-limits.properties    limites des mesures et des consignes
+branding/logo.png | logo.svg     logo donné par un administrateur
+updates/<version>/               RestServer.jar, base.jar d'une version téléchargée ou conservée
+updates/current                  version à lancer (lue par les lanceurs)
+updates/installation.json        dernière installation et ses étapes
+backups/                         sauvegardes de la base faites avant une mise à jour
+```
 
 ## Stack Technique
 - Langage : Kotlin 2.4+
