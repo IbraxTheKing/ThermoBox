@@ -1,7 +1,7 @@
 package ax.ibr.thermobox.business.implementations
 
-import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
-import ax.ibr.thermobox.business.exceptions.TooHotException
+import ax.ibr.thermobox.business.rules.SetpointRules
+import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.services.TemperatureService
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
@@ -12,8 +12,6 @@ class TemperatureServiceImpl(
     private val temperatureService: TemperatureService = PersistenceFactory.getTemperatureDataService()
 ) : TemperatureService, Serializable {
 
-    private val isFahrenheit: Boolean = false
-
     override fun getByType(temperatureClass: Temperature): List<Temperature>? {
         return temperatureService.getByType(temperatureClass)
     }
@@ -22,25 +20,9 @@ class TemperatureServiceImpl(
         return temperatureService.getAverage(temperatureClass)
     }
 
+    /** Refuses a value outside the limits chosen by an ADMIN (Celsius, as every stored temperature). */
     override fun add(t: Temperature) {
-        t.value?.let {
-            if (isFahrenheit) {
-                // TODO: check temperatures given in Fahrenheit too.
-            }
-            else {
-                if (it > 50f) {
-                    if (it > 100f){
-                        throw ImpossibleValueException("Impossible value, or the house is on fire (${it} °C)")
-                    }
-                    throw TooHotException("The value is far too high [${it} °C]")
-                }
-
-                if (it < -10f) {
-                    throw ImpossibleValueException("Impossible value, or this is the ice age (${it} °C)")
-                }
-            }
-
-        }
+        t.value?.let { if (t is Setpoint) SetpointRules.check(it) else SetpointRules.checkMeasurement(it) }
         temperatureService.add(t)
     }
 

@@ -2,22 +2,29 @@ package ax.ibr.thermobox.business.rules
 
 import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
 import ax.ibr.thermobox.business.exceptions.TooHotException
+import ax.ibr.thermobox.business.settings.TemperatureLimits
+import ax.ibr.thermobox.business.settings.TemperatureLimitsStore
 
-/** Limits a setpoint must respect before being saved or sent to a device. */
+/** Limits a temperature must respect, as chosen by an ADMIN ([TemperatureLimits]). */
 object SetpointRules {
 
-    private const val IMPOSSIBLE_MAX = 100f
-    private const val IMPOSSIBLE_MIN = -10f
-    private const val HOT_LIMIT = 50f
+    /** The limits in force; replaced by the tests. */
+    @Volatile var limits: () -> TemperatureLimits = { TemperatureLimitsStore.instance.get() }
 
+    /** Before a setpoint is saved or sent to a device. */
     fun check(value: Float) {
-        if (value >= IMPOSSIBLE_MAX || value <= IMPOSSIBLE_MIN) {
-            throw ImpossibleValueException(
-                "Setpoint is impossible to reach: $value C (min: $IMPOSSIBLE_MIN C, max: $IMPOSSIBLE_MAX C)"
-            )
-        }
-        if (value >= HOT_LIMIT) {
-            throw TooHotException("Setpoint is too hot")
-        }
+        val r = limits().setpoint
+        if (value < r.min) throw ImpossibleValueException("Setpoint too low: $value °C (min: ${r.min} °C)")
+        if (value > r.max) throw TooHotException("Setpoint too high: $value °C (max: ${r.max} °C)")
     }
+
+    /** Before a measurement is saved. */
+    fun checkMeasurement(value: Float) {
+        val r = limits().measurement
+        if (value < r.min) throw ImpossibleValueException("Measurement too low: $value °C (min: ${r.min} °C)")
+        if (value > r.max) throw TooHotException("Measurement too high: $value °C (max: ${r.max} °C)")
+    }
+
+    /** A reading a device may report: outside, it is a sensor error and is dropped. */
+    fun acceptsMeasurement(value: Float): Boolean = value in limits().measurement
 }

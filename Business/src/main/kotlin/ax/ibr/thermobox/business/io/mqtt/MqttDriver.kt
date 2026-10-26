@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.io.mqtt
 
+import ax.ibr.thermobox.business.rules.SetpointRules
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.common.entities.Device
 import ax.ibr.thermobox.common.entities.Setpoint
@@ -60,6 +61,8 @@ class MqttDriver(
         client.subscribe(TOPIC_TEMPERATURES) { topic, message ->
             val roomId = topic.substringAfterLast("/").toLongOrNull() ?: return@subscribe
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
+            // Outside the limits chosen by an ADMIN: a sensor error, not a temperature
+            if (!SetpointRules.acceptsMeasurement(value)) return@subscribe
 
             // Only devices measure; anything else (room, floor…) is ignored.
             val room = roomService.getById(roomId) as? Device ?: return@subscribe

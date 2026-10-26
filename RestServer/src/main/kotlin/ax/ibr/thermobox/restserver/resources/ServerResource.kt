@@ -1,11 +1,15 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.business.settings.Range
+import ax.ibr.thermobox.business.settings.TemperatureLimits
+import ax.ibr.thermobox.business.settings.TemperatureLimitsStore
 import ax.ibr.thermobox.business.update.BuildInfo
 import ax.ibr.thermobox.restserver.branding.Logo
 import ax.ibr.thermobox.restserver.branding.LogoImages
 import ax.ibr.thermobox.restserver.branding.LogoSource
 import ax.ibr.thermobox.restserver.branding.ServerLogo
 import ax.ibr.utils.rest.PublicEndpoint
+import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.DELETE
@@ -104,6 +108,50 @@ class ServerResource {
         return Response.ok(info()).build()
     }
 
+    /**
+     * Temperatures the server accepts (Celsius): readings of the devices or added by hand
+     * outside [measurement] are refused (a device's are dropped as sensor errors), and so are
+     * setpoints outside [setpoint]. Every user may read them, to bound their inputs.
+     */
+    @GET
+    @Path("/limits")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresAuth
+    fun limits(): TemperatureLimitsDto = TemperatureLimitsDto.of(TemperatureLimitsStore.instance.get())
+
+    /** {"measurement": {"min": -10, "max": 60}, "setpoint": {"min": 5, "max": 35}}; a missing part is kept (ADMIN). */
+    @PUT
+    @Path("/limits")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresRole("ADMIN")
+    fun setLimits(request: TemperatureLimitsDto?): Response {
+        val current = TemperatureLimitsStore.instance.get()
+        return try {
+            val limits = TemperatureLimits(
+                request?.measurement?.toRange(current.measurement) ?: current.measurement,
+                request?.setpoint?.toRange(current.setpoint) ?: current.setpoint,
+            )
+            TemperatureLimitsStore.instance.set(limits)
+            Response.ok(TemperatureLimitsDto.of(limits)).build()
+        } catch (e: IllegalArgumentException) {
+            Response.status(Response.Status.BAD_REQUEST).entity(mapOf("error" to e.message)).build()
+        } catch (e: Exception) {
+            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(mapOf("error" to "The data folder is not writable: ${e.message}")).build()
+        }
+    }
+
+    /** Back to the default limits (-10 to 50 °C for both) (ADMIN). */
+    @DELETE
+    @Path("/limits")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresRole("ADMIN")
+    fun resetLimits(): TemperatureLimitsDto {
+        TemperatureLimitsStore.instance.reset()
+        return TemperatureLimitsDto.of(TemperatureLimitsStore.instance.get())
+    }
+
     /** The name the client used to reach the server, behind a reverse proxy too (without the port). */
     private fun host(): String? {
         val raw = headers.getHeaderString("X-Forwarded-Host")?.split(',')?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
@@ -132,5 +180,29 @@ class ServerResource {
 data class ServerInfoDto(val name: String, val version: String, val logo: String, val logoSource: String) {
     companion object {
         fun of(logo: Logo) = ServerInfoDto("ThermoBox", BuildInfo.text, "/api/v2/server/logo?v=${logo.version}", logo.source.name.lowercase())
+    }
+}
+
+/** A range in JSON; a missing bound keeps its current value. */
+class RangeDto {
+    var min: Float? = null
+    var max: Float? = null
+
+    fun toRange(current: Range) = Range(min ?: current.min, max ?: current.max)
+
+    companion object {
+        fun of(r: Range) = RangeDto().apply { min = r.min; max = r.max }
+    }
+}
+
+class TemperatureLimitsDto {
+    var measurement: RangeDto? = null
+    var setpoint: RangeDto? = null
+
+    companion object {
+        fun of(l: TemperatureLimits) = TemperatureLimitsDto().apply {
+            measurement = RangeDto.of(l.measurement)
+            setpoint = RangeDto.of(l.setpoint)
+        }
     }
 }
