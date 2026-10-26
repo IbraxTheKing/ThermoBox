@@ -25,6 +25,7 @@ Business/src/main/kotlin/ax/ibr/thermobox/business/
 ├── config/            ConfigDriver : quel pilote, quel broker (variables d'environnement)
 ├── security/          mots de passe, connexion, jetons JWT, limitation des essais
 ├── images/            ImageProcessor : contrôle et réduction des photos
+├── charts/            CurveSampling : réduction d'une courbe à N points (LTTB)
 ├── update/            le système de mises à jour depuis GitHub
 └── exceptions/        TooHotException, ImpossibleValueException
 Business/src/main/resources/thermobox-version.properties   version inscrite par Maven
@@ -151,6 +152,14 @@ PNG, GIF ou BMP), redressée selon son orientation EXIF, réduite à 1600 px de 
 ré-encodée en JPEG (qualité 0,85). Le ré-encodage supprime les métadonnées (position GPS d'une photo
 de téléphone). Les images de plus de 40 millions de pixels sont refusées avant décodage.
 
+## `charts/` — `CurveSampling`
+
+Réduit une courbe de températures à au plus N points qui dessinent presque la même ligne
+(*Largest-Triangle-Three-Buckets*) : le premier et le dernier point sont gardés ; les autres sont
+répartis en N − 2 tranches égales, et chaque tranche garde le point qui forme le plus grand triangle
+avec le point gardé avant lui et la moyenne de la tranche suivante. Les pics restent visibles. Seuls
+des points d'origine sont renvoyés. Utilisé par `GET /api/v2/climate/…?points=N`.
+
 ## `update/` — mises à jour depuis GitHub
 
 | Fichier | Rôle |
@@ -189,6 +198,7 @@ depuis l'interface ».
 | `update/UpdatesTest` | Toute une mise à jour contre un faux GitHub (serveur HTTP local). |
 | `update/ReleaseNotesAndArtifactsTest`, `update/VersionTest` | Notes, choix des fichiers, extraction de zip, numéros de version. |
 | `config/ConfigDriverTest` | Lecture de `THERMOBOX_DRIVER`. |
+| `charts/CurveSamplingTest` | Réduction d'un mois de mesures, conservation d'un pic, courbes courtes. |
 | `java/BusinessServiceDelegationTest.java` | Les services délèguent bien au stockage. |
 
 Deux programmes y sont rangés parce qu'ils ne doivent pas être livrés : `DBPopulate.kt`

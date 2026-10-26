@@ -6,7 +6,9 @@ import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.business.update.BuildInfo
 import ax.ibr.thermobox.restserver.update.RestComponent
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
+import org.glassfish.jersey.message.GZipEncoder
 import org.glassfish.jersey.server.ResourceConfig
+import org.glassfish.jersey.server.filter.EncodingFilter
 import java.net.URI
 
 fun main() {
@@ -19,6 +21,9 @@ fun main() {
         "ax.ibr.thermobox.restserver.filters",
         "ax.ibr.thermobox.restserver.exceptions"
     )
+    // Responses compressed with gzip for the clients that accept it (every browser): the JSON of
+    // the curves shrinks about tenfold.
+    EncodingFilter.enableFor(config, GZipEncoder::class.java)
 
     // Local development: localhost:8080. In Docker, set THERMOBOX_HTTP_HOST=0.0.0.0, otherwise the
     // server only listens on the container's loopback and is unreachable from outside.
