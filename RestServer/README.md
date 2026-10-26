@@ -12,6 +12,15 @@ Le module `RestServer` expose les fonctionnalités de ThermoBox via une API REST
 
 Toutes les routes sont préfixées par `/api`. Les requêtes nécessitent généralement un header `Authorization: Bearer <token>`, sauf pour les points d'entrée publics.
 
+### 🏷 Serveur (`/api/server`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Nom et version du serveur, et les API qu'il sert : `{"name": "ThermoBox", "version": "26.11.1", "apiVersions": ["v1"]}`. | Public |
+
+Un client l'appelle avant la connexion pour savoir à quel serveur il parle. `version` vaut `dev` pour un
+build sans numéro de version. À partir de 26.12, la réponse est la même (avec d'autres clés en plus) et
+`apiVersions` contient aussi `v2` (API anglaise sous `/api/v2`). Un serveur antérieur à 26.11 répond 404.
+
 ### 🔐 Authentification (`/api/auth`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
