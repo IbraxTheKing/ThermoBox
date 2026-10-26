@@ -34,7 +34,7 @@ fun main() {
     // Listen to the boxes
     BusinessFactory.getDriver().listen()
 
-    // Daily check for new versions, and switch when the JSF interface installed one.
+    // Daily check for new versions, and switch when another server sharing the data folder installed one.
     val updates = BusinessFactory.getUpdateService()
     updates.start(RestComponent())
 

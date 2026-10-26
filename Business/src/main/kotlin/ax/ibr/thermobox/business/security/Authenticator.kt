@@ -6,7 +6,7 @@ import ax.ibr.thermobox.common.services.UserService
 import java.security.MessageDigest
 import java.util.UUID
 
-/** Credential check shared by the REST login and the JSF login. */
+/** Credential check of the REST login. */
 object Authenticator {
 
     /** Hash of a random value: unknown usernames pay the same BCrypt cost as real ones. */

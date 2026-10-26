@@ -15,7 +15,6 @@
     <module>Business</module>
     <module>Persistence</module>
     <module>RestServer</module>
-    <module>JSF</module>
   </modules>
 
   <properties>
@@ -116,7 +115,8 @@
 
   <!--
       Deployment build: mvn -Pdeploy -DskipTests package
-      Produces deploy/base.jar, deploy/RestServer.jar and deploy/JsfClient.war.
+      Produces deploy/base.jar, deploy/RestServer.jar and deploy/JsfClient.war (only a page saying
+      the JSF interface was removed, for the JSF interfaces of 26.11 and before that update themselves).
       Without -Pdeploy nothing changes (development, IDE and nightly builds).
   -->
   <profiles>

@@ -1,8 +1,9 @@
 name: Release assets
 
 # A version published by hand (stable, beta, rc) gets the files the update system downloads:
-# RestServer.jar, base.jar, JsfClient.war (GitHub publishes their SHA-256 digest), built from the
-# tag with this version number written into them.
+# RestServer.jar, base.jar (GitHub publishes their SHA-256 digest), built from the tag with this
+# version number written into them; and JsfClient.war, the "JSF removed" page that the JSF
+# interfaces of 26.11 and before install when they update themselves.
 # The release notes stay the hand-written ones. The nightlies have their own workflow.
 
 on:

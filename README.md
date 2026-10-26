@@ -2,11 +2,11 @@
 
 ThermoBox est une application de supervision thermique permettant la gestion des températures dans des infrastructures complexes telles que des bâtiments ou des salles serveurs. Le système permet d'organiser des espaces hiérarchiques, de suivre les mesures en temps réel et de gérer des consignes dynamiques.
 
-> [!WARNING]
-> **L'interface JSF est dépréciée** et le module `JSF` sera supprimé dans la version **26.12**.
-> Utilisez le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
+> [!IMPORTANT]
+> **L'interface JSF a été supprimée en 26.12.** L'interface de ThermoBox est le client Angular
+> [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
 > (branche [`dev`](https://github.com/IbraxTheKing/Thermobox-Ng-Client/tree/dev) pour l'instant),
-> qui passe par l'API REST de ce serveur. Voir [Dépréciation de l'interface JSF](#dépréciation-de-linterface-jsf).
+> qui passe par l'API REST de ce serveur. Voir [Suppression de l'interface JSF](#suppression-de-linterface-jsf-2612).
 
 ## Quick Start
 
@@ -57,30 +57,28 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_MQTT_URL` | `tcp://localhost:1883` | Broker MQTT (`ssl://hôte:8883` pour TLS) |
 | `THERMOBOX_MQTT_USER` / `THERMOBOX_MQTT_PASSWORD` | *aucun* | Identifiants du broker, si demandés |
 | `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
-| `THERMOBOX_STAGE` | `Production` | Mode JSF ; `Development` affiche le détail des erreurs |
-| `THERMOBOX_HTTPS` | `false` | `true` derrière un proxy HTTPS : cookies toujours `Secure` |
-| `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour, style d'affichage choisi par un administrateur (`interface.properties`) |
+| `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour, réglages choisis par un administrateur (style d'affichage, logo, limites de température) |
 | `THERMOBOX_UPDATE_CHANNEL` / `_CHECK` / `THERMOBOX_GITHUB_TOKEN` | `stable` / `true` / *aucun* | Mises à jour (voir plus bas) |
 
-Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée, un `THERMOBOX_STAGE`
-inconnu) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
+Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
 
-## Dépréciation de l'interface JSF
+## Suppression de l'interface JSF (26.12)
 
-L'interface web JSF fait double emploi avec le client Angular
+L'interface web JSF faisait double emploi avec le client Angular
 [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client), qui couvre les mêmes
-fonctions à travers l'API REST. Garder deux interfaces double la maintenance et la surface d'attaque
-(les contrôles d'accès sont écrits deux fois, dans les beans JSF et dans les ressources REST).
+fonctions à travers l'API REST. Dépréciée en 26.11, elle est supprimée en 26.12 : le module `JSF`, ses
+images Docker (profils `tomcat` et `wildfly`) et son installation par les mises à jour n'existent plus.
+Seuls le serveur REST et le client Angular restent.
 
-| Version | Ce qui change |
-|---|---|
-| Jusqu'à 26.11 | JSF fonctionne mais ne reçoit plus de nouvelles fonctions, seulement des correctifs de sécurité. Les administrateurs voient un bandeau sur l'aperçu, la gestion, les utilisateurs et les mises à jour, et le serveur l'écrit dans son journal au démarrage. |
-| 26.12 | Le module `JSF`, ses images Docker (profils `tomcat` et `wildfly`) et l'installation du WAR par les mises à jour sont supprimés. Seuls le serveur REST et le client Angular restent. |
+Les versions publiées contiennent encore un `JsfClient.war`, réduit à une page qui annonce la
+suppression et renvoie vers Thermobox-Ng-Client : une interface JSF 26.11 qui se met à jour
+l'installe, et ses utilisateurs savent où aller. Le serveur REST ne le télécharge jamais.
 
 **Pour migrer :** déployez Thermobox-Ng-Client (branche `dev` pour l'instant) en suivant son README,
-avec ce serveur REST comme API (`http://localhost:8080` avec Docker). Les comptes, salles, consignes et
-groupes sont dans la base et restent tels quels. Les préférences personnelles de l'interface JSF
-(unité, teinte, animations, raccourcis) sont des cookies du navigateur et sont à refaire dans le client.
+avec ce serveur REST comme API (`http://localhost:8080` avec Docker), puis arrêtez Tomcat ou WildFly.
+Les comptes, salles, consignes et groupes sont dans la base et restent tels quels. Les préférences
+personnelles de l'interface JSF (unité, teinte, animations, raccourcis) étaient des cookies du
+navigateur et sont à refaire dans le client.
 
 ## Noms anglais (26.12)
 
@@ -110,7 +108,6 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 | Persistence | Data Access | Gère l'accès aux données via JPA et fournit les services de persistance. |
 | Business | Core Logic | Contient la logique métier, les règles de calcul des consignes et les pilotes de communication (MQTT/Simulé). |
 | RestServer | Entry Point | Exposition des ressources via une API REST sécurisée par JWT (Jersey + Jetty). |
-| JSF | UI Layer | **Déprécié, supprimé en 26.12.** Interface web Jakarta Faces / PrimeFaces, remplacée par [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client). |
 | ibr-utils | Shared Utils | Utilitaires transversaux : Logging JSON, Cryptographie, Gestion d'exceptions personnalisées. |
 | Base | Deployment | Module de packaging regroupant les modules internes pour faciliter le déploiement (Fat Jar). |
 
@@ -120,7 +117,7 @@ Le projet est structuré en modules Maven pour assurer une séparation des respo
 - Persistence : Jakarta Persistence (JPA) / Hibernate
 - API : Jersey, Jetty
 - Sécurité : JWT (JSON Web Tokens)
-- Frontend : client Angular séparé ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)) ; Jakarta Faces (JSF) et PrimeFaces, dépréciés
+- Frontend : client Angular séparé ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client))
 
 ## Déploiement
 Le projet inclut un profil de déploiement spécifique. Pour générer les artefacts destinés à la production (incluant le regroupement des modules dans base.jar) :
@@ -209,8 +206,7 @@ Les tags constituent des références immuables vers les commits publiés. Un ta
 ## Mises à jour depuis l'interface
 
 ThermoBox cherche chaque jour une nouvelle version sur GitHub (et à la demande, depuis
-**Administration → Mises à jour**). Les administrateurs sont prévenus par l'API REST (et, jusqu'à sa suppression en 26.12, dans
-l'interface JSF : pastille dans la navigation, bandeau sur l'aperçu).
+**Administration → Mises à jour**). Les administrateurs sont prévenus par l'API REST, que le client affiche.
 
 **Types de mise à jour**, d'après le numéro de version :
 
@@ -233,17 +229,15 @@ Java demandée, conservation des fichiers actuels, puis bascule :
 
 - le serveur REST s'arrête avec le code 75 et son lanceur le relance sur la nouvelle version :
   `docker/rest/entrypoint.sh` dans Docker, `scripts/thermobox-rest.sh` ailleurs (avec
-  `java -jar` seul, l'installation est refusée : personne ne relancerait le serveur) ;
-- l'interface JSF remplace le WAR que Tomcat déploie, et Tomcat la redéploie. Sur WildFly,
-  l'installation reste manuelle (le WAR doit passer par `prepare-war.sh`).
+  `java -jar` seul, l'installation est refusée : personne ne relancerait le serveur).
 
-REST et JSF partagent le dossier de données (`THERMOBOX_DATA_DIR`, volume `thermobox_data` dans
-Docker, `~/.thermobox` sinon) : une version installée depuis l'un est appliquée par l'autre dans la
-minute. Chaque étape est affichée pendant l'installation, et les erreurs sont remontées à
+Plusieurs serveurs REST peuvent partager le dossier de données (`THERMOBOX_DATA_DIR`, volume
+`thermobox_data` dans Docker, `~/.thermobox` sinon) : une version installée depuis l'un est
+appliquée par les autres dans la minute. Chaque étape est affichée pendant l'installation, et les erreurs sont remontées à
 l'administrateur.
 
 **Pour publier une version** : le tag suit `AA.MM.PATCH` ; le workflow `release.yml` joint
-`RestServer.jar`, `base.jar` et `JsfClient.war` à la version publiée, avec le numéro inscrit dedans
+`RestServer.jar`, `base.jar` et `JsfClient.war` (la page « JSF supprimé », voir plus haut) à la version publiée, avec le numéro inscrit dedans
 (`-Dthermobox.version`). Dans les notes, une section `## Migration` (ou des lignes `Migration : …`)
 liste les opérations à faire, et le mot « incompatible » signale une version incompatible :
 l'interface les met en avant avant l'installation.
@@ -265,8 +259,7 @@ API REST :
 
 Variables : `THERMOBOX_UPDATE_CHANNEL` (`stable` / `prerelease`), `THERMOBOX_UPDATE_CHECK`
 (`false` coupe la vérification quotidienne), `THERMOBOX_DATA_DIR`, `THERMOBOX_UPDATE_REPO`,
-`THERMOBOX_GITHUB_TOKEN` (facultatif), `THERMOBOX_WAR_PATH` (WAR surveillé par Tomcat, s'il n'est
-pas à côté de l'application dépliée).
+`THERMOBOX_GITHUB_TOKEN` (facultatif).
 
 ## Accès aux bâtiments, étages et salles
 
@@ -286,7 +279,7 @@ Règles :
   accessibles ;
 - un MANAGER n'envoie de consigne qu'aux éléments auxquels il a accès.
 
-Les accès sont vérifiés côté serveur à chaque requête, dans l'interface JSF comme dans l'API REST :
+Les accès sont vérifiés côté serveur à chaque requête, dans l'API REST :
 listes, recherches, pages de détail, photos, températures, consignes. Un élément non autorisé
 répond comme un élément inexistant, même avec son identifiant tapé dans l'URL. Un changement
 d'accès s'applique dès la requête suivante.

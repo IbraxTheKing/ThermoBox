@@ -11,9 +11,11 @@
 
     <!--
         Deployment only (built with -Pdeploy, see the root pom): no code of its own, it merges
-        ibr-utils, Common, Persistence and Business into a single base.jar, shared by
-        RestServer.jar and JsfClient.war. Third-party libraries are not bundled: each server
-        brings them.
+        ibr-utils, Common, Persistence and Business into a single base.jar, next to RestServer.jar.
+        Third-party libraries are not bundled: RestServer.jar brings them.
+        It also writes deploy/JsfClient.war from src/main/retired-jsf: a page saying the JSF
+        interface was removed, published for the JSF interfaces of 26.11 and before, whose update
+        system installs a new WAR.
     -->
     <artifactId>base</artifactId>
     <packaging>jar</packaging>
@@ -81,6 +83,8 @@
                             <target>
                                 <copy file="${project.build.directory}/base.jar"
                                       tofile="${project.basedir}/../deploy/base.jar"/>
+                                <zip destfile="${project.basedir}/../deploy/JsfClient.war"
+                                     basedir="${project.basedir}/src/main/retired-jsf"/>
                             </target>
                         </configuration>
                     </execution>

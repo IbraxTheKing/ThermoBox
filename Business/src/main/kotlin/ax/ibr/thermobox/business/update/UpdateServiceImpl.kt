@@ -34,9 +34,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Checks GitHub for new versions (once a day, or on demand) and installs one:
- * database backup, download checked by SHA-256, files put in the shared folder, then the
- * program switches to them ([LocalComponent]). The other program (REST or JSF) notices the new
- * version in the shared folder and switches too, within a minute.
+ * database backup, download checked by SHA-256, files put in the data folder, then the
+ * server switches to them ([LocalComponent]). A server sharing the data folder (or this one
+ * after a restart) notices the new version there and switches too, within a minute.
  */
 class UpdateServiceImpl(
     private val config: UpdateConfig = UpdateConfig.fromEnvironment(),
@@ -78,7 +78,7 @@ class UpdateServiceImpl(
         scheduler = p
     }
 
-    /** At shutdown (and when Tomcat undeploys the WAR, so the old version's threads stop). */
+    /** At shutdown, so the scheduled threads stop. */
     @Synchronized
     fun stop() {
         scheduler?.shutdownNow()
@@ -230,7 +230,7 @@ class UpdateServiceImpl(
         val size = files?.sumOf { it.size } ?: 0L
         when {
             files == null -> checks += Check(CheckLevel.BLOCKING, "Deployment files missing",
-                "The version publishes neither RestServer.jar, base.jar and the WAR, nor a .zip archive that contains them.")
+                "The version publishes neither RestServer.jar and base.jar, nor a .zip archive that contains them.")
             files.any { it.sha256 == null } -> checks += Check(CheckLevel.BLOCKING, "SHA-256 digest not published",
                 "Without a digest, the integrity of the files cannot be guaranteed: installation refused.")
             else -> checks += Check(CheckLevel.OK, "Files: ${files.joinToString { it.name }} (${mb(size)})",
@@ -249,9 +249,7 @@ class UpdateServiceImpl(
         if (!mode.automatic) {
             checks += Check(CheckLevel.BLOCKING, "Automatic installation impossible on this server", mode.detail)
         } else {
-            val other = local?.component?.let { c -> Component.entries.first { it != c } }
-            checks += Check(CheckLevel.INFO, "Restart", mode.detail +
-                (other?.let { " The other component (${it.label}) moves to $v by itself if it shares the folder ${config.directory}; otherwise, install the version from it too." } ?: ""))
+            checks += Check(CheckLevel.INFO, "Restart", mode.detail)
         }
         if (installationActive()) {
             checks += Check(CheckLevel.BLOCKING, "An installation is already running")
@@ -274,7 +272,7 @@ class UpdateServiceImpl(
     }
 
     /**
-     * An installation runs here, or in the other program (it holds the lock). A "running" one
+     * An installation runs here, or in another server sharing the folder (it holds the lock). A "running" one
      * left in the shared file by a program that stopped meanwhile is marked as interrupted.
      */
     private fun installationActive(): Boolean {
@@ -309,7 +307,7 @@ class UpdateServiceImpl(
         }
         if (lock == null) {
             running.set(false)
-            throw IllegalStateException("An installation is already running from the other component")
+            throw IllegalStateException("An installation is already running from another server sharing the data folder")
         }
 
         val withBackup = preparation.backupRequired || options.backupDatabase
@@ -430,7 +428,7 @@ class UpdateServiceImpl(
 
     /**
      * Every minute: when the shared folder holds a version this program doesn't run yet
-     * (installed from the other one, or here before a restart), switch to it.
+     * (installed by another server sharing the folder, or here before a restart), switch to it.
      */
     internal fun follow() {
         val component = local ?: return
@@ -446,7 +444,7 @@ class UpdateServiceImpl(
             return
         }
         pending = null
-        log("$current installed from the other component: switching ${component.component.label}")
+        log("$current installed from another server: switching ${component.component.label}")
         installed()?.let { keep(component, it.tag) }
         switchTo(component, current)
     }

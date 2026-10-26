@@ -12,8 +12,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Issues and validates the HS256 JWTs used by the REST API (Bearer header) and the JSF
- * front end (cookie). Both read the same configuration, so a token works with either.
+ * Issues and validates the HS256 JWTs of the REST API (Bearer header).
  *
  * Configuration (environment variables):
  * - `THERMOBOX_JWT_SECRET`: signing key, at least 32 bytes. If unset, a random key is

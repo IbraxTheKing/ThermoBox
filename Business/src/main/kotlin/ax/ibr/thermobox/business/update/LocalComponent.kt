@@ -4,8 +4,8 @@ import ax.ibr.thermobox.common.update.Component
 import java.nio.file.Path
 
 /**
- * The program running here (REST server or JSF interface), as the update system drives it.
- * Each one switches itself to a new version; the other one follows through the shared folder.
+ * The program running here (the REST server), as the update system drives it: it switches
+ * itself to a new version.
  */
 interface LocalComponent {
     val component: Component

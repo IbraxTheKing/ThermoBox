@@ -7,10 +7,9 @@ enum class UpdateType(val label: String, val description: String) {
     FEATURE("Feature", "New monthly series: may change the database and not allow going back."),
 }
 
-/** The two programs that update themselves: each one applies the new version on its own. */
+/** The program that updates itself (the JSF interface, removed in 26.12, was the other one). */
 enum class Component(val label: String) {
     REST("REST server"),
-    JSF("JSF interface"),
 }
 
 enum class Channel { STABLE, PRERELEASE }
@@ -73,7 +72,7 @@ enum class InstallationState(val label: String) {
     FAILED("Failed"),
 }
 
-/** Progress of an installation, shared between REST and JSF through the data folder. */
+/** Progress of an installation, kept in the data folder. */
 data class Installation(
     val id: String,
     val target: String,

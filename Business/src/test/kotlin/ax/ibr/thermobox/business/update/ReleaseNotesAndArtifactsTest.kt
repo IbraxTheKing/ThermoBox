@@ -55,10 +55,11 @@ class ReleaseNotesAndArtifactsTest {
     @Test
     fun `choice of the files to download`() {
         fun a(n: String) = Artifact(n, "https://github.com/$n", 1, "00")
-        assertEquals(listOf("RestServer.jar", "base.jar", "JsfClient.war"),
+        // JsfClient.war (the "JSF removed" page for the JSF interfaces of 26.11) is left out
+        assertEquals(listOf("RestServer.jar", "base.jar"),
             Artifacts.choose(listOf(a("thermobox-26.10.2.zip"), a("JsfClient.war"), a("base.jar"), a("RestServer.jar")))!!.map { it.name })
         assertEquals(listOf("thermobox-server-26.10.1.zip"), Artifacts.choose(listOf(a("thermobox-server-26.10.1.zip")))!!.map { it.name })
-        assertEquals("JsfClient.war", Artifacts.localName(a("JsfServer.war")))
+        assertEquals("base.jar", Artifacts.localName(a("base.jar")))
         assertNull(Artifacts.choose(listOf(a("notes.txt"))))
     }
 
@@ -74,7 +75,8 @@ class ReleaseNotesAndArtifactsTest {
         val output = Files.createDirectories(directory.resolve("out"))
         Artifacts.extract(zip, output)
         assertEquals("b", Files.readString(output.resolve("base.jar")))
-        assertEquals("w", Files.readString(output.resolve("JsfClient.war")))
+        assertEquals("r", Files.readString(output.resolve("RestServer.jar")))
+        assertFalse(Files.exists(output.resolve("JsfClient.war")))
         assertFalse(Files.exists(directory.parent.resolve("base.jar")) && Files.readString(directory.parent.resolve("base.jar")) == "b")
     }
 
