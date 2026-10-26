@@ -1,12 +1,10 @@
 name: Alpha / Beta / RC
 
 # Lancement manuel depuis Actions.
-# La branche choisie dans "Run workflow" contient ce workflow ; l'entrée "Branche à construire"
-# détermine le commit réellement compilé.
-#
-# Si "Version spécifique" est renseignée (ex. 26.12.0), elle est utilisée comme base.
-# Sinon, la prochaine série est calculée à partir du dernier tag stable.
-# Le numéro alpha/beta/rc est incrémenté automatiquement pour cette série et ce type.
+# "Branche à construire" détermine le commit réellement compilé.
+# Une version spécifique peut être indiquée ; sinon, le calcul tient compte du dernier tag stable
+# et des branches stabilization/AA.MM. Exemple : stabilization/26.11 réserve 26.11,
+# donc la prochaine série automatique est 26.12.0.
 
 on:
   workflow_dispatch:
@@ -49,9 +47,9 @@ jobs:
       - name: Calculer la version
         id: version
         env:
-          TYPE: ${{ inputs.type }}
-          BRANCHE: ${{ inputs.branche }}
-          VERSION: ${{ inputs.version }}
+          TYPE: \${{ inputs.type }}
+          BRANCHE: \${{ inputs.branche }}
+          VERSION: \${{ inputs.version }}
         run: |
           if ! git check-ref-format --branch "$BRANCHE" >/dev/null 2>&1; then
             echo "::error::Nom de branche invalide : $BRANCHE"
@@ -62,7 +60,6 @@ jobs:
             exit 1
           fi
           commit=$(git rev-parse "refs/remotes/origin/$BRANCHE")
-
           stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -n1 || true)
 
           if [ -n "$VERSION" ]; then
@@ -72,82 +69,15 @@ jobs:
             fi
             base="$VERSION"
           else
-            # Trouver la série la plus récente parmi les tags stables et les branches
+            # Retenir la version la plus récente entre les tags stables et les branches
             # stabilization/AA.MM ou stabilization/AA.MM.PATCH.
             latest=""
-            if [ -n "$stable" ]; then
-              latest="$stable"
-            fi
+            if [ -n "$stable" ]; then latest="$stable"; fi
 
             while IFS= read -r branch; do
-              branch="${branch#origin/}"
-              series="${branch#stabilization/}"
-              if printf '%s' "$series" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?
-
-          if git rev-parse -q --verify "refs/tags/$base^{commit}" >/dev/null || \
-             git rev-parse -q --verify "refs/tags/v$base^{commit}" >/dev/null; then
-            echo "::error::La version stable $base existe déjà : impossible de créer une préversion pour cette version."
-            exit 1
-          fi
-
-          escaped_base=$(printf '%s' "$base" | sed 's/\./\\./g')
-          motif="^${escaped_base}-${TYPE}[.-]([0-9]+)$"
-          last=$(git tag --list "${base}-${TYPE}*" | sed -nE "s/${motif}/\\1/p" | sort -n | tail -n1 || true)
-
-          if [ -n "$last" ]; then
-            last_tag=$(git tag --list "${base}-${TYPE}.${last}" "${base}-${TYPE}-${last}" | head -n1)
-            if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
-              echo "::error::$last_tag a déjà été publiée depuis ce commit de $BRANCHE."
-              exit 1
-            fi
-          fi
-
-          tag="${base}-${TYPE}.$(( ${last:-0} + 1 ))"
-          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "::error::Le tag $tag existe déjà."
-            exit 1
-          fi
-
-          echo "Dernière stable : ${stable:-aucune} ; base : $base ; $BRANCHE ($commit) -> $tag"
-          {
-            echo "tag=$tag"
-            echo "commit=$commit"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Basculer sur le commit choisi
-        run: git checkout --detach "${{ steps.version.outputs.commit }}"
-
-      - name: Installer le JDK 23
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '23'
-          cache: maven
-
-      # Comme la nightly : les tests ont besoin de MySQL et d'un broker MQTT, absents du runner.
-      - name: Compiler (Maven, profil deploy)
-        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
-
-      - name: Rassembler les livrables
-        run: |
-          mkdir -p dist
-          cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
-          zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
-          ls -l dist
-
-      - name: Créer la prépublication
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NOTES: ${{ inputs.notes }}
-        run: |
-          tag="${{ steps.version.outputs.tag }}"
-          gh release create "$tag" dist/* \
-            --target "${{ steps.version.outputs.commit }}" \
-            --prerelease \
-            --title "$tag" \
-            --notes "$NOTES" \
-            --generate-notes
-; then
+              branch="\${branch#origin/}"
+              series="\${branch#stabilization/}"
+              if printf '%s' "$series" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
                 parts=$(printf '%s' "$series" | awk -F. '{ printf "%d.%02d.0", $1, $2 }')
                 if [ -z "$latest" ] || [ "$(printf '%s\n%s\n' "$latest" "$parts" | sort -V | tail -n1)" = "$parts" ]; then
                   latest="$parts"
@@ -158,12 +88,7 @@ jobs:
             if [ -n "$latest" ]; then
               aa=$((10#$(echo "$latest" | cut -d. -f1)))
               mm=$((10#$(echo "$latest" | cut -d. -f2)))
-              if [ "$mm" -eq 12 ]; then
-                aa=$((aa + 1))
-                mm=1
-              else
-                mm=$((mm + 1))
-              fi
+              if [ "$mm" -eq 12 ]; then aa=$((aa + 1)); mm=1; else mm=$((mm + 1)); fi
             else
               aa=$((10#$(date -u +%y)))
               mm=$((10#$(date -u +%m)))
@@ -178,31 +103,31 @@ jobs:
           fi
 
           escaped_base=$(printf '%s' "$base" | sed 's/\./\\./g')
-          motif="^${escaped_base}-${TYPE}[.-]([0-9]+)$"
-          last=$(git tag --list "${base}-${TYPE}*" | sed -nE "s/${motif}/\\1/p" | sort -n | tail -n1 || true)
+          motif="^\${escaped_base}-\${TYPE}[.-]([0-9]+)$"
+          last=$(git tag --list "\${base}-\${TYPE}*" | sed -nE "s/\${motif}/\\1/p" | sort -n | tail -n1 || true)
 
           if [ -n "$last" ]; then
-            last_tag=$(git tag --list "${base}-${TYPE}.${last}" "${base}-${TYPE}-${last}" | head -n1)
+            last_tag=$(git tag --list "\${base}-\${TYPE}.\${last}" "\${base}-\${TYPE}-\${last}" | head -n1)
             if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
               echo "::error::$last_tag a déjà été publiée depuis ce commit de $BRANCHE."
               exit 1
             fi
           fi
 
-          tag="${base}-${TYPE}.$(( ${last:-0} + 1 ))"
+          tag="\${base}-\${TYPE}.$(( \${last:-0} + 1 ))"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             echo "::error::Le tag $tag existe déjà."
             exit 1
           fi
 
-          echo "Dernière stable : ${stable:-aucune} ; base : $base ; $BRANCHE ($commit) -> $tag"
+          echo "Dernière stable : \${stable:-aucune} ; série de référence : \${latest:-aucune} ; base : $base ; $BRANCHE ($commit) -> $tag"
           {
             echo "tag=$tag"
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
       - name: Basculer sur le commit choisi
-        run: git checkout --detach "${{ steps.version.outputs.commit }}"
+        run: git checkout --detach "\${{ steps.version.outputs.commit }}"
 
       - name: Installer le JDK 23
         uses: actions/setup-java@v4
@@ -213,23 +138,23 @@ jobs:
 
       # Comme la nightly : les tests ont besoin de MySQL et d'un broker MQTT, absents du runner.
       - name: Compiler (Maven, profil deploy)
-        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=${{ steps.version.outputs.tag }} package
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version=\${{ steps.version.outputs.tag }} package
 
       - name: Rassembler les livrables
         run: |
           mkdir -p dist
           cp deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war dist/
-          zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
+          zip -j "dist/thermobox-\${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
           ls -l dist
 
       - name: Créer la prépublication
         env:
-          GH_TOKEN: ${{ github.token }}
-          NOTES: ${{ inputs.notes }}
+          GH_TOKEN: \${{ github.token }}
+          NOTES: \${{ inputs.notes }}
         run: |
-          tag="${{ steps.version.outputs.tag }}"
+          tag="\${{ steps.version.outputs.tag }}"
           gh release create "$tag" dist/* \
-            --target "${{ steps.version.outputs.commit }}" \
+            --target "\${{ steps.version.outputs.commit }}" \
             --prerelease \
             --title "$tag" \
             --notes "$NOTES" \
