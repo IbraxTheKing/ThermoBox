@@ -1,4 +1,4 @@
-# RestServer Module 🌐
+# RestServer Module
 
 Le module `RestServer` est le programme que l'on lance : un serveur HTTP (**Jetty**) qui expose
 ThermoBox par une API REST (**Jersey**, JSON avec **Jackson**), sécurisée par jetons JWT. C'est par
@@ -112,20 +112,20 @@ Variables minimales : `THERMOBOX_DB_URL`, `THERMOBOX_DB_USER`, `THERMOBOX_DB_PAS
 `java -jar deploy/RestServer.jar` (avec `base.jar` dans le même dossier). Le serveur répond sur
 http://localhost:8080/api/v2/server sans authentification.
 
-## 📖 Documentation de l'API
+## Documentation de l'API
 
 L'API principale est en anglais et préfixée par `/api/v2`. Les requêtes nécessitent généralement un header `Authorization: Bearer <token>`, sauf pour les points d'entrée publics.
 
 L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible pour les clients existants : voir [Ancienne API](#-ancienne-api-api-dépréciée).
 
-### 🔐 Authentification (`/api/v2/auth`)
+### Authentification (`/api/v2/auth`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/login` | Échange des identifiants contre un JWT. | Public |
 | `POST` | `/logout` | Révoque le jeton actuel. | Authentifié |
 | `GET` | `/me` | Récupère les informations de l'utilisateur connecté. | Authentifié |
 
-### 🏢 Salles (`/api/v2/rooms`)
+### Salles (`/api/v2/rooms`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Liste toutes les salles. | Authentifié |
@@ -135,7 +135,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 | `PUT` | `/{id}` | Met à jour une salle existante. | ADMIN |
 | `DELETE` | `/{id}` | Supprime une salle. | ADMIN |
 
-### 🌡 Supervision Thermique (`/api/v2/roomtemps`)
+### Supervision Thermique (`/api/v2/roomtemps`)
 *C'est le cœur du système de supervision.*
 
 | Méthode | Chemin | Description | Accès |
@@ -154,7 +154,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 | `PUT` | `/room/{id}/setpoint?value=...` | **Envoie une nouvelle consigne** à la salle (déclenche le pilote matériel). | ADMIN, MANAGER |
 | `GET` | `/room/{id}/measured/latest` | Récupère la dernière mesure réelle. | Authentifié |
 
-### 📊 Températures (`/api/v2/temperatures`)
+### Températures (`/api/v2/temperatures`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Liste toutes les mesures (consignes et réelles). | ADMIN, MANAGER, VIEWER |
@@ -166,7 +166,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 | `PUT` | `/{id}` | Met à jour une mesure existante. | ADMIN |
 | `DELETE` | `/{id}` | Supprime une mesure. | ADMIN |
 
-### 👥 Utilisateurs (`/api/v2/users`)
+### Utilisateurs (`/api/v2/users`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/{id}` | Récupère un utilisateur par son ID. | ADMIN, Owner |
@@ -178,7 +178,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 | `GET` | `/{id}/access` | Accès de l'utilisateur (tout, ou seulement certains éléments). | ADMIN, Owner |
 | `PUT` | `/{id}/access` | Remplace les accès (`{"restricted": true, "elements": [ids]}`). | ADMIN |
 
-### 🗂 Groupes (`/api/v2/groups`)
+### Groupes (`/api/v2/groups`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Liste les groupes avec leurs membres et éléments. | ADMIN |
@@ -187,7 +187,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 | `PUT` | `/{id}` | Remplace un groupe. | ADMIN |
 | `DELETE` | `/{id}` | Supprime un groupe (ses membres gardent leurs propres accès). | ADMIN |
 
-### 🌳 Hiérarchie (`/api/v2/hierarchy`)
+### Hiérarchie (`/api/v2/hierarchy`)
 *Bâtiment → (Étage) → Salle → Boîtier, tel que l'utilisateur connecté a le droit de le voir. Chaque élément porte son type (`BUILDING`, `FLOOR`, `ROOM`, `DEVICE`) ; les dates sont des chaînes ISO-8601 (`2026-10-21T14:05:00`).*
 
 | Méthode | Chemin | Description | Accès |
@@ -200,7 +200,7 @@ L'ancienne API (chemins `/api/...` sans `v2`, noms français) reste disponible p
 
 La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 
-### 🌡 Climat (`/api/v2/climate`)
+### Climat (`/api/v2/climate`)
 *Températures à n'importe quel niveau : un étage ou un bâtiment agrège les boîtiers qu'il contient. Périodes en instants ISO-8601 : `?start=2026-10-20T08:00:00Z&end=2026-10-21T08:00:00Z`.*
 
 | Méthode | Chemin | Description | Accès |
@@ -224,27 +224,27 @@ Toutes les réponses sont en outre compressées en gzip quand le client l'accept
 gzip`, ce que tout navigateur envoie). Un mois d'un boîtier passe ainsi d'environ 2 Mo à 125 Ko
 compressés sans `points`, et à environ 2 Ko avec `points=500`.
 
-### ⭐ Favoris (`/api/v2/favorites`)
+### Favoris (`/api/v2/favorites`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Ids des salles épinglées par l'utilisateur. | Authentifié |
 | `PUT` | `/{id}` | Épingle une salle. | Authentifié |
 | `DELETE` | `/{id}` | Retire une salle des favoris. | Authentifié |
 
-### 🖼 Photos (`/api/v2/rooms/{id}/image`)
+### Photos (`/api/v2/rooms/{id}/image`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v2/rooms/{id}/image` | La photo (JPEG), avec `ETag`. | Authentifié |
 | `PUT` | `/api/v2/rooms/{id}/image` | Remplace la photo : le corps est l'image (JPEG, PNG, GIF ou BMP, 10 Mo max). | ADMIN |
 | `DELETE` | `/api/v2/rooms/{id}/image` | Retire la photo. | ADMIN |
 
-### 🎨 Réglages (`/api/v2/settings`)
+### Réglages (`/api/v2/settings`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Réglages d'affichage communs à tous (`{"style": "glass"}` ou `"panel"`). | Authentifié |
 | `PUT` | `/` | Change le style pour tout le monde. | ADMIN |
 
-### 🏷 Serveur (`/api/v2/server`)
+### Serveur (`/api/v2/server`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Nom et version du serveur, API servies, adresse et origine du logo (`{"name": "ThermoBox", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). `version` vaut `dev` pour un build sans numéro. | Public |
@@ -291,7 +291,7 @@ Correspondances :
 | `style` : `verre`, `panneau` | `glass`, `panel` |
 
 
-## 🚀 Exemple de requête (Envoi de consigne)
+## Exemple de requête (Envoi de consigne)
 Pour envoyer une nouvelle température cible à la salle ID `5` :
 
 ```bash
