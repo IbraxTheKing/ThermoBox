@@ -63,9 +63,9 @@ class AccessServiceImpl(
 
     override fun filterTemperatures(scope: AccessScope, temperatures: List<Temperature>): List<Temperature> {
         if (scope.all) return temperatures
-        // Temperature → the room or device it belongs to
-        val allowed = roomTemps().getAll().filter { scope.canSee(it.room) }.mapNotNull { it.temperature.id }.toSet()
-        return temperatures.filter { it.id in allowed }
+        // Temperature → the room or device it belongs to, for these temperatures only
+        val rooms = roomTemps().getRoomIdsOfTemperatures(temperatures.mapNotNull { it.id })
+        return temperatures.filter { t -> t.id?.let { rooms[it] }?.let { scope.canSee(it) } == true }
     }
 
     override fun forgetRoom(room: Room) {

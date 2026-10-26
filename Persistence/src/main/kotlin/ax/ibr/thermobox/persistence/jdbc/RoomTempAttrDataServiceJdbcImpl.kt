@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService
 import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl.Companion.insertTemperature
 import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl.Companion.updateTemperature
@@ -37,17 +38,25 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
     override fun insert(cx: Connection, t: RoomTempAttr): Long {
         val temperature = t.temperature
         val temperatureId = temperature.id ?: insertTemperature(cx, temperature).also { temperature.id = it }
-        return cx.insert("INSERT INTO room_temperature_attr (room_id, temperature_id) VALUES (?, ?)", saved(t.room.id), temperatureId)
+        val id = cx.insert("INSERT INTO room_temperature_attr (room_id, temperature_id) VALUES (?, ?)", saved(t.room.id), temperatureId)
+        if (temperature is Measurement && temperature.date != null) {
+            cx.execute(LatestMeasurements.UPSERT, t.room.id, temperatureId, temperature.date)
+        }
+        return id
     }
 
     override fun updateRow(cx: Connection, t: RoomTempAttr) {
         val temperature = t.temperature
         if (temperature.id == null) temperature.id = insertTemperature(cx, temperature) else updateTemperature(cx, temperature)
+        // The devices concerned (the one it was on, the one it goes to) work their latest out again
+        cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, temperature.id)
+        cx.execute(LatestMeasurements.FORGET_ROOM, t.room.id)
         cx.execute("UPDATE room_temperature_attr SET room_id = ?, temperature_id = ? WHERE id = ?", saved(t.room.id), temperature.id, t.id)
     }
 
     override fun deleteRow(cx: Connection, id: Long) {
         val temperatureId = cx.query("SELECT temperature_id FROM room_temperature_attr WHERE id = ?", id) { it.longOrNull("temperature_id") }.firstOrNull()
+        if (temperatureId != null) cx.execute(LatestMeasurements.FORGET_TEMPERATURE, temperatureId)
         cx.execute("DELETE FROM room_temperature_attr WHERE id = ?", id)
         if (temperatureId != null) cx.execute("DELETE FROM temperature WHERE id = ?", temperatureId)
     }
@@ -63,7 +72,78 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
 
     override fun getCurrentTemperatureFromRoom(room: Room, temperatureClass: Temperature): Temperature? {
         val roomId = room.id ?: return null
+        if (temperatureClass is Measurement) return getLatestMeasurements(listOf(room))[roomId]
         return db.read { cx -> latest(cx, roomId, Rows.temperatureType(temperatureClass)) }
+    }
+
+    /** From `latest_measurement`; a device without a row there gets it worked out and saved. */
+    override fun getLatestMeasurements(devices: Collection<Room>): Map<Long, Temperature> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        val result = HashMap<Long, Temperature>()
+        db.read { cx ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                cx.query(
+                    "SELECT l.room_id AS d, ${Rows.temperatureColumns("t")} FROM latest_measurement l " +
+                        "JOIN temperature t ON t.id = l.temperature_id WHERE l.room_id IN (${placeholders(part.size)})",
+                    *part.toTypedArray(),
+                ) { rs -> Rows.temperature(rs, "t")?.let { rs.getLong("d") to it } }.forEach { (d, t) -> result[d] = t }
+            }
+        }
+        val measurement = Rows.temperatureType(Measurement::class.java)
+        for (id in ids.filter { it !in result }) {
+            db.transaction { cx ->
+                latest(cx, id, measurement)?.let { t ->
+                    result[id] = t
+                    if (t.date != null) cx.execute(LatestMeasurements.UPSERT, id, t.id, t.date)
+                }
+            }
+        }
+        return result
+    }
+
+    /** Own setpoints only, of the elements given (buildings, floors, rooms have a few each). */
+    override fun getLatestSetpoints(elements: Collection<Room>): Map<Long, Setpoint> {
+        val ids = elements.mapNotNull { it.id }.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        val result = HashMap<Long, Setpoint>()
+        db.read { cx ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                cx.query(
+                    "SELECT e.room_id AS r, ${Rows.temperatureColumns("t")} FROM room_temperature_attr e " +
+                        "JOIN temperature t ON t.id = e.temperature_id " +
+                        "WHERE t.DTYPE = ? AND e.room_id IN (${placeholders(part.size)})",
+                    Rows.temperatureType(Setpoint::class.java), *part.toTypedArray(),
+                ) { rs -> (Rows.temperature(rs, "t") as? Setpoint)?.let { rs.getLong("r") to it } }.forEach { (r, s) ->
+                    val kept = result[r]
+                    if (kept == null || newer(s, kept)) result[r] = s
+                }
+            }
+        }
+        return result
+    }
+
+    override fun getRoomIdsOfTemperatures(temperatureIds: Collection<Long>): Map<Long, Long> {
+        val ids = temperatureIds.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        return db.read { cx ->
+            ids.chunked(LatestMeasurements.CHUNK).flatMap { part ->
+                cx.query(
+                    "SELECT temperature_id, room_id FROM room_temperature_attr WHERE temperature_id IN (${placeholders(part.size)})",
+                    *part.toTypedArray(),
+                ) { rs -> rs.longOrNull("room_id")?.let { rs.getLong("temperature_id") to it } }
+            }
+        }.toMap()
+    }
+
+    override fun getPage(offset: Int, limit: Int): List<RoomTempAttr> =
+        list("ORDER BY t.date DESC, t.id DESC LIMIT ? OFFSET ?", limit, offset)
+
+    /** Later date, or same date and saved later (the order of the query that picks "the latest"). */
+    private fun newer(a: Temperature, b: Temperature): Boolean {
+        val da = a.date ?: LocalDateTime.MIN
+        val dbDate = b.date ?: LocalDateTime.MIN
+        return da.isAfter(dbDate) || (da == dbDate && (a.id ?: 0) > (b.id ?: 0))
     }
 
     /** The latest temperature of each kind (setpoint, measurement) of [room]. */

@@ -26,6 +26,7 @@ Business/src/main/kotlin/ax/ibr/thermobox/business/
 ├── security/          mots de passe, connexion, jetons JWT, limitation des essais
 ├── images/            ImageProcessor : contrôle et réduction des photos
 ├── charts/            CurveSampling : réduction d'une courbe à N points (LTTB)
+├── climate/           ClimateSnapshot : toute la hiérarchie et ses températures, lue en une fois
 ├── update/            le système de mises à jour depuis GitHub
 └── exceptions/        TooHotException, ImpossibleValueException
 Business/src/main/resources/thermobox-version.properties   version inscrite par Maven
@@ -151,6 +152,15 @@ Une photo envoyée (10 Mo au plus) est décodée (ce qui n'est pas vraiment une 
 PNG, GIF ou BMP), redressée selon son orientation EXIF, réduite à 1600 px de côté au plus, puis
 ré-encodée en JPEG (qualité 0,85). Le ré-encodage supprime les métadonnées (position GPS d'une photo
 de téléphone). Les images de plus de 40 millions de pixels sont refusées avant décodage.
+
+## `climate/` — `ClimateSnapshot`
+
+Pour les pages qui montrent tous les éléments à la fois (l'arbre de l'aperçu) : la hiérarchie, la
+dernière mesure de chaque boîtier et la consigne propre de chaque élément sont lues en quelques
+requêtes, puis tout est calculé en mémoire avec les mêmes règles que `HierarchyService` et
+`ClimateService` (boîtiers contenus, moyenne, consigne héritée). Un instantané vaut pour une requête :
+on n'en garde jamais. `ClimateServiceImpl.effectiveSetpoint` porte la règle de la consigne héritée,
+partagée par les deux.
 
 ## `charts/` — `CurveSampling`
 

@@ -10,6 +10,7 @@ import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.business.security.PasswordHasher
+import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.jdbc.JdbcDatabase
 import java.sql.Statement
 import java.sql.Timestamp
@@ -304,6 +305,7 @@ class HugeSeeder(private val o: HugeOptions) {
         val name = device.name.orEmpty()
         var value = SimulatedClimate.target(setpoint, name, start)
         var date = start
+        var last: Pair<Long, LocalDateTime>? = null
         while (!date.isAfter(end)) {
             val values = ArrayList<Pair<LocalDateTime, Float>>(CHUNK)
             while (values.size < CHUNK && !date.isAfter(end)) {
@@ -311,7 +313,7 @@ class HugeSeeder(private val o: HugeOptions) {
                 values += date to value
                 date = date.plusMinutes(o.step.toLong())
             }
-            db.transaction { cx ->
+            val ids = db.transaction { cx ->
                 val ids = cx.prepareStatement("INSERT INTO temperature (DTYPE, value, date) VALUES ('Measurement', ?, ?)", Statement.RETURN_GENERATED_KEYS).use { st ->
                     for ((d, v) in values) {
                         st.setFloat(1, v)
@@ -330,8 +332,21 @@ class HugeSeeder(private val o: HugeOptions) {
                     }
                     st.executeBatch()
                 }
+                ids
             }
             written += values.size
+            last = ids.last() to values.last().first
+        }
+        // Its latest measurement, as the data services would have recorded it
+        last?.let { (id, at) ->
+            db.transaction { cx ->
+                cx.prepareStatement(LatestMeasurements.UPSERT).use { st ->
+                    st.setLong(1, deviceId)
+                    st.setLong(2, id)
+                    st.setTimestamp(3, Timestamp.valueOf(at))
+                    st.executeUpdate()
+                }
+            }
         }
     }
 

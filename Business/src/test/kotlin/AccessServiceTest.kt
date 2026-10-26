@@ -84,8 +84,10 @@ class AccessServiceTest {
 
     private val m1 = Measurement(20f, LocalDateTime.now()).apply { id = 100 }
     private val m3 = Measurement(22f, LocalDateTime.now()).apply { id = 101 }
-    private val roomTemps = stub(RoomTempAttrService::class.java, mapOf("getAll" to { _ ->
-        listOf(RoomTempAttr(x1, m1), RoomTempAttr(s3, m3))
+    private val links = listOf(RoomTempAttr(x1, m1), RoomTempAttr(s3, m3))
+    private val roomTemps = stub(RoomTempAttrService::class.java, mapOf("getRoomIdsOfTemperatures" to { args ->
+        val ids = args[0] as Collection<*>
+        links.filter { it.temperature.id in ids }.associate { it.temperature.id!! to it.room.id!! }
     }))
 
     private val data = FakeAccess()

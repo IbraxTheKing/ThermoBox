@@ -25,30 +25,18 @@ class ClimateServiceImpl(
     private val driver: () -> ProtocolDriver = { BusinessFactory.getDriver() }
 ) : ClimateService, Serializable {
 
-    override fun getMeasurements(room: Room): List<DeviceMeasurement> =
-        hierarchy.getDevices(room).map { device ->
-            DeviceMeasurement(device, roomTemps.getCurrentTemperatureFromRoom(device, Measurement(0f, LocalDateTime.now())))
-        }
+    override fun getMeasurements(room: Room): List<DeviceMeasurement> {
+        val devices = hierarchy.getDevices(room)
+        // One query for every device
+        val latest = roomTemps.getLatestMeasurements(devices)
+        return devices.map { DeviceMeasurement(it, latest[it.id]) }
+    }
 
     override fun getAverage(room: Room): Float? =
         getMeasurements(room).mapNotNull { it.measurement?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
 
-    override fun getEffectiveSetpoint(room: Room): EffectiveSetpoint? {
-        val own = roomTemps.getSetpointFromRoom(room)
-        // Nearest ancestor first: a floor's setpoint wins over its building's.
-        var inherited: EffectiveSetpoint? = null
-        for (ancestor in hierarchy.getPath(room).asReversed()) {
-            val c = roomTemps.getSetpointFromRoom(ancestor) ?: continue
-            inherited = EffectiveSetpoint(c, ancestor, inherited = true)
-            break
-        }
-        return when {
-            own == null -> inherited
-            // Set by a forced setpoint of the ancestor: the room still follows it.
-            inherited != null && aligned(own, inherited.setpoint) -> inherited
-            else -> EffectiveSetpoint(own, room, inherited = false)
-        }
-    }
+    override fun getEffectiveSetpoint(room: Room): EffectiveSetpoint? =
+        effectiveSetpoint(room, hierarchy.getPath(room)) { roomTemps.getSetpointFromRoom(it) }
 
     // A device's own setpoint is only the last one it received: it never counts as a choice to keep.
     override fun getOwnSetpoints(room: Room): List<EffectiveSetpoint> {
@@ -123,14 +111,36 @@ class ClimateServiceImpl(
         return SetpointDispatch(kept, replaced, devices, failures)
     }
 
-    /**
-     * A setpoint saved by a forced send carries the value and the date of its ancestor's: the
-     * element then still follows the ancestor rather than having a setpoint of its own.
-     */
-    private fun aligned(own: Setpoint, followed: Setpoint?): Boolean =
-        followed != null && own.date == followed.date && own.value == followed.value
-
     companion object {
+        /**
+         * A setpoint saved by a forced send carries the value and the date of its ancestor's: the
+         * element then still follows the ancestor rather than having a setpoint of its own.
+         */
+        fun aligned(own: Setpoint, followed: Setpoint?): Boolean =
+            followed != null && own.date == followed.date && own.value == followed.value
+
+        /**
+         * The setpoint that applies to [room]: its own, otherwise the one of its nearest ancestor
+         * ([path]: from the building down to its parent) that has one. [setpointOf] gives the own
+         * setpoint of an element, asked only as far as needed.
+         */
+        fun effectiveSetpoint(room: Room, path: List<Room>, setpointOf: (Room) -> Setpoint?): EffectiveSetpoint? {
+            val own = setpointOf(room)
+            // Nearest ancestor first: a floor's setpoint wins over its building's.
+            var inherited: EffectiveSetpoint? = null
+            for (ancestor in path.asReversed()) {
+                val c = setpointOf(ancestor) ?: continue
+                inherited = EffectiveSetpoint(c, ancestor, inherited = true)
+                break
+            }
+            return when {
+                own == null -> inherited
+                // Set by a forced setpoint of the ancestor: the room still follows it.
+                inherited != null && aligned(own, inherited.setpoint) -> inherited
+                else -> EffectiveSetpoint(own, room, inherited = false)
+            }
+        }
+
         /** Deepest chain: Building → Floor → Room → Device. */
         private const val MAX_DEPTH = 4
 

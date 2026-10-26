@@ -97,6 +97,7 @@ utilisation de la base (JPA comme JDBC ne créent ni ne modifient jamais de tabl
 | `V2__acces.sql` | Accès des utilisateurs (26.11). |
 | `V3__groupes.sql` | Groupes d'utilisateurs (26.11). |
 | `V4__english_names.sql` | Noms anglais des tables, colonnes et valeurs de `DTYPE` (26.12). Une version antérieure ne peut plus ouvrir la base. |
+| `V5__latest_measurement.sql` | Table `latest_measurement` remplie à partir de l'historique, index sur les dates des températures (26.12). Une trentaine de secondes pour 4 millions de mesures. |
 
 - Base vide : tous les scripts s'exécutent.
 - Base créée avant Flyway (jusqu'à 26.10) : elle est marquée version 0 puis tous les scripts passent ;
@@ -107,6 +108,31 @@ utilisation de la base (JPA comme JDBC ne créent ni ne modifient jamais de tabl
 
 **Règle** : un script publié ne change plus jamais (Flyway compare leurs sommes de contrôle et refuse
 de démarrer sinon). Toute modification du schéma est un nouveau script `V<n+1>__description.sql`.
+
+## Grosses bases : `latest_measurement` et pages
+
+Retrouver la dernière mesure d'un boîtier dans tout son historique oblige à lire toutes ses mesures :
+sur une base de 4 millions de mesures (`DatabaseSeeder huge`), l'arbre de l'aperçu prenait 26 s. La
+table `latest_measurement` (une ligne par boîtier : sa dernière mesure) y répond en une lecture, et pour
+tous les boîtiers à la fois (`getLatestMeasurements`).
+
+Les deux implémentations la tiennent à jour avec les mêmes requêtes (`LatestMeasurements.kt`) :
+- une mesure rattachée à un boîtier devient sa dernière si elle n'est pas plus ancienne ;
+- une mesure modifiée, déplacée ou supprimée efface la ligne du boîtier ; la lecture suivante retrouve
+  la dernière dans l'historique et la réécrit. Une ligne n'est donc jamais fausse, au pire absente ;
+- un programme qui écrit directement dans les tables (comme `DatabaseSeeder huge`) doit faire de même,
+  sinon le premier affichage recalcule ce qui manque.
+
+Les autres lectures « en bloc » : `getLatestSetpoints` (consigne propre de chaque élément),
+`getRoomIdsOfTemperatures` (à qui appartient chaque température, pour filtrer selon les accès sans relire
+toute la table), et les pages `getPage` / `count` des listes de températures, triées par date grâce aux
+index de V5.
+
+| Sur 4 millions de mesures | Avant | Après |
+|---|---|---|
+| Arbre de l'aperçu (1 400 éléments) | 26 s | 0,1 s |
+| Moyenne d'un bâtiment (96 boîtiers) | 3,4 s | 0,03 s |
+| Liste des mesures (`/temperatures/type/measurement`) | 10 s, 1 Go de mémoire, tout | 0,01 s par page |
 
 ## `backup/` — `DatabaseBackup`
 
