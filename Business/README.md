@@ -202,6 +202,30 @@ depuis l'interface ».
 | `java/BusinessServiceDelegationTest.java` | Les services délèguent bien au stockage. |
 
 Deux programmes y sont rangés parce qu'ils ne doivent pas être livrés : `DBPopulate.kt`
-(`DatabaseSeeder`, jeu de démonstration : 3 bâtiments, étages, salles, boîtiers, un utilisateur par
-rôle, des jours d'historique) et `HashExistingPasswords.kt` (hache d'un coup les anciens mots de passe
-en clair). Lancez leur `main` avec les mêmes variables `THERMOBOX_DB_*` que le serveur.
+(`DatabaseSeeder`, remplit la base, voir ci-dessous) et `HashExistingPasswords.kt` (hache d'un coup
+les anciens mots de passe en clair). Lancez leur `main` avec les mêmes variables `THERMOBOX_DB_*` que
+le serveur.
+
+### Remplir la base : `DatabaseSeeder`
+
+Deux jeux de données, au choix (premier argument, ou `THERMOBOX_SEED`) :
+
+| Jeu | Contenu | Pour |
+|---|---|---|
+| `demo` (défaut) | 3 bâtiments (dont une annexe sans étage), leurs étages et salles, 1 à 3 boîtiers par salle, 2 boîtiers non rattachés, un compte par rôle (`admin`, `manager`, `viewer`), 3 jours de mesures toutes les 30 min avec un changement de consigne au milieu. | une démonstration lisible |
+| `huge` | 10 bâtiments × 4 étages × 8 salles × 3 boîtiers = 960 boîtiers, 30 jours de mesures toutes les 10 min (≈ 4,1 millions), des consignes à tous les niveaux (bâtiment, certains étages et salles), 50 boîtiers non rattachés, 500 comptes limités à quelques bâtiments ou étages, 20 groupes. | voir comment tout se comporte sur une grosse base (arbre, accès, courbes, sauvegarde, mises à jour) |
+
+Chaque taille de `huge` se change en argument : `buildings`, `floors`, `rooms`, `devices`, `days`,
+`step` (minutes entre deux mesures), `users`, `groups`, `unattached`.
+
+```
+DatabaseSeeder demo
+DatabaseSeeder huge
+DatabaseSeeder huge buildings=20 days=90 step=5     # ≈ 50 millions de mesures
+```
+
+Les mesures de `huge` sont écrites par lots JDBC (`rewriteBatchedStatements` est ajouté à l'URL), le
+reste par les services métier, avec les mêmes règles que l'application : les jeux par défaut prennent
+environ 3 minutes sur un MySQL local. Les comptes générés (`usera`, `userb`… ; un sur dix est MANAGER)
+ont tous le mot de passe `password123`. On peut relancer un jeu : un bâtiment déjà présent (même nom)
+est sauté, comme un compte existant ; les deux jeux peuvent cohabiter dans la même base.
