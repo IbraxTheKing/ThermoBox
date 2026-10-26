@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.util.zip.CRC32
 
 /** Checks the migration scripts without a database: names, order, and one table per entity. */
 class MigrationsTest {
@@ -52,6 +53,38 @@ class MigrationsTest {
             val destructive = Regex("""(?i)\b(drop\s+(table|column)|rename\s+(table|column)|change\s+column)\b""").containsMatchIn(text)
             assertFalse(destructive && "-- destructive" !in text,
                 "${f.name} drops or renames: add \"-- destructive\" and describe the migration in the release notes")
+        }
+    }
+
+    /**
+     * Checksums of the scripts already applied to databases (releases and nightlies), computed like
+     * Flyway (CRC32 of the lines, without line breaks). Flyway refuses to start when an applied
+     * script changed, even a comment: these scripts must stay byte for byte as they are. A new
+     * script gets its line here once it has been published.
+     */
+    private val published = mapOf(
+        1 to -1607158333,
+        2 to -1479817308,
+        3 to -1991719204,
+        // Its first comment says 26.11 while it ships in 26.12: leave it, the nightlies applied it so.
+        4 to -1067058891,
+    )
+
+    private fun flywayChecksum(f: File): Int {
+        val crc = CRC32()
+        f.readText(Charsets.UTF_8).removePrefix("\uFEFF").lines()
+            .let { if (it.lastOrNull() == "") it.dropLast(1) else it }
+            .forEach { crc.update(it.toByteArray(Charsets.UTF_8)) }
+        return crc.value.toInt()
+    }
+
+    @Test
+    fun `published migrations never change`() {
+        for ((v, expected) in published) {
+            val f = scripts.firstOrNull { version(it) == v } ?: error("Migration V$v is missing")
+            assertEquals(expected, flywayChecksum(f),
+                "${f.name} changed after it was applied to databases: Flyway will refuse to start. " +
+                    "Put it back as it was and write a new migration instead.")
         }
     }
 
