@@ -132,6 +132,11 @@ La suppression d'un élément reste `DELETE /api/v2/rooms/{id}`.
 | `GET` | `/logo` | Le logo du serveur, dans son format. Avec `?size=192`, un PNG d'au plus 192 px quand le logo peut être redimensionné (PNG, JPEG, GIF, logo ThermoBox) ; un logo SVG, ICO ou WebP est servi tel quel. Avec `ETag`. | Public |
 | `PUT` | `/logo` | Remplace le logo : le corps est l'image (PNG, JPEG ou GIF, gardée en PNG de 1024 px au plus ; ou SVG sans script), 5 Mo max. | ADMIN |
 | `DELETE` | `/logo` | Revient au logo automatique. | ADMIN |
+| `GET` | `/limits` | Températures acceptées (°C) : `{"measurement": {"min": -10, "max": 50}, "setpoint": {"min": -10, "max": 50}}`. | Authentifié |
+| `PUT` | `/limits` | Change les limites (une partie absente est gardée). | ADMIN |
+| `DELETE` | `/limits` | Revient aux limites par défaut (-10 à 50 °C). | ADMIN |
+
+**Limites de température.** `measurement` borne les mesures : celles envoyées par un boîtier hors de ces limites sont ignorées (erreur de capteur), celles ajoutées à la main sont refusées. `setpoint` borne les consignes : une consigne hors limites est refusée (`ImpossibleValueException` sous le minimum, `TooHotException` au-dessus du maximum). Les limites sont gardées dans `temperature-limits.properties` du dossier de données ; aucune ne peut sortir de -100 à 200 °C.
 
 Le logo affiché est, dans l'ordre :
 1. celui donné par un administrateur (`PUT /api/v2/server/logo`), gardé dans `branding/` du dossier de données (`THERMOBOX_DATA_DIR`) ;

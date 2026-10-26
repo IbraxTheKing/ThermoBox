@@ -3,6 +3,9 @@ package ax.ibr.thermobox.business.implementations
 import ax.ibr.thermobox.business.exceptions.ImpossibleValueException
 import ax.ibr.thermobox.business.exceptions.TooHotException
 import ax.ibr.thermobox.business.rules.SetpointRules
+import ax.ibr.thermobox.business.settings.Range
+import ax.ibr.thermobox.business.settings.TemperatureLimits
+import ax.ibr.thermobox.business.settings.TemperatureLimitsStore
 import ax.ibr.thermobox.business.rules.HierarchyRules
 import ax.ibr.thermobox.common.entities.Building
 import ax.ibr.thermobox.common.entities.Device
@@ -12,6 +15,8 @@ import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.services.DeviceHistory
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import java.time.LocalDateTime
@@ -57,9 +62,37 @@ class HierarchyClimateTest {
 
     @Test
     fun `an out-of-range setpoint is refused`() {
+        SetpointRules.limits = { TemperatureLimits.DEFAULT }
         assertDoesNotThrow { SetpointRules.check(21f) }
         assertThrows(TooHotException::class.java) { SetpointRules.check(60f) }
-        assertThrows(ImpossibleValueException::class.java) { SetpointRules.check(150f) }
+        assertThrows(TooHotException::class.java) { SetpointRules.check(150f) }
         assertThrows(ImpossibleValueException::class.java) { SetpointRules.check(-20f) }
+    }
+
+    @Test
+    fun `the limits chosen by an administrator apply`() {
+        SetpointRules.limits = { TemperatureLimits(Range(0f, 90f), Range(15f, 30f)) }
+        try {
+            assertThrows(ImpossibleValueException::class.java) { SetpointRules.check(10f) }
+            assertThrows(TooHotException::class.java) { SetpointRules.check(31f) }
+            assertDoesNotThrow { SetpointRules.check(30f) }
+            assertTrue(SetpointRules.acceptsMeasurement(85f))
+            assertFalse(SetpointRules.acceptsMeasurement(-1f))
+        } finally {
+            SetpointRules.limits = { TemperatureLimits.DEFAULT }
+        }
+    }
+
+    @Test
+    fun `the limits are kept in the data folder`() {
+        val store = TemperatureLimitsStore(java.nio.file.Files.createTempDirectory("limits"))
+        assertEquals(TemperatureLimits.DEFAULT, store.get())
+        val limits = TemperatureLimits(Range(-20f, 80f), Range(5f, 35f))
+        store.set(limits)
+        assertEquals(limits, store.get())
+        assertThrows(IllegalArgumentException::class.java) { TemperatureLimits(Range(30f, 20f), Range(5f, 35f)) }
+        assertThrows(IllegalArgumentException::class.java) { TemperatureLimits(Range(-500f, 20f), Range(5f, 35f)) }
+        store.reset()
+        assertEquals(TemperatureLimits.DEFAULT, store.get())
     }
 }
