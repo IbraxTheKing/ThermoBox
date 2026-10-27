@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService
@@ -45,12 +46,15 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
         )
         if (temperature is Measurement && temperature.date != null) {
             cx.execute(LatestMeasurements.UPSERT, t.room.id, temperatureId, temperature.date)
+            Hourly.add(cx, t.room.id, temperature.date, temperature.value)
         }
         return id
     }
 
     override fun updateRow(cx: Connection, t: RoomTempAttr) {
         val temperature = t.temperature
+        // Where the measurement counted before the change (device, hour)
+        val before = Hourly.owner(cx, temperature.id)
         if (temperature.id == null) temperature.id = insertTemperature(cx, temperature) else updateTemperature(cx, temperature)
         // The devices concerned (the one it was on, the one it goes to) work their latest out again
         cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, temperature.id)
@@ -59,13 +63,16 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
             "UPDATE room_temperature_attr SET room_id = ?, temperature_id = ?, kind = ?, date = ? WHERE id = ?",
             saved(t.room.id), temperature.id, Rows.temperatureType(temperature), temperature.date, t.id,
         )
+        Hourly.rebuild(cx, listOf(before, Hourly.owner(cx, temperature.id)))
     }
 
     override fun deleteRow(cx: Connection, id: Long) {
         val temperatureId = cx.query("SELECT temperature_id FROM room_temperature_attr WHERE id = ?", id) { it.longOrNull("temperature_id") }.firstOrNull()
         if (temperatureId != null) cx.execute(LatestMeasurements.FORGET_TEMPERATURE, temperatureId)
+        val before = Hourly.owner(cx, temperatureId)
         cx.execute("DELETE FROM room_temperature_attr WHERE id = ?", id)
         if (temperatureId != null) cx.execute("DELETE FROM temperature WHERE id = ?", temperatureId)
+        Hourly.rebuild(cx, listOf(before))
     }
 
     override fun getByRoom(roomId: Long): List<RoomTempAttr>? =
@@ -195,6 +202,24 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
                 rs.getDate("d")?.let { Temperature(rs.getFloat("a"), it.toLocalDate().atStartOfDay()) }
             }
         }
+    }
+
+    /** Hourly averages of every device of [devices] over the period (measurement_hourly). */
+    override fun getHourlyMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        val result = LinkedHashMap<Long, MutableList<Temperature>>()
+        ids.forEach { result[it] = ArrayList() }
+        if (ids.isEmpty()) return result
+        val from = HourlyMeasurements.hourOf(start.toLocal())
+        db.read { cx ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                cx.query(HourlyMeasurements.averages(part.size), from, end.toLocal(), *part.toTypedArray()) { rs ->
+                    val hour = rs.dateTime("hour") ?: return@query null
+                    rs.getLong("room_id") to Measurement(rs.getDouble("average").toFloat(), hour.plusMinutes(30))
+                }.forEach { (r, t) -> result.getValue(r).add(t) }
+            }
+        }
+        return result
     }
 
     /** The measurements of every device of [devices] over the period, in one query per thousand devices. */

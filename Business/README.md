@@ -73,7 +73,8 @@ l'ancien parent.
   quelle profondeur ; leur moyenne pour l'élément.
 - **Consigne effective** : la consigne propre de l'élément, sinon celle de l'ancêtre le plus proche
   qui en a une (une salle suit son étage, qui suit son bâtiment). `EffectiveSetpoint` dit d'où elle vient.
-- **Historique** : une courbe par boîtier, et une moyenne dans le temps (`movingAverage`) : à chaque
+- **Historique** : une courbe par boîtier (toutes ses mesures jusqu'à deux jours, ses moyennes horaires
+  au-delà, `getRawHistories` pour tout avoir), et une moyenne dans le temps (`movingAverage`) : à chaque
   instant où un boîtier mesure, chaque boîtier compte avec sa dernière valeur connue, puisqu'ils ne
   mesurent pas en même temps.
 - **Envoi d'une consigne** (`sendSetpoint(room, value, force)`) :

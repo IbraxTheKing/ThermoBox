@@ -51,6 +51,19 @@ interface RoomTempAttrService: CrudService<RoomTempAttr> {
     fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
         devices.mapNotNull { d -> d.id?.let { it to getTemperaturesFromRoomTimed(d, start, end) } }.toMap()
 
+    /**
+     * The hourly averages of the measurements of each of [devices] over the period: one point per
+     * hour, dated at the middle of the hour, oldest first. For curves over days or weeks. The
+     * storage keeps them ready; the default works them out from [getMeasurementsOf].
+     */
+    fun getHourlyMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
+        getMeasurementsOf(devices, start, end).mapValues { (_, list) ->
+            list.filter { it.date != null && it.value != null }
+                .groupBy { it.date!!.truncatedTo(java.time.temporal.ChronoUnit.HOURS) }
+                .toSortedMap()
+                .map { (hour, values) -> Measurement(values.map { it.value!! }.average().toFloat(), hour.plusMinutes(30)) }
+        }
+
     /** At most [limit] links, the most recent temperatures first, skipping [offset]. */
     fun getPage(offset: Int, limit: Int): List<RoomTempAttr> =
         getAll().sortedByDescending { it.temperature.date }.drop(offset).take(limit)

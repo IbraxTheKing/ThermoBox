@@ -40,8 +40,9 @@ import java.time.format.DateTimeParseException
  * Curves can be long (a device measuring every minute gives 43 200 points a month): each
  * measurement curve is reduced to at most ?points=N of its points (1000 by default), chosen to
  * draw almost the same line ([CurveSampling]). A chart needs about as many points as it is wide
- * in pixels. points=0 gives every point. Setpoints are never reduced: they change rarely and
- * every change matters.
+ * in pixels. Past two days, the curves are drawn from hourly averages (ClimateService); points=0
+ * gives every measurement, whatever the period. Setpoints are never reduced: they change rarely
+ * and every change matters.
  */
 @Path("api/v2/climate")
 @Produces(MediaType.APPLICATION_JSON)
@@ -73,7 +74,8 @@ class ClimateResource {
         if (!validPoints(points)) return error(POINTS_ERROR)
         fun curve(c: List<Temperature>) = reduce(c, points).map { PointDto.of(it) }
 
-        val histories = climate.getHistories(s, de, a)
+        // points=0: every measurement; otherwise hourly averages past two days (ClimateService)
+        val histories = if (points == 0) climate.getRawHistories(s, de, a) else climate.getHistories(s, de, a)
         val setpoints = climate.getSetpoints(s, de, a).map { PointDto.of(it) }
         val average = curve(ClimateServiceImpl.movingAverage(histories))
         val container = s.kind == RoomKind.FLOOR || s.kind == RoomKind.BUILDING
@@ -121,7 +123,8 @@ class ClimateResource {
         val result = LinkedHashMap<String, List<PointDto>>()
         for (id in requested) {
             val s = view.element(id) ?: continue
-            result[id.toString()] = reduce(climate.getAverageHistory(s, de, a), points).map { PointDto.of(it) }
+            val curve = if (points == 0) ClimateServiceImpl.movingAverage(climate.getRawHistories(s, de, a)) else climate.getAverageHistory(s, de, a)
+            result[id.toString()] = reduce(curve, points).map { PointDto.of(it) }
         }
         return Response.ok(result).build()
     }

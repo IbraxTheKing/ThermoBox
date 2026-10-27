@@ -10,6 +10,7 @@ import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.business.security.PasswordHasher
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.jdbc.JdbcDatabase
 import java.sql.Statement
@@ -347,6 +348,10 @@ class HugeSeeder(private val o: HugeOptions) {
                     st.setLong(2, id)
                     st.setTimestamp(3, Timestamp.valueOf(at))
                     st.executeUpdate()
+                }
+                // And its hourly averages (migration V7)
+                for (sql in listOf(HourlyMeasurements.FORGET_ROOM, HourlyMeasurements.REBUILD_ROOM)) {
+                    cx.prepareStatement(sql).use { st -> st.setLong(1, deviceId); st.executeUpdate() }
                 }
             }
         }

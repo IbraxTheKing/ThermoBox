@@ -54,7 +54,14 @@ interface ClimateService {
      */
     fun getOwnSetpoints(room: Room): List<EffectiveSetpoint>
 
+    /**
+     * Measures of every box under [room] over the period. Over a long period (more than two days)
+     * an implementation may give hourly averages instead of every measure: see [getRawHistories].
+     */
     fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory>
+
+    /** Same as [getHistories], with every measure whatever the period. */
+    fun getRawHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> = getHistories(room, start, end)
 
     /**
      * Average of the boxes over time: one point per measure, each box counting with its last

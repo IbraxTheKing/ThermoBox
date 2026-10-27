@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService
@@ -63,24 +64,30 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
             em.executeSql(TemperatureHistory.COPY_BY_LINK, kindOf(temperature), temperature.date, t.id)
             if (temperature is Measurement && temperature.date != null) {
                 em.executeSql(LatestMeasurements.UPSERT, t.room.id, temperature.id, temperature.date)
+                Hourly.add(em, t.room.id, temperature.date, temperature.value)
             }
         }
     }
 
     override fun update(t: RoomTempAttr) {
         transaction { em ->
+            val before = Hourly.owner(em, t.temperature.id)
             t.temperature.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, it) }
             t.room.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOM, it) }
             val merged = em.merge(t)
             em.flush()
             em.executeSql(TemperatureHistory.COPY_BY_LINK, kindOf(t.temperature), t.temperature.date, merged.id)
+            Hourly.rebuild(em, listOf(before, Hourly.owner(em, merged.temperature.id)))
         }
     }
 
     override fun remove(t: RoomTempAttr) {
         transaction { em ->
             t.temperature.id?.let { em.executeSql(LatestMeasurements.FORGET_TEMPERATURE, it) }
+            val before = Hourly.owner(em, t.temperature.id)
             em.remove(em.merge(t))
+            em.flush()
+            Hourly.rebuild(em, listOf(before))
         }
     }
 
@@ -200,6 +207,28 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
     /** Plain values read through the index (room, kind, date): no entity per point. */
     private fun period(roomId: Long, type: Class<out Temperature>, start: Instant, end: Instant): List<Temperature> = read { em ->
         em.querySql(TemperatureHistory.PERIOD, roomId, kindOf(type), start.toLocal(), end.toLocal()).map { temperatureOf(it) }
+    }
+
+    /** Hourly averages of every device of [devices] over the period (measurement_hourly). */
+    override fun getHourlyMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        val result = LinkedHashMap<Long, MutableList<Temperature>>()
+        ids.forEach { result[it] = ArrayList() }
+        if (ids.isEmpty()) return result
+        val from = HourlyMeasurements.hourOf(start.toLocal())
+        read { em ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                em.querySql(HourlyMeasurements.averages(part.size), from, end.toLocal(), *part.toTypedArray()).forEach { row ->
+                    val hour = when (val d = row[1]) {
+                        is java.sql.Timestamp -> d.toLocalDateTime()
+                        is LocalDateTime -> d
+                        else -> return@forEach
+                    }
+                    result.getValue((row[0] as Number).toLong()).add(Measurement((row[2] as Number).toFloat(), hour.plusMinutes(30)))
+                }
+            }
+        }
+        return result
     }
 
     /** The measurements of every device of [devices] over the period, in one query per thousand devices. */

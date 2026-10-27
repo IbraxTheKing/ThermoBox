@@ -129,4 +129,7 @@ class RoomTempAttrServiceImpl(
 
     override fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
         roomTempAttrService.getMeasurementsOf(devices, start, end)
+
+    override fun getHourlyMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
+        roomTempAttrService.getHourlyMeasurementsOf(devices, start, end)
 }

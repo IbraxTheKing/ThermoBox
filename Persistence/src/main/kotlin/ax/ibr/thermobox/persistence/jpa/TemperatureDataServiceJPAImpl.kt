@@ -34,18 +34,23 @@ class TemperatureDataServiceJPAImpl(emf: EntityManagerFactory,
 
     override fun update(t: Temperature) {
         transaction { em ->
+            val before = Hourly.owner(em, t.id)
             // Its date may have changed: its device works its latest measurement out again
             t.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, it) }
             em.merge(t)
             em.flush()
             t.id?.let { em.executeSql(TemperatureHistory.COPY_BY_TEMPERATURE, kindOf(t), t.date, it) }
+            Hourly.rebuild(em, listOf(before, Hourly.owner(em, t.id)))
         }
     }
 
     override fun remove(t: Temperature) {
         transaction { em ->
             t.id?.let { em.executeSql(LatestMeasurements.FORGET_TEMPERATURE, it) }
+            val before = Hourly.owner(em, t.id)
             em.remove(em.merge(t))
+            em.flush()
+            Hourly.rebuild(em, listOf(before))
         }
     }
 

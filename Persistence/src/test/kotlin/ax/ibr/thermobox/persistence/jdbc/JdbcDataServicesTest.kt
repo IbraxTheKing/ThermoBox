@@ -66,7 +66,7 @@ class JdbcDataServicesTest {
         groups = UserGroupDataServiceJdbcImpl(db)
         db.transaction { cx ->
             listOf(
-                "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
+                "measurement_hourly", "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
                 "room_image", "favorite", "room_temperature_attr", "temperature", "room_attr", "room", "`user`",
             ).forEach { cx.execute("DELETE FROM $it") }
         }
@@ -222,6 +222,42 @@ class JdbcDataServicesTest {
         assertEquals(listOf(21f), roomTemperatures.getTemperaturesFromRoomTimed(d1, at(now.minusDays(1)), at(now)).map { it.value })
         assertEquals(listOf(19f), roomTemperatures.getSetpointsFromRoomTimed(d2, at(now.minusDays(1)), at(now)).map { it.value })
         assertEquals(setOf(18f, 19f), roomTemperatures.getCurrentTemperaturesFromRoom(d2)!!.map { it.value }.toSet())
+    }
+
+    @Test
+    fun `hourly averages follow every write`() {
+        val d = Device("D").also(rooms::add)
+        val d2 = Device("D2").also(rooms::add)
+        val hour = LocalDateTime.now().withNano(0).withSecond(0).withMinute(0).minusHours(5)
+        val zone = ZoneId.systemDefault()
+        fun at(t: LocalDateTime) = t.atZone(zone).toInstant()
+        fun hourly() = roomTemperatures.getHourlyMeasurementsOf(listOf(d, d2), at(hour.minusHours(1)), at(hour.plusHours(3)))
+            .mapValues { e -> e.value.map { it.date!!.hour to it.value } }
+
+        val a = RoomTempAttr(d, Measurement(20f, hour.plusMinutes(10))).also(roomTemperatures::add)
+        roomTemperatures.add(RoomTempAttr(d, Measurement(22f, hour.plusMinutes(40))))
+        roomTemperatures.add(RoomTempAttr(d, Measurement(30f, hour.plusHours(1).plusMinutes(5))))
+        roomTemperatures.add(RoomTempAttr(d, Setpoint(50f, hour.plusMinutes(20)))) // not a measurement
+        assertEquals(mapOf(d.id to listOf(hour.hour to 21f, hour.plusHours(1).hour to 30f), d2.id to emptyList()), hourly())
+
+        // Value and hour changed: both hours worked out again
+        val t = a.temperature
+        t.value = 26f
+        t.date = hour.plusHours(1).plusMinutes(50)
+        temperatures.update(t)
+        assertEquals(listOf(hour.hour to 22f, hour.plusHours(1).hour to 28f), hourly()[d.id])
+
+        // Moved to another device, then deleted
+        a.room = d2
+        roomTemperatures.update(a)
+        assertEquals(listOf(hour.plusHours(1).hour to 26f), hourly()[d2.id])
+        assertEquals(listOf(hour.hour to 22f, hour.plusHours(1).hour to 30f), hourly()[d.id])
+        roomTemperatures.remove(a)
+        assertEquals(emptyList<Pair<Int, Float?>>(), hourly()[d2.id])
+
+        // Same answer as working it out from every measurement
+        assertEquals(hourly()[d.id], roomTemperatures.getMeasurementsOf(listOf(d), at(hour.minusHours(1)), at(hour.plusHours(3)))[d.id]!!
+            .groupBy { it.date!!.hour }.toSortedMap().map { (h, l) -> h to l.map { it.value!! }.average().toFloat() })
     }
 
     @Test

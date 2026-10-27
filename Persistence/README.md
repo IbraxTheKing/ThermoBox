@@ -98,6 +98,7 @@ utilisation de la base (JPA comme JDBC ne créent ni ne modifient jamais de tabl
 | `V2__acces.sql` | Accès des utilisateurs (26.11). |
 | `V3__groupes.sql` | Groupes d'utilisateurs (26.11). |
 | `V4__english_names.sql` | Noms anglais des tables, colonnes et valeurs de `DTYPE` (26.12). Une version antérieure ne peut plus ouvrir la base. |
+| `V7__measurement_hourly.sql` | Table `measurement_hourly` (moyenne, min, max de chaque boîtier par heure), remplie depuis l'historique (26.12). ~40 s pour 4 millions de mesures. |
 | `V6__room_temperature_dates.sql` | Copie du type et de la date de chaque température dans `room_temperature_attr`, index (élément, type, date) (26.12). ~40 s pour 4 millions de mesures. |
 | `V5__latest_measurement.sql` | Table `latest_measurement` remplie à partir de l'historique, index sur les dates des températures (26.12). Une trentaine de secondes pour 4 millions de mesures. |
 
@@ -133,6 +134,12 @@ lignes lues pour 114 gardées). Ces lectures renvoient des valeurs simples, sans
 `getMeasurementsOf` lit les courbes de mille boîtiers en une requête. Le cache partagé d'EclipseLink est
 coupé (`persistence.xml`) : il gardait en mémoire des entités que personne ne relit.
 
+Pour les longues périodes, `measurement_hourly` garde, par boîtier et par heure, le nombre, la somme,
+le minimum et le maximum des mesures (V7, requêtes communes dans `HourlyMeasurements.kt`). Un ajout est
+compté dans son heure ; une mesure modifiée, déplacée ou supprimée fait recalculer les heures concernées
+depuis l'historique (une plage de l'index). `getHourlyMeasurementsOf` en tire une courbe d'un point par
+heure : une semaine d'un boîtier, 168 lignes au lieu d'un millier.
+
 Les autres lectures « en bloc » : `getLatestSetpoints` (consigne propre de chaque élément),
 `getRoomIdsOfTemperatures` (à qui appartient chaque température, pour filtrer selon les accès sans relire
 toute la table), et les pages `getPage` / `count` des listes de températures, triées par date grâce aux
@@ -143,7 +150,8 @@ index de V5.
 | Arbre de l'aperçu (1 400 éléments) | 26 s | 0,1 s |
 | Moyenne d'un bâtiment (96 boîtiers) | 3,4 s | 0,03 s |
 | Liste des mesures (`/temperatures/type/measurement`) | 10 s, 1 Go de mémoire, tout | 0,01 s par page |
-| Courbes d'un bâtiment sur 7 jours | 2 s | 0,4 s |
+| Courbes d'un bâtiment sur 7 jours | 2 s | 0,07 s (moyennes horaires) |
+| Courbes d'un bâtiment sur 30 jours | 2,8 s | 0,15 s (moyennes horaires) |
 | Mini-courbes de 32 salles sur 24 h (aperçu) | 1,2 s | 0,1 s |
 
 ## `backup/` — `DatabaseBackup`

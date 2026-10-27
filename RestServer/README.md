@@ -224,7 +224,10 @@ presque la même ligne : algorithme *Largest-Triangle-Three-Buckets*, qui garde 
 point, puis dans chaque tranche le point le plus marquant, si bien que les pics et les creux restent
 visibles (une moyenne par tranche les aplatirait). Les points renvoyés sont de vraies mesures, jamais
 des valeurs inventées ; une courbe déjà assez courte est renvoyée entière. Les consignes ne sont jamais
-réduites. Un graphique n'a besoin que d'à peu près autant de points que de pixels de large : par
+réduites. **Au-delà de deux jours**, les courbes de mesures sont faites des moyennes horaires de chaque
+boîtier (un point par heure, au milieu de l'heure) plutôt que de toutes les mesures : une semaine, 168
+points par boîtier ; `points=0` donne toujours toutes les mesures, quelle que soit la période. Un
+graphique n'a besoin que d'à peu près autant de points que de pixels de large : par
 exemple `points=500` pour une courbe pleine largeur, `points=60` pour une miniature. Le format de la
 réponse ne change pas.
 

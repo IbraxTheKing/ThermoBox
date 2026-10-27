@@ -16,6 +16,7 @@ import ax.ibr.thermobox.common.services.DeviceHistory
 import ax.ibr.thermobox.common.services.DeviceMeasurement
 import ax.ibr.thermobox.common.services.RoomTempAttrService
 import java.io.Serializable
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 
@@ -55,10 +56,20 @@ class ClimateServiceImpl(
         return owned
     }
 
-    override fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> {
+    /**
+     * Every measurement up to [HOURLY_FROM]; past it, hourly averages: a week of a device is 168
+     * points instead of a thousand or more, which a chart could not show apart anyway.
+     */
+    override fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> =
+        histories(room, start, end, hourly = Duration.between(start, end) > HOURLY_FROM)
+
+    override fun getRawHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> =
+        histories(room, start, end, hourly = false)
+
+    private fun histories(room: Room, start: Instant, end: Instant, hourly: Boolean): List<DeviceHistory> {
         val devices = hierarchy.getDevices(room)
         // Every device in one query
-        val series = roomTemps.getMeasurementsOf(devices, start, end)
+        val series = if (hourly) roomTemps.getHourlyMeasurementsOf(devices, start, end) else roomTemps.getMeasurementsOf(devices, start, end)
         return devices.map { DeviceHistory(it, series[it.id].orEmpty()) }
     }
 
@@ -114,6 +125,9 @@ class ClimateServiceImpl(
     }
 
     companion object {
+        /** Longer periods are drawn from hourly averages (getHistories). */
+        val HOURLY_FROM: Duration = Duration.ofDays(2)
+
         /**
          * A setpoint saved by a forced send carries the value and the date of its ancestor's: the
          * element then still follows the ancestor rather than having a setpoint of its own.

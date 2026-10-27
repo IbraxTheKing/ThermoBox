@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.persistence.jpa
 
 import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.dataservices.RoomDataService
 import ax.ibr.utils.services.jpa.CrudJpaService
@@ -30,6 +31,7 @@ class RoomDataServiceJPAImpl(emf: EntityManagerFactory,
     override fun remove(t: Room) {
         transaction { em ->
             t.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOM, it) }
+            t.id?.let { em.executeSql(HourlyMeasurements.FORGET_ROOM, it) }
             em.remove(em.merge(t))
         }
     }
