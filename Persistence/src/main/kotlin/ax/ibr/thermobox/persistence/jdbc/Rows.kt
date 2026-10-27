@@ -10,6 +10,7 @@ import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.common.entities.UserGroup
 import ax.ibr.thermobox.common.entities.UserType
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import java.sql.ResultSet
 import java.time.LocalDateTime
 
@@ -67,6 +68,28 @@ internal object Rows {
             else -> Temperature()
         }
         // As stored, nulls included
+        t.value = value
+        t.date = date
+        t.id = id
+        return t
+    }
+
+    /**
+     * A temperature from the columns id, DTYPE, value, seconds starting at index [first]
+     * ([ax.ibr.thermobox.persistence.TemperatureHistory.CURVE_COLUMNS]). By index rather than by name:
+     * a curve has thousands of rows, and looking a column up by its name costs on each of them.
+     */
+    fun temperatureAt(rs: ResultSet, first: Int): Temperature? {
+        val id = rs.getLong(first).takeUnless { rs.wasNull() } ?: return null
+        val dtype = rs.getString(first + 1)
+        val value = rs.getFloat(first + 2).takeUnless { rs.wasNull() }
+        // Seconds since 1970-01-01 as stored (TemperatureHistory.CURVE_COLUMNS)
+        val date = rs.getLong(first + 3).takeUnless { rs.wasNull() }?.let { TemperatureHistory.dateOf(it) }
+        val t = when (dtype) {
+            "Setpoint" -> Setpoint(value ?: 0f, date ?: LocalDateTime.MIN)
+            "Measurement" -> Measurement(value ?: 0f, date ?: LocalDateTime.MIN)
+            else -> Temperature()
+        }
         t.value = value
         t.date = date
         t.id = id

@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.restserver.hierarchy
 
 import ax.ibr.thermobox.business.climate.ClimateSnapshot
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.access.AccessScope
 import ax.ibr.thermobox.common.entities.Device
@@ -51,7 +52,10 @@ class UserView(private val user: User, private val access: AccessScope) {
     fun accessible(s: Room): Boolean = access.canSee(s) && (s !is Device || devicesVisible)
 
     /** The element [id] if this user may open it, null otherwise (same answer as for an unknown id). */
-    fun element(id: Long): Room? = rooms.getById(id)?.takeIf { accessible(it) }
+    fun element(id: Long): Room? =
+        // From the hierarchy in memory (a copy); from the database if it is not there yet
+        (BusinessFactory.getHierarchyCache().tree().elements[id]?.let { HierarchyCache.copy(it) } ?: rooms.getById(id))
+            ?.takeIf { accessible(it) }
 
     fun tree(): TreeDto {
         val nodes = snapshot.elements.values.filter { visible(it) }

@@ -224,7 +224,12 @@ presque la même ligne : algorithme *Largest-Triangle-Three-Buckets*, qui garde 
 point, puis dans chaque tranche le point le plus marquant, si bien que les pics et les creux restent
 visibles (une moyenne par tranche les aplatirait). Les points renvoyés sont de vraies mesures, jamais
 des valeurs inventées ; une courbe déjà assez courte est renvoyée entière. Les consignes ne sont jamais
-réduites. Un graphique n'a besoin que d'à peu près autant de points que de pixels de large : par
+réduites. **Au-delà de deux jours**, les courbes de mesures sont faites des moyennes horaires de chaque
+boîtier (un point par heure, au milieu de l'heure) plutôt que de toutes les mesures : une semaine, 168
+points par boîtier ; `points=0` donne toujours toutes les mesures, quelle que soit la période. Les
+mini-courbes de `/averages` passent aux moyennes horaires **dès 12 heures** : 24 h d'une salle font 24
+points (assez pour une miniature), et l'aperçu de 50 salles reste rapide sous charge. Un
+graphique n'a besoin que d'à peu près autant de points que de pixels de large : par
 exemple `points=500` pour une courbe pleine largeur, `points=60` pour une miniature. Le format de la
 réponse ne change pas.
 
@@ -262,6 +267,7 @@ compressés avec toutes ses mesures, et à environ 2 Ko avec `points=500`.
 | `GET` | `/limits` | Températures acceptées (°C) : `{"measurement": {"min": -10, "max": 50}, "setpoint": {"min": -10, "max": 50}}`. | Authentifié |
 | `PUT` | `/limits` | Change les limites (une partie absente est gardée). | ADMIN |
 | `DELETE` | `/limits` | Revient aux limites par défaut (-10 à 50 °C). | ADMIN |
+| `GET` | `/metrics` | Charge du serveur : processeur (`processCpu`, `systemCpu` en %), mémoire Java (`heapUsedMb`, `heapMaxMb`…), threads, ramasse-miettes (`gcTimeMs` : temps pendant lequel il a arrêté le serveur, sans son travail en parallèle). Lu par le test de charge (`loadtest/`). | ADMIN |
 
 **Limites de température.** `measurement` borne les mesures : celles envoyées par un boîtier hors de ces limites sont ignorées (erreur de capteur), celles ajoutées à la main sont refusées. `setpoint` borne les consignes : une consigne hors limites est refusée (`ImpossibleValueException` sous le minimum, `TooHotException` au-dessus du maximum). Les limites sont gardées dans `temperature-limits.properties` du dossier de données ; aucune ne peut sortir de -100 à 200 °C.
 

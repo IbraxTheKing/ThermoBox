@@ -39,9 +39,12 @@ import java.nio.file.Path
  * The data services of the application, all on the database of `THERMOBOX_DB_URL`.
  *
  * Two implementations of every service, chosen by `THERMOBOX_DB_ACCESS`:
- * - `jpa` (default): JPA with EclipseLink (package `jpa`);
- * - `jdbc`: plain SQL through JDBC (package `jdbc`), without JPA: lighter, and every query is
- *   written out. Both read and write the same tables, so a server can switch at any restart.
+ * - `jdbc` (default since 26.12): plain SQL through JDBC (package `jdbc`), without JPA: every
+ *   query is written out. Under load it answered 22 times more requests than JPA (770 a second
+ *   against 35, loadtest/);
+ * - `jpa`: JPA with EclipseLink (package `jpa`), the access of 26.11 and before, kept for a
+ *   while as a way back.
+ * Both read and write the same tables, so a server can switch at any restart.
  *
  * In both cases the Flyway migrations run first: the schema belongs to them.
  */
@@ -54,14 +57,14 @@ object PersistenceFactory {
     private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
     /**
-     * `THERMOBOX_DB_ACCESS`: `jpa` (default) or `jdbc`.
+     * `THERMOBOX_DB_ACCESS`: `jdbc` (default) or `jpa`.
      * @throws IllegalStateException for any other value, so a typo does not go unnoticed
      */
     fun accessMode(env: Map<String, String> = System.getenv()): AccessMode =
         when (val v = env["THERMOBOX_DB_ACCESS"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }) {
-            null, "jpa" -> AccessMode.JPA
-            "jdbc" -> AccessMode.JDBC
-            else -> error("THERMOBOX_DB_ACCESS=$v is not valid: jpa or jdbc")
+            null, "jdbc" -> AccessMode.JDBC
+            "jpa" -> AccessMode.JPA
+            else -> error("THERMOBOX_DB_ACCESS=$v is not valid: jdbc or jpa")
         }
 
     private val mode: AccessMode by lazy { accessMode() }
@@ -81,7 +84,7 @@ object PersistenceFactory {
 
     private val jdbcHolder = lazy {
         migrated
-        JdbcDatabase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
+        JdbcDatabase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"), maxOpen = poolSize())
     }
     private val jdbc: JdbcDatabase by jdbcHolder
 
@@ -162,8 +165,24 @@ object PersistenceFactory {
     private fun databaseProperties(): Map<String, String> = mapOf(
         "jakarta.persistence.jdbc.url" to databaseUrl(),
         "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
-        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD")
+        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD"),
+        // Same ceiling as the JDBC access (EclipseLink: 32 by default)
+        "eclipselink.connection-pool.default.max" to poolSize().toString(),
+        "eclipselink.connection-pool.default.min" to "1",
+        "eclipselink.connection-pool.default.initial" to "1",
     )
+
+    /**
+     * `THERMOBOX_DB_POOL_SIZE`: connections to the database at most at once (20 by default); the
+     * other requests wait their turn. MySQL accepts 151 by default, for every server together.
+     * @throws IllegalStateException for a value that is not a number from 1 to 500
+     */
+    fun poolSize(env: Map<String, String> = System.getenv()): Int {
+        val raw = env["THERMOBOX_DB_POOL_SIZE"]?.trim()?.takeIf { it.isNotEmpty() } ?: return DEFAULT_POOL_SIZE
+        return raw.toIntOrNull()?.takeIf { it in 1..500 } ?: error("THERMOBOX_DB_POOL_SIZE=$raw is not valid: a number from 1 to 500")
+    }
+
+    private const val DEFAULT_POOL_SIZE = 20
 
     private fun requireEnv(name: String): String =
         System.getenv(name) ?: error("Environment variable $name is not set")

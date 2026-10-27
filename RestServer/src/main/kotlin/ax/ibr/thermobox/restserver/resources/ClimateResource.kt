@@ -40,8 +40,9 @@ import java.time.format.DateTimeParseException
  * Curves can be long (a device measuring every minute gives 43 200 points a month): each
  * measurement curve is reduced to at most ?points=N of its points (1000 by default), chosen to
  * draw almost the same line ([CurveSampling]). A chart needs about as many points as it is wide
- * in pixels. points=0 gives every point. Setpoints are never reduced: they change rarely and
- * every change matters.
+ * in pixels. Past two days, the curves are drawn from hourly averages (ClimateService); points=0
+ * gives every measurement, whatever the period. Setpoints are never reduced: they change rarely
+ * and every change matters.
  */
 @Path("api/v2/climate")
 @Produces(MediaType.APPLICATION_JSON)
@@ -73,7 +74,8 @@ class ClimateResource {
         if (!validPoints(points)) return error(POINTS_ERROR)
         fun curve(c: List<Temperature>) = reduce(c, points).map { PointDto.of(it) }
 
-        val histories = climate.getHistories(s, de, a)
+        // points=0: every measurement; otherwise hourly averages past two days (ClimateService)
+        val histories = if (points == 0) climate.getRawHistories(s, de, a) else climate.getHistories(s, de, a)
         val setpoints = climate.getSetpoints(s, de, a).map { PointDto.of(it) }
         val average = curve(ClimateServiceImpl.movingAverage(histories))
         val container = s.kind == RoomKind.FLOOR || s.kind == RoomKind.BUILDING
@@ -118,10 +120,14 @@ class ClimateResource {
         if (!validPoints(points)) return error(POINTS_ERROR)
         val requested = ids.orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }.distinct()
         if (requested.size > MAX_ELEMENTS) return error("At most $MAX_ELEMENTS ids per request")
+        val elements = requested.mapNotNull { view.element(it) }
         val result = LinkedHashMap<String, List<PointDto>>()
-        for (id in requested) {
-            val s = view.element(id) ?: continue
-            result[id.toString()] = reduce(climate.getAverageHistory(s, de, a), points).map { PointDto.of(it) }
+        // A dashboard asks for dozens of rooms at once: their devices are read a few rooms per
+        // query, and each curve is reduced at once, so a request never holds every full curve
+        // in memory (150 users doing so kept the garbage collector busy all the time).
+        for (part in elements.chunked(AVERAGES_PER_QUERY)) {
+            val curves = climate.getAverageHistories(part, de, a, raw = points == 0)
+            for (s in part) result[s.id.toString()] = reduce(curves[s.id].orEmpty(), points).map { PointDto.of(it) }
         }
         return Response.ok(result).build()
     }
@@ -170,6 +176,13 @@ class ClimateResource {
 
     private companion object {
         const val MAX_ELEMENTS = 200
+        /**
+         * Rooms whose devices are read in one query by /averages. Measured with 150 concurrent
+         * requests of 50 rooms: 1 room per query = 50 queries; 3 = as little garbage collection,
+         * and the best throughput; 8 or more = results big enough to outlive the young
+         * collections, and the collector working 7 to 15 times longer.
+         */
+        const val AVERAGES_PER_QUERY = 3
         const val MAX_POINTS = 10_000
         /** Without ?points: enough for a chart as wide as a screen, a bounded response in any case. */
         const val DEFAULT_POINTS = 1000

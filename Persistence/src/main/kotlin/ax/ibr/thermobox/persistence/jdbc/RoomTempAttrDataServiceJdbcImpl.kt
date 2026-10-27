@@ -5,7 +5,9 @@ import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Temperature
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService
 import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl.Companion.insertTemperature
 import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl.Companion.updateTemperature
@@ -38,31 +40,43 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
     override fun insert(cx: Connection, t: RoomTempAttr): Long {
         val temperature = t.temperature
         val temperatureId = temperature.id ?: insertTemperature(cx, temperature).also { temperature.id = it }
-        val id = cx.insert("INSERT INTO room_temperature_attr (room_id, temperature_id) VALUES (?, ?)", saved(t.room.id), temperatureId)
+        val id = cx.insert(
+            "INSERT INTO room_temperature_attr (room_id, temperature_id, kind, date) VALUES (?, ?, ?, ?)",
+            saved(t.room.id), temperatureId, Rows.temperatureType(temperature), temperature.date,
+        )
         if (temperature is Measurement && temperature.date != null) {
             cx.execute(LatestMeasurements.UPSERT, t.room.id, temperatureId, temperature.date)
+            Hourly.add(cx, t.room.id, temperature.date, temperature.value)
         }
         return id
     }
 
     override fun updateRow(cx: Connection, t: RoomTempAttr) {
         val temperature = t.temperature
+        // Where the measurement counted before the change (device, hour)
+        val before = Hourly.owner(cx, temperature.id)
         if (temperature.id == null) temperature.id = insertTemperature(cx, temperature) else updateTemperature(cx, temperature)
         // The devices concerned (the one it was on, the one it goes to) work their latest out again
         cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, temperature.id)
         cx.execute(LatestMeasurements.FORGET_ROOM, t.room.id)
-        cx.execute("UPDATE room_temperature_attr SET room_id = ?, temperature_id = ? WHERE id = ?", saved(t.room.id), temperature.id, t.id)
+        cx.execute(
+            "UPDATE room_temperature_attr SET room_id = ?, temperature_id = ?, kind = ?, date = ? WHERE id = ?",
+            saved(t.room.id), temperature.id, Rows.temperatureType(temperature), temperature.date, t.id,
+        )
+        Hourly.rebuild(cx, listOf(before, Hourly.owner(cx, temperature.id)))
     }
 
     override fun deleteRow(cx: Connection, id: Long) {
         val temperatureId = cx.query("SELECT temperature_id FROM room_temperature_attr WHERE id = ?", id) { it.longOrNull("temperature_id") }.firstOrNull()
         if (temperatureId != null) cx.execute(LatestMeasurements.FORGET_TEMPERATURE, temperatureId)
+        val before = Hourly.owner(cx, temperatureId)
         cx.execute("DELETE FROM room_temperature_attr WHERE id = ?", id)
         if (temperatureId != null) cx.execute("DELETE FROM temperature WHERE id = ?", temperatureId)
+        Hourly.rebuild(cx, listOf(before))
     }
 
     override fun getByRoom(roomId: Long): List<RoomTempAttr>? =
-        list("WHERE e.room_id = ? ORDER BY t.date DESC, t.id DESC", roomId).ifEmpty { null }
+        list("WHERE e.room_id = ? ORDER BY e.date DESC, e.temperature_id DESC", roomId).ifEmpty { null }
 
     override fun getByRoom(room: Room): List<RoomTempAttr>? = room.id?.let { getByRoom(it) }
 
@@ -110,9 +124,7 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
         db.read { cx ->
             for (part in ids.chunked(LatestMeasurements.CHUNK)) {
                 cx.query(
-                    "SELECT e.room_id AS r, ${Rows.temperatureColumns("t")} FROM room_temperature_attr e " +
-                        "JOIN temperature t ON t.id = e.temperature_id " +
-                        "WHERE t.DTYPE = ? AND e.room_id IN (${placeholders(part.size)})",
+                    TemperatureHistory.ofRooms(part.size),
                     Rows.temperatureType(Setpoint::class.java), *part.toTypedArray(),
                 ) { rs -> (Rows.temperature(rs, "t") as? Setpoint)?.let { rs.getLong("r") to it } }.forEach { (r, s) ->
                     val kept = result[r]
@@ -150,7 +162,7 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
     override fun getCurrentTemperaturesFromRoom(room: Room): List<Temperature>? {
         val roomId = room.id ?: return null
         return db.read { cx ->
-            cx.query("SELECT DISTINCT t.DTYPE AS k FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id WHERE e.room_id = ?", roomId) {
+            cx.query("SELECT DISTINCT kind AS k FROM room_temperature_attr WHERE room_id = ? AND kind IS NOT NULL", roomId) {
                 it.getString("k")
             }.mapNotNull { latest(cx, roomId, it) }
         }.ifEmpty { null }
@@ -175,7 +187,7 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
         val roomId = room.id ?: return null
         val avg = db.read { cx ->
             cx.query(
-                "SELECT AVG(t.value) AS a FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id WHERE e.room_id = ? AND t.DTYPE = ?",
+                TemperatureHistory.AVERAGE,
                 roomId, Rows.temperatureType(temperatureClass),
             ) { rs -> rs.getDouble("a").takeUnless { rs.wasNull() } }.firstOrNull()
         } ?: return null
@@ -186,29 +198,65 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
     override fun getAverageTemperatureFromRoomTimed(room: Room, start: Instant, end: Instant): List<Temperature> {
         val roomId = room.id ?: return emptyList()
         return db.read { cx ->
-            cx.query(
-                "SELECT DATE(t.date) AS d, AVG(t.value) AS a FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
-                    "WHERE e.room_id = ? AND t.date BETWEEN ? AND ? GROUP BY DATE(t.date) ORDER BY DATE(t.date)",
-                roomId, start.toLocal(), end.toLocal(),
-            ) { rs -> rs.getDate("d")?.let { Temperature(rs.getFloat("a"), it.toLocalDate().atStartOfDay()) } }
+            cx.query(TemperatureHistory.DAILY_AVERAGES, roomId, start.toLocal(), end.toLocal()) { rs ->
+                rs.getDate("d")?.let { Temperature(rs.getFloat("a"), it.toLocalDate().atStartOfDay()) }
+            }
         }
     }
 
-    override fun getAllByTime(start: Instant, end: Instant): List<RoomTempAttr> =
-        list("WHERE t.date BETWEEN ? AND ? ORDER BY t.date, t.id", start.toLocal(), end.toLocal())
+    /** Hourly averages of every device of [devices] over the period (measurement_hourly). */
+    override fun getHourlyMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        val result = LinkedHashMap<Long, MutableList<Temperature>>()
+        ids.forEach { result[it] = ArrayList() }
+        if (ids.isEmpty()) return result
+        val from = HourlyMeasurements.hourOf(start.toLocal())
+        db.read { cx ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                cx.query(HourlyMeasurements.averages(part.size), from, end.toLocal(), *part.toTypedArray()) { rs ->
+                    val hour = rs.dateTime("hour") ?: return@query null
+                    rs.getLong("room_id") to Measurement(rs.getDouble("average").toFloat(), hour.plusMinutes(30))
+                }.forEach { (r, t) -> result.getValue(r).add(t) }
+            }
+        }
+        return result
+    }
 
-    private fun latest(cx: Connection, roomId: Long, type: String): Temperature? = cx.query(
-        "SELECT ${Rows.temperatureColumns("t")} FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
-            "WHERE e.room_id = ? AND t.DTYPE = ? ORDER BY t.date DESC, t.id DESC LIMIT 1",
-        roomId, type,
-    ) { Rows.temperature(it, "t") }.firstOrNull()
+    /** The measurements of every device of [devices] over the period, in one query per thousand devices. */
+    override fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        val result = LinkedHashMap<Long, MutableList<Temperature>>()
+        ids.forEach { result[it] = ArrayList() }
+        if (ids.isEmpty()) return result
+        val kind = Rows.temperatureType(Measurement::class.java)
+        db.read { cx ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                // Rows grouped by room (ORDER BY room_id): no pair per row
+                cx.statement(TemperatureHistory.periodOfRooms(part.size), kind, start.toLocal(), end.toLocal(), *part.toTypedArray()).use { st ->
+                    st.fetchSize = 1000
+                    st.executeQuery().use { rs ->
+                        var currentRoom = -1L
+                        var current: MutableList<Temperature>? = null
+                        while (rs.next()) {
+                            val r = rs.getLong(1)
+                            if (r != currentRoom) { currentRoom = r; current = result[r] }
+                            Rows.temperatureAt(rs, 2)?.let { current?.add(it) }
+                        }
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    override fun getAllByTime(start: Instant, end: Instant): List<RoomTempAttr> =
+        list("WHERE e.date BETWEEN ? AND ? ORDER BY e.date, e.temperature_id", start.toLocal(), end.toLocal())
+
+    private fun latest(cx: Connection, roomId: Long, type: String): Temperature? =
+        cx.query(TemperatureHistory.LATEST, roomId, type) { Rows.temperature(it, "t") }.firstOrNull()
 
     private fun timed(roomId: Long, type: String, start: Instant, end: Instant): List<Temperature> = db.read { cx ->
-        cx.query(
-            "SELECT ${Rows.temperatureColumns("t")} FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
-                "WHERE e.room_id = ? AND t.DTYPE = ? AND t.date BETWEEN ? AND ? ORDER BY t.date, t.id",
-            roomId, type, start.toLocal(), end.toLocal(),
-        ) { Rows.temperature(it, "t") }
+        cx.query(TemperatureHistory.PERIOD, roomId, type, start.toLocal(), end.toLocal()) { Rows.temperatureAt(it, 1) }
     }
 
     // Instant (UTC, from the API) -> LocalDateTime (no time zone, as stored in the database)

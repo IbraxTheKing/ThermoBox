@@ -2,6 +2,7 @@ package ax.ibr.thermobox.persistence.jdbc
 
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.LatestMeasurements
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService
 import java.sql.Connection
 import java.sql.ResultSet
@@ -20,14 +21,20 @@ class TemperatureDataServiceJdbcImpl(db: JdbcDatabase) : TemperatureDataService,
     override fun insert(cx: Connection, t: Temperature): Long = insertTemperature(cx, t)
 
     override fun updateRow(cx: Connection, t: Temperature) {
+        val before = Hourly.owner(cx, t.id)
         updateTemperature(cx, t)
+        cx.execute(TemperatureHistory.COPY_BY_TEMPERATURE, Rows.temperatureType(t), t.date, t.id)
+        // Its value or its hour may have changed
+        Hourly.rebuild(cx, listOf(before, Hourly.owner(cx, t.id)))
         // Its date may have changed: its device works its latest measurement out again
         cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, t.id)
     }
 
     override fun deleteRow(cx: Connection, id: Long) {
         cx.execute(LatestMeasurements.FORGET_TEMPERATURE, id)
+        val before = Hourly.owner(cx, id)
         cx.execute("DELETE FROM temperature WHERE id = ?", id)
+        Hourly.rebuild(cx, listOf(before))
     }
 
     override fun getPage(temperatureClass: Temperature?, offset: Int, limit: Int): List<Temperature> =

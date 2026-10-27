@@ -27,6 +27,7 @@ Business/src/main/kotlin/ax/ibr/thermobox/business/
 ├── images/            ImageProcessor : contrôle et réduction des photos
 ├── charts/            CurveSampling : réduction d'une courbe à N points (LTTB)
 ├── climate/           ClimateSnapshot : toute la hiérarchie et ses températures, lue en une fois
+├── hierarchy/         HierarchyCache : bâtiments, étages, salles, boîtiers et leurs liens en mémoire
 ├── update/            le système de mises à jour depuis GitHub
 └── exceptions/        TooHotException, ImpossibleValueException
 Business/src/main/resources/thermobox-version.properties   version inscrite par Maven
@@ -72,9 +73,15 @@ l'ancien parent.
   quelle profondeur ; leur moyenne pour l'élément.
 - **Consigne effective** : la consigne propre de l'élément, sinon celle de l'ancêtre le plus proche
   qui en a une (une salle suit son étage, qui suit son bâtiment). `EffectiveSetpoint` dit d'où elle vient.
-- **Historique** : une courbe par boîtier, et une moyenne dans le temps (`movingAverage`) : à chaque
+- **Historique** : une courbe par boîtier (toutes ses mesures jusqu'à deux jours, ses moyennes horaires
+  au-delà, `getRawHistories` pour tout avoir), et une moyenne dans le temps (`movingAverage`) : à chaque
   instant où un boîtier mesure, chaque boîtier compte avec sa dernière valeur connue, puisqu'ils ne
   mesurent pas en même temps.
+- **Mini-courbes** (`getAverageHistories`) : la courbe moyenne de plusieurs salles à la fois, pour
+  l'aperçu. Les moyennes horaires servent dès 12 heures de période (`AVERAGES_HOURLY_FROM`, au lieu de
+  deux jours pour les autres courbes) : une tendance d'un coup d'œil n'a pas besoin de chaque mesure, et
+  50 salles sur 24 h se lisent en 3 600 lignes au lieu de 21 000 (5 fois plus de requêtes par seconde
+  sous charge). `raw = true` (`points=0` dans l'API) donne toujours chaque mesure.
 - **Envoi d'une consigne** (`sendSetpoint(room, value, force)`) :
   1. contrôle de la valeur (`SetpointRules`), puis enregistrement sur l'élément ;
   2. parcours de ses enfants : un étage ou une salle qui a **sa propre** consigne la garde, avec ses
@@ -153,11 +160,24 @@ PNG, GIF ou BMP), redressée selon son orientation EXIF, réduite à 1600 px de 
 ré-encodée en JPEG (qualité 0,85). Le ré-encodage supprime les métadonnées (position GPS d'une photo
 de téléphone). Les images de plus de 40 millions de pixels sont refusées avant décodage.
 
+## `hierarchy/` — `HierarchyCache`
+
+Chaque requête demande des parents, des enfants, des chemins ou les boîtiers contenus (droits d'accès,
+arbre, courbes), alors que la hiérarchie ne change presque jamais. `HierarchyCache` la garde en mémoire
+(éléments et liens, lus en deux requêtes) ; `HierarchyServiceImpl` y répond quand il en reçoit un (celui
+de `BusinessFactory`), sinon il interroge les services comme avant (les tests). Elle est relue :
+- aussitôt après un changement passé par les services (`RoomServiceImpl`, `RoomRoomAttrServiceImpl`
+  appellent `HierarchyCache.invalidate()`) ;
+- au plus tard 30 s après, pour les changements faits ailleurs (autre serveur sur la même base, script).
+
+Les éléments donnés sont des copies : les modifier ne touche pas le cache. Les accès d'un utilisateur
+limité, recalculés à chaque requête, passent ainsi de 16 ms à 1 ms sur le jeu « huge ».
+
 ## `climate/` — `ClimateSnapshot`
 
-Pour les pages qui montrent tous les éléments à la fois (l'arbre de l'aperçu) : la hiérarchie, la
-dernière mesure de chaque boîtier et la consigne propre de chaque élément sont lues en quelques
-requêtes, puis tout est calculé en mémoire avec les mêmes règles que `HierarchyService` et
+Pour les pages qui montrent tous les éléments à la fois (l'arbre de l'aperçu) : la hiérarchie (celle de
+`HierarchyCache`), la dernière mesure de chaque boîtier et la consigne propre de chaque élément sont lues
+en deux requêtes, puis tout est calculé en mémoire avec les mêmes règles que `HierarchyService` et
 `ClimateService` (boîtiers contenus, moyenne, consigne héritée). Un instantané vaut pour une requête :
 on n'en garde jamais. `ClimateServiceImpl.effectiveSetpoint` porte la règle de la consigne héritée,
 partagée par les deux.

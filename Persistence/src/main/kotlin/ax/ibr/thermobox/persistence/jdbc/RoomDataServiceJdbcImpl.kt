@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.persistence.jdbc
 
 import ax.ibr.thermobox.common.entities.Room
+import ax.ibr.thermobox.persistence.HourlyMeasurements
 import ax.ibr.thermobox.persistence.LatestMeasurements
 import ax.ibr.thermobox.persistence.dataservices.RoomDataService
 import java.sql.Connection
@@ -25,6 +26,7 @@ class RoomDataServiceJdbcImpl(db: JdbcDatabase) : RoomDataService, CrudJdbcServi
 
     override fun deleteRow(cx: Connection, id: Long) {
         cx.execute(LatestMeasurements.FORGET_ROOM, id)
+        cx.execute(HourlyMeasurements.FORGET_ROOM, id)
         cx.execute("DELETE FROM room WHERE id = ?", id)
     }
 

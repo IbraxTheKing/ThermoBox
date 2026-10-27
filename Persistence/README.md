@@ -57,11 +57,20 @@ expose aussi `backupDatabase(file)` et `close()` (appelé à l'arrêt du serveur
 
 | Valeur | Implémentation | Paquet |
 |---|---|---|
-| `jpa` (défaut) | JPA avec EclipseLink, requêtes JPQL | `jpa/` |
-| `jdbc` | SQL écrit à la main, `java.sql` seul | `jdbc/` |
+| `jdbc` (défaut depuis 26.12) | SQL écrit à la main, `java.sql` seul | `jdbc/` |
+| `jpa` | JPA avec EclipseLink, requêtes JPQL (l'accès de 26.11 et avant) | `jpa/` |
 
 Les deux lisent et écrivent les mêmes tables, avec les mêmes valeurs : on peut passer de l'une à
 l'autre à n'importe quel redémarrage, sans migration. Une valeur inconnue arrête le démarrage.
+
+**Pourquoi JDBC par défaut.** Au test de charge (`loadtest/`, 50 utilisateurs sans pause, base `huge`),
+le même serveur répond à 770 requêtes/s en JDBC, sans erreur, et à 35 en JPA, avec des pages de 5 à
+15 s : avec JPA, le serveur attend (processeur à 9 %) au lieu de travailler. Rattraper l'écart
+demanderait d'optimiser une seconde fois chaque lecture du côté d'EclipseLink.
+
+**Revenir à JPA** : `THERMOBOX_DB_ACCESS=jpa` (dans `.env` avec Docker), puis redémarrer le serveur.
+JPA reste disponible et testé pendant quelques versions, le temps de s'assurer que JDBC ne pose de
+problème nulle part ; son retrait sera annoncé dans les notes de version.
 
 ### `jpa/`
 
@@ -74,9 +83,13 @@ sans risque entre les requêtes, et les entités renvoyées sont détachées. L'
 ### `jdbc/`
 
 - `JdbcDatabase` : connexions (mêmes variables `THERMOBOX_DB_*`), transactions (`transaction { }` :
-  validée ou annulée en bloc), et jusqu'à 8 connexions gardées ouvertes entre deux requêtes (une
-  connexion morte est remplacée). Le pilote JDBC est chargé d'après l'URL (`jdbc:mysql:`,
-  `jdbc:mariadb:`).
+  validée ou annulée en bloc), au plus `THERMOBOX_DB_POOL_SIZE` connexions utilisées à la fois (20 par
+  défaut ; les autres opérations attendent jusqu'à 30 s). Toutes restent ouvertes entre deux
+  opérations ; une connexion inutilisée depuis plus de 10 s est vérifiée avant d'être prêtée, et
+  remplacée si elle est morte (MySQL redémarré, délai d'inactivité). En 26.12 avant ce réglage, seules
+  8 sur 20 restaient ouvertes : sous charge, le serveur fermait et rouvrait des centaines de connexions
+  par seconde, jusqu'à 22 % d'erreurs. EclipseLink reçoit le même plafond. Le pilote JDBC est chargé
+  d'après l'URL (`jdbc:mysql:`, `jdbc:mariadb:`).
 - `Rows` : correspondance entre lignes et entités. Le type d'un élément ou d'une température vient de
   `DTYPE` (`Building`, `Floor`, `Room`, `Device` ; `Setpoint`, `Measurement`), le rôle d'un
   utilisateur de son rang (`0` ADMIN, `1` MANAGER, `2` VIEWER), comme JPA l'enregistre.
@@ -98,6 +111,8 @@ utilisation de la base (JPA comme JDBC ne créent ni ne modifient jamais de tabl
 | `V3__groupes.sql` | Groupes d'utilisateurs (26.11). |
 | `V4__english_names.sql` | Noms anglais des tables, colonnes et valeurs de `DTYPE` (26.12). Une version antérieure ne peut plus ouvrir la base. |
 | `V5__latest_measurement.sql` | Table `latest_measurement` remplie à partir de l'historique, index sur les dates des températures (26.12). Une trentaine de secondes pour 4 millions de mesures. |
+| `V6__room_temperature_dates.sql` | Copie du type et de la date de chaque température dans `room_temperature_attr`, index (élément, type, date) (26.12). ~40 s pour 4 millions de mesures. |
+| `V7__measurement_hourly.sql` | Table `measurement_hourly` (moyenne, min, max de chaque boîtier par heure), remplie depuis l'historique (26.12). ~40 s pour 4 millions de mesures. |
 
 - Base vide : tous les scripts s'exécutent.
 - Base créée avant Flyway (jusqu'à 26.10) : elle est marquée version 0 puis tous les scripts passent ;
@@ -123,6 +138,24 @@ Les deux implémentations la tiennent à jour avec les mêmes requêtes (`Latest
 - un programme qui écrit directement dans les tables (comme `DatabaseSeeder huge`) doit faire de même,
   sinon le premier affichage recalcule ce qui manque.
 
+L'historique d'un élément sur une période (une courbe) se lit par l'index (élément, type, date) de
+`room_temperature_attr`, qui garde une copie du type et de la date de chaque température (V6, requêtes
+communes dans `TemperatureHistory.kt`, copies tenues à jour à chaque écriture). Avant, la date n'étant
+que dans `temperature`, MySQL lisait tout l'historique du boîtier pour en garder une journée (4 321
+lignes lues pour 114 gardées). Ces lectures renvoient des valeurs simples, sans entité JPA par point ;
+`getMeasurementsOf` lit les courbes de mille boîtiers en une requête. Le cache partagé d'EclipseLink est
+coupé (`persistence.xml`) : il gardait en mémoire des entités que personne ne relit.
+
+Pour les longues périodes, `measurement_hourly` garde, par boîtier et par heure, le nombre, la somme,
+le minimum et le maximum des mesures (V7, requêtes communes dans `HourlyMeasurements.kt`). Un ajout est
+compté dans son heure ; une mesure modifiée, déplacée ou supprimée fait recalculer les heures concernées
+depuis l'historique (une plage de l'index). `getHourlyMeasurementsOf` en tire une courbe d'un point par
+heure : une semaine d'un boîtier, 168 lignes au lieu d'un millier.
+
+Les courbes renvoient leurs dates en secondes (`TIMESTAMPDIFF`, voir `TemperatureHistory.CURVE_COLUMNS`)
+plutôt qu'en `DATETIME` : certains pilotes JDBC créent près d'un kilo-octet d'objets pour lire une date,
+et des milliers de lignes par courbe occupaient le ramasse-miettes sous charge.
+
 Les autres lectures « en bloc » : `getLatestSetpoints` (consigne propre de chaque élément),
 `getRoomIdsOfTemperatures` (à qui appartient chaque température, pour filtrer selon les accès sans relire
 toute la table), et les pages `getPage` / `count` des listes de températures, triées par date grâce aux
@@ -133,6 +166,9 @@ index de V5.
 | Arbre de l'aperçu (1 400 éléments) | 26 s | 0,1 s |
 | Moyenne d'un bâtiment (96 boîtiers) | 3,4 s | 0,03 s |
 | Liste des mesures (`/temperatures/type/measurement`) | 10 s, 1 Go de mémoire, tout | 0,01 s par page |
+| Courbes d'un bâtiment sur 7 jours | 2 s | 0,07 s (moyennes horaires) |
+| Courbes d'un bâtiment sur 30 jours | 2,8 s | 0,15 s (moyennes horaires) |
+| Mini-courbes de 32 salles sur 24 h (aperçu) | 1,2 s | 0,1 s, puis 0,02 s (moyennes horaires) |
 
 ## `backup/` — `DatabaseBackup`
 
@@ -148,9 +184,9 @@ gros) et le fichier n'a son nom définitif qu'une fois complet. Restauration :
 | Test | Ce qu'il vérifie | Base nécessaire |
 |---|---|---|
 | `migration/MigrationsTest` | Noms et ordre des scripts ; chaque entité de `persistence.xml` a sa table. | non |
-| `jdbc/AccessModeTest` | Lecture de `THERMOBOX_DB_ACCESS`, pilote d'après l'URL. | non |
-| `jdbc/JdbcDataServicesTest` | Chaque service JDBC. | oui, une base de test |
-| `dataservices/PersistenceFactoryTest` | La fabrique renvoie les services JPA par défaut. | oui (`THERMOBOX_DB_*`) |
+| `jdbc/AccessModeTest` (dans `JdbcDataServicesTest.kt`) | Lecture de `THERMOBOX_DB_ACCESS` (JDBC par défaut), pilote d'après l'URL, taille du pool. | non |
+| `jdbc/JdbcDataServicesTest` | Chaque service JDBC ; le pool (plafond, connexions gardées, connexion morte remplacée). | oui, une base de test |
+| `dataservices/PersistenceFactoryTest` | La fabrique renvoie les services de l'accès choisi (JDBC sans réglage). | oui (`THERMOBOX_DB_*`) |
 
 `JdbcDataServicesTest` ne s'exécute que si `THERMOBOX_TEST_DB_URL`, `THERMOBOX_TEST_DB_USER` et
 `THERMOBOX_TEST_DB_PASSWORD` désignent une base de test : **elle est vidée avant chaque test**. Les

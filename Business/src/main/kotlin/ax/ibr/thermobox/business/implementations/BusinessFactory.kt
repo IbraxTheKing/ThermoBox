@@ -1,5 +1,7 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
+import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.business.io.mqtt.MqttDriver
 import ax.ibr.thermobox.common.services.RoomService
 import ax.ibr.thermobox.common.services.RoomTempAttrService
@@ -24,7 +26,10 @@ object BusinessFactory {
     private val userServiceInstance: UserService by lazy { UserServiceImpl() }
     private val roomTempAttrServiceInstance: RoomTempAttrService by lazy { RoomTempAttrServiceImpl() }
     private val roomRoomAttrServiceInstance: RoomRoomAttrService by lazy { RoomRoomAttrServiceImpl() }
-    private val hierarchyServiceInstance: HierarchyService by lazy { HierarchyServiceImpl() }
+    private val hierarchyCacheInstance: HierarchyCache by lazy {
+        HierarchyCache(PersistenceFactory.getRoomDataService(), PersistenceFactory.getRoomRoomAttrDataService())
+    }
+    private val hierarchyServiceInstance: HierarchyService by lazy { HierarchyServiceImpl(cache = hierarchyCacheInstance) }
     private val climateServiceInstance: ClimateService by lazy { ClimateServiceImpl() }
     private val favoriteServiceInstance: FavoriteService by lazy { FavoriteServiceImpl() }
     private val roomImageServiceInstance: RoomImageService by lazy { RoomImageServiceImpl() }
@@ -53,6 +58,9 @@ object BusinessFactory {
     fun getRoomRoomAttrService(): RoomRoomAttrService = roomRoomAttrServiceInstance
 
     fun getHierarchyService(): HierarchyService = hierarchyServiceInstance
+
+    /** The hierarchy in memory, shared by the services (see HierarchyCache). */
+    fun getHierarchyCache(): HierarchyCache = hierarchyCacheInstance
 
     fun getClimateService(): ClimateService = climateServiceInstance
 

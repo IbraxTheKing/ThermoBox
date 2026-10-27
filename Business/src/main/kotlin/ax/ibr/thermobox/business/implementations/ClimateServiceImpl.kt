@@ -16,6 +16,7 @@ import ax.ibr.thermobox.common.services.DeviceHistory
 import ax.ibr.thermobox.common.services.DeviceMeasurement
 import ax.ibr.thermobox.common.services.RoomTempAttrService
 import java.io.Serializable
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 
@@ -55,10 +56,31 @@ class ClimateServiceImpl(
         return owned
     }
 
+    /**
+     * Every measurement up to [HOURLY_FROM]; past it, hourly averages: a week of a device is 168
+     * points instead of a thousand or more, which a chart could not show apart anyway.
+     */
     override fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> =
-        hierarchy.getDevices(room).map { device ->
-            DeviceHistory(device, roomTemps.getTemperaturesFromRoomTimed(device, start, end))
-        }
+        histories(room, start, end, hourly = Duration.between(start, end) > HOURLY_FROM)
+
+    override fun getRawHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> =
+        histories(room, start, end, hourly = false)
+
+    /** Every room's devices in one query, then each room's average in memory. */
+    override fun getAverageHistories(rooms: Collection<Room>, start: Instant, end: Instant, raw: Boolean): Map<Long, List<Temperature>> {
+        val devicesOf = rooms.filter { it.id != null }.associate { it.id!! to hierarchy.getDevices(it) }
+        val devices = devicesOf.values.flatten().distinctBy { it.id }
+        val hourly = !raw && Duration.between(start, end) >= AVERAGES_HOURLY_FROM
+        val series = if (hourly) roomTemps.getHourlyMeasurementsOf(devices, start, end) else roomTemps.getMeasurementsOf(devices, start, end)
+        return devicesOf.mapValues { (_, list) -> movingAverage(list.map { DeviceHistory(it, series[it.id].orEmpty()) }) }
+    }
+
+    private fun histories(room: Room, start: Instant, end: Instant, hourly: Boolean): List<DeviceHistory> {
+        val devices = hierarchy.getDevices(room)
+        // Every device in one query
+        val series = if (hourly) roomTemps.getHourlyMeasurementsOf(devices, start, end) else roomTemps.getMeasurementsOf(devices, start, end)
+        return devices.map { DeviceHistory(it, series[it.id].orEmpty()) }
+    }
 
     override fun getAverageHistory(room: Room, start: Instant, end: Instant): List<Temperature> =
         movingAverage(getHistories(room, start, end))
@@ -112,6 +134,17 @@ class ClimateServiceImpl(
     }
 
     companion object {
+        /** Longer periods are drawn from hourly averages (getHistories). */
+        val HOURLY_FROM: Duration = Duration.ofDays(2)
+
+        /**
+         * The same for the average curves of several rooms at once (getAverageHistories: the
+         * mini-curves of a dashboard, 24 hours of dozens of rooms). A trend at a glance: 24 hourly
+         * points per room are read instead of every measurement of every device (about 140 per
+         * device and per day), without a join, which is what weighed on the server under load.
+         */
+        val AVERAGES_HOURLY_FROM: Duration = Duration.ofHours(12)
+
         /**
          * A setpoint saved by a forced send carries the value and the date of its ancestor's: the
          * element then still follows the ancestor rather than having a setpoint of its own.

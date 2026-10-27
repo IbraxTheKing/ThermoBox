@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
 import ax.ibr.thermobox.business.rules.HierarchyRules
 import ax.ibr.thermobox.common.entities.Device
 import ax.ibr.thermobox.common.entities.Room
@@ -11,21 +12,39 @@ import ax.ibr.thermobox.common.services.RoomRoomAttrService
 import ax.ibr.thermobox.common.services.RoomService
 import java.io.Serializable
 
+/**
+ * With a [cache] (the one of BusinessFactory), parents, children and paths are read in memory
+ * ([HierarchyCache]); without, from the services, as the tests do.
+ */
 class HierarchyServiceImpl(
     private val rooms: RoomService = BusinessFactory.getRoomService(),
-    private val links: RoomRoomAttrService = BusinessFactory.getRoomRoomAttrService()
+    private val links: RoomRoomAttrService = BusinessFactory.getRoomRoomAttrService(),
+    private val cache: HierarchyCache? = null,
 ) : HierarchyService, Serializable {
 
     private val order = compareBy<Room>({ it.kind }, { it.name?.lowercase() })
 
     override fun getRoots(): List<Room> {
+        cache?.tree()?.let { tree ->
+            return tree.elements.values.filter { it.id !in tree.parents }.map { HierarchyCache.copy(it) }.sortedWith(order)
+        }
         val attached = links.getAll().mapNotNull { it.roomB.id }.toSet()
         return rooms.getAll().filter { it.id !in attached }.sortedWith(order)
     }
 
-    override fun getChildren(parent: Room): List<Room> = links.getChildren(parent).sortedWith(order)
+    override fun getChildren(parent: Room): List<Room> {
+        cache?.tree()?.let { tree ->
+            return tree.children[parent.id].orEmpty().mapNotNull { tree.elements[it] }.map { HierarchyCache.copy(it) }.sortedWith(order)
+        }
+        return links.getChildren(parent).sortedWith(order)
+    }
 
-    override fun getParent(child: Room): Room? = links.getParent(child)
+    override fun getParent(child: Room): Room? {
+        cache?.tree()?.let { tree ->
+            return tree.parents[child.id]?.let { tree.elements[it] }?.let { HierarchyCache.copy(it) }
+        }
+        return links.getParent(child)
+    }
 
     override fun getPath(room: Room): List<Room> {
         val path = ArrayList<Room>()

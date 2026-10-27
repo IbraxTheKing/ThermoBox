@@ -40,11 +40,28 @@ docker/mosquitto/mosquitto.conf  broker MQTT
 
 - **Java 23.** Le bytecode du projet est en Java 23 : l'image d'exécution est basée sur Temurin 23.
   `ARG JAVA_VERSION` permet de changer la version.
-- **Pas de datasource.** `PersistenceFactory` ouvre sa connexion JDBC avec `THERMOBOX_DB_URL/USER/PASSWORD`.
+- **Pas de datasource.** `PersistenceFactory` ouvre ses connexions avec `THERMOBOX_DB_URL/USER/PASSWORD`,
+  en JDBC direct par défaut (`THERMOBOX_DB_ACCESS=jpa` pour revenir à EclipseLink, voir
+  [Persistence](Persistence/README.md#jpa-ou-jdbc-thermobox_db_access)).
 - **MQTT.** `THERMOBOX_DRIVER=simulated` (défaut) simule les boîtiers ; avec `mqtt`, le serveur se connecte à
   `THERMOBOX_MQTT_URL` (le service `mosquitto` du profil `mqtt`, ou votre broker).
-- **Schéma.** Créé et mis à jour au démarrage par les migrations Flyway (voir le README, « Migrations de
-  schéma ») : rien à faire à la main, même sur une base existante.
+- **Schéma.** Créé et mis à jour au démarrage par les migrations Flyway (voir
+  [Persistence](Persistence/README.md#migration-et-resourcesdbmigration--le-schéma)) : rien à faire à la
+  main, même sur une base existante.
+
+## Mémoire et processeur
+
+Par défaut, `rest` a 1 Go (Java : 768 Mo au plus) et `mysql` 1,5 Go, dont 512 Mo de cache pour les
+données (`innodb_buffer_pool_size`, 128 Mo seulement sans réglage, ce qui oblige MySQL à relire le disque
+dès que l'historique grossit). Les statistiques internes de MySQL (`performance_schema`, ~200 Mo) sont
+coupées. Tout se change dans `.env` : `REST_MEMORY`, `REST_JAVA_OPTS`, `MYSQL_MEMORY`,
+`MYSQL_BUFFER_POOL`, `MYSQL_PERFORMANCE_SCHEMA`, `THERMOBOX_DB_POOL_SIZE`. Un petit site (quelques
+dizaines de boîtiers) tourne avec la moitié ; pour un gros historique, donnez plutôt plus de cache à
+MySQL (`MYSQL_BUFFER_POOL=1G`, avec `MYSQL_MEMORY` au-dessus). `loadtest/` mesure l'effet d'un réglage.
+
+Avec ces valeurs par défaut, 400 utilisateurs qui changent de page toutes les 2 s, sur une base de 4
+millions de mesures, sont servis en moins de 20 ms (95 % des requêtes) ; le serveur utilise alors au
+plus 3 cœurs et 500 Mo de mémoire Java (résultats détaillés dans [loadtest](loadtest/README.md#résultats-de-référence)).
 
 ## Mises à jour depuis l'interface
 

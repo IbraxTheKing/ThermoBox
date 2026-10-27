@@ -20,6 +20,7 @@ import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -66,7 +67,7 @@ class JdbcDataServicesTest {
         groups = UserGroupDataServiceJdbcImpl(db)
         db.transaction { cx ->
             listOf(
-                "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
+                "measurement_hourly", "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
                 "room_image", "favorite", "room_temperature_attr", "temperature", "room_attr", "room", "`user`",
             ).forEach { cx.execute("DELETE FROM $it") }
         }
@@ -197,6 +198,71 @@ class JdbcDataServicesTest {
     }
 
     @Test
+    fun `periods are read through the copies of kind and date, kept up to date`() {
+        val d1 = Device("D1").also(rooms::add)
+        val d2 = Device("D2").also(rooms::add)
+        val now = LocalDateTime.now().withNano(0)
+        val zone = ZoneId.systemDefault()
+        fun at(t: LocalDateTime) = t.atZone(zone).toInstant()
+        val inside = RoomTempAttr(d1, Measurement(20f, now.minusHours(3))).also(roomTemperatures::add)
+        roomTemperatures.add(RoomTempAttr(d1, Measurement(21f, now.minusHours(1))))
+        roomTemperatures.add(RoomTempAttr(d1, Measurement(25f, now.minusDays(3))))
+        roomTemperatures.add(RoomTempAttr(d2, Measurement(18f, now.minusHours(2))))
+        roomTemperatures.add(RoomTempAttr(d2, Setpoint(19f, now.minusHours(2))))
+
+        val copies = db.read { cx -> cx.query("SELECT kind, date FROM room_temperature_attr WHERE id = ?", inside.id) { it.getString("kind") to it.dateTime("date") }.single() }
+        assertEquals("Measurement" to now.minusHours(3), copies)
+
+        val day = roomTemperatures.getMeasurementsOf(listOf(d1, d2, Device("unsaved")), at(now.minusDays(1)), at(now))
+        assertEquals(mapOf(d1.id to listOf(20f, 21f), d2.id to listOf(18f)), day.mapValues { e -> e.value.map { it.value } })
+
+        // A date changed on the temperature itself: the copy follows
+        val t = inside.temperature
+        t.date = now.minusDays(2)
+        temperatures.update(t)
+        assertEquals(listOf(21f), roomTemperatures.getTemperaturesFromRoomTimed(d1, at(now.minusDays(1)), at(now)).map { it.value })
+        assertEquals(listOf(19f), roomTemperatures.getSetpointsFromRoomTimed(d2, at(now.minusDays(1)), at(now)).map { it.value })
+        assertEquals(setOf(18f, 19f), roomTemperatures.getCurrentTemperaturesFromRoom(d2)!!.map { it.value }.toSet())
+    }
+
+    @Test
+    fun `hourly averages follow every write`() {
+        val d = Device("D").also(rooms::add)
+        val d2 = Device("D2").also(rooms::add)
+        val hour = LocalDateTime.now().withNano(0).withSecond(0).withMinute(0).minusHours(5)
+        val zone = ZoneId.systemDefault()
+        fun at(t: LocalDateTime) = t.atZone(zone).toInstant()
+        fun hourly() = roomTemperatures.getHourlyMeasurementsOf(listOf(d, d2), at(hour.minusHours(1)), at(hour.plusHours(3)))
+            .mapValues { e -> e.value.map { it.date!!.hour to it.value } }
+
+        val a = RoomTempAttr(d, Measurement(20f, hour.plusMinutes(10))).also(roomTemperatures::add)
+        roomTemperatures.add(RoomTempAttr(d, Measurement(22f, hour.plusMinutes(40))))
+        roomTemperatures.add(RoomTempAttr(d, Measurement(30f, hour.plusHours(1).plusMinutes(5))))
+        roomTemperatures.add(RoomTempAttr(d, Setpoint(50f, hour.plusMinutes(20)))) // not a measurement
+        assertEquals(mapOf(d.id to listOf(hour.hour to 21f, hour.plusHours(1).hour to 30f), d2.id to emptyList()), hourly())
+
+        // Value and hour changed: both hours worked out again
+        val t = a.temperature
+        t.value = 26f
+        t.date = hour.plusHours(1).plusMinutes(50)
+        temperatures.update(t)
+        assertEquals(listOf(hour.hour to 22f, hour.plusHours(1).hour to 28f), hourly()[d.id])
+
+        // Moved to another device, then deleted
+        a.room = d2
+        roomTemperatures.update(a)
+        assertEquals(listOf(hour.plusHours(1).hour to 26f), hourly()[d2.id])
+        assertEquals(listOf(hour.hour to 22f, hour.plusHours(1).hour to 30f), hourly()[d.id])
+        roomTemperatures.remove(a)
+        assertEquals(emptyList<Pair<Int, Float?>>(), hourly()[d2.id])
+
+        // Same answer as working it out from every measurement
+        assertEquals(hourly()[d.id], roomTemperatures.getMeasurementsOf(listOf(d), at(hour.minusHours(1)), at(hour.plusHours(3)))[d.id]!!
+            .groupBy { it.date!!.truncatedTo(java.time.temporal.ChronoUnit.HOURS) }.toSortedMap()
+            .map { (h, l) -> h.hour to l.map { it.value!! }.average().toFloat() })
+    }
+
+    @Test
     fun `setpoints, owners and pages in one query`() {
         val room = Room("R").also(rooms::add)
         val floor = Floor("F").also(rooms::add)
@@ -309,6 +375,40 @@ class JdbcDataServicesTest {
     }
 
     @Test
+    fun `connections are kept open, and one that died is replaced`() {
+        val env = System.getenv()
+        val small = JdbcDatabase(env["THERMOBOX_TEST_DB_URL"]!!, env["THERMOBOX_TEST_DB_USER"] ?: "root",
+            env["THERMOBOX_TEST_DB_PASSWORD"] ?: "", maxOpen = 2, checkAfterMillis = 0)
+        small.use { db1 ->
+            fun id() = db1.read { cx -> cx.createStatement().use { st -> st.executeQuery("SELECT CONNECTION_ID()").use { it.next(); it.getLong(1) } } }
+            val first = id()
+            // The same connection again: given back, not closed
+            assertEquals(first, id())
+            // Killed by the server: replaced before being lent
+            db.read { cx -> cx.createStatement().use { it.execute("KILL $first") } }
+            assertNotEquals(first, id())
+        }
+    }
+
+    @Test
+    fun `no more connections than allowed, the others wait or give up`() {
+        val env = System.getenv()
+        val small = JdbcDatabase(env["THERMOBOX_TEST_DB_URL"]!!, env["THERMOBOX_TEST_DB_USER"] ?: "root",
+            env["THERMOBOX_TEST_DB_PASSWORD"] ?: "", maxOpen = 1, waitSeconds = 1)
+        small.use { db1 ->
+            db1.read { _ ->
+                // The only connection is taken: another operation gives up after 1 s
+                val other = java.util.concurrent.Executors.newSingleThreadExecutor()
+                val failure = runCatching { other.submit<Int> { db1.read { 1 } }.get() }.exceptionOrNull()
+                other.shutdown()
+                assertInstanceOf(java.sql.SQLTransientConnectionException::class.java, failure?.cause)
+            }
+            // Given back: available again
+            assertEquals(1, db1.read { cx -> cx.query("SELECT 1 AS x") { it.getInt("x") }.first() })
+        }
+    }
+
+    @Test
     fun `nulls and kinds round-trip`() {
         val t = Temperature()
         temperatures.add(t)
@@ -348,11 +448,21 @@ class JdbcDataServicesTest {
 class AccessModeTest {
 
     @Test
-    fun `jpa by default, jdbc on demand, anything else refused`() {
-        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(emptyMap()))
-        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " ")))
+    fun `jdbc by default, jpa on demand, anything else refused`() {
+        // JDBC by default since 26.12; JPA when asked
+        assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(emptyMap()))
+        assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " ")))
         assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " JDBC ")))
+        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to "jpa")))
         assertThrows(IllegalStateException::class.java) { PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to "hibernate")) }
+    }
+
+    @Test
+    fun `size of the connection pool`() {
+        assertEquals(20, PersistenceFactory.poolSize(emptyMap()))
+        assertEquals(5, PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to " 5 ")))
+        assertThrows(IllegalStateException::class.java) { PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to "0")) }
+        assertThrows(IllegalStateException::class.java) { PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to "many")) }
     }
 
     @Test

@@ -1,39 +1,40 @@
-
 package ax.ibr.thermobox.persistence.dataservices
 
-import org.junit.jupiter.api.Assertions.*
+import ax.ibr.thermobox.persistence.jdbc.RoomDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.RoomTempAttrDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.TemperatureDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.UserDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jpa.RoomDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.RoomTempAttrDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.TemperatureDataServiceJPAImpl
+import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import ax.ibr.thermobox.persistence.jpa.*
 
+/** The factory gives the implementation of THERMOBOX_DB_ACCESS (JDBC unless it says jpa). Needs THERMOBOX_DB_*. */
 class PersistenceFactoryTest {
 
     private val factory = PersistenceFactory
+    private val jdbc = PersistenceFactory.accessMode() == PersistenceFactory.AccessMode.JDBC
 
-    @Test
-    fun `test getRoomDataService returns RoomDataServiceJPAImpl`() {
-        val service = factory.getRoomDataService()
-        assertNotNull(service, "The SalleDataService should not be null")
-        assertTrue(service is RoomDataServiceJPAImpl, "Expected SalleDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
+    private fun check(service: Any, jdbcType: Class<*>, jpaType: Class<*>) {
+        val expected = if (jdbc) jdbcType else jpaType
+        assertTrue(expected.isInstance(service), "Expected ${expected.simpleName} but got ${service.javaClass.simpleName}")
     }
 
     @Test
-    fun `test getRoomTempAttrDataService returns RoomTempAttrDataServiceJPAImpl`() {
-        val service = factory.getRoomTempAttrDataService()
-        assertNotNull(service, "The SalleTempAttrDataService should not be null")
-        assertTrue(service is RoomTempAttrDataServiceJPAImpl, "Expected SalleTempAttrDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
-    }
+    fun `room service of the chosen access`() =
+        check(factory.getRoomDataService(), RoomDataServiceJdbcImpl::class.java, RoomDataServiceJPAImpl::class.java)
 
     @Test
-    fun `test getTemperatureDataService returns TemperatureDataServiceJPAImpl`() {
-        val service = factory.getTemperatureDataService()
-        assertNotNull(service, "The TemperatureDataService should not be null")
-        assertTrue(service is TemperatureDataServiceJPAImpl, "Expected TemperatureDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
-    }
+    fun `room temperature service of the chosen access`() =
+        check(factory.getRoomTempAttrDataService(), RoomTempAttrDataServiceJdbcImpl::class.java, RoomTempAttrDataServiceJPAImpl::class.java)
 
     @Test
-    fun `test getUserDataService returns UserDataServiceJPAImpl`() {
-        val service = factory.getUserDataService()
-        assertNotNull(service, "The UserDataService should not be null")
-        assertTrue(service is UserDataServiceJPAImpl, "Expected UserDataServiceJPAImpl but got ${service?.javaClass?.simpleName}")
-    }
+    fun `temperature service of the chosen access`() =
+        check(factory.getTemperatureDataService(), TemperatureDataServiceJdbcImpl::class.java, TemperatureDataServiceJPAImpl::class.java)
+
+    @Test
+    fun `user service of the chosen access`() =
+        check(factory.getUserDataService(), UserDataServiceJdbcImpl::class.java, UserDataServiceJPAImpl::class.java)
 }

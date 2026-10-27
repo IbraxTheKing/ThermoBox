@@ -52,7 +52,10 @@ USER thermobox
 ENV THERMOBOX_HTTP_HOST=0.0.0.0 \
     THERMOBOX_HTTP_PORT=8080 \
     THERMOBOX_DATA_DIR=/var/lib/thermobox \
-    JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.awt.headless=true"
+    JAVA_OPTS="-Xms64m -Xmx768m -XX:G1PeriodicGCInterval=60000 -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true"
+# -Xmx768m: the server needs a few hundred MB; without a ceiling the JVM takes a share of the
+# machine's memory and keeps it. G1PeriodicGCInterval gives unused memory back when idle.
+# ExitOnOutOfMemoryError: a server short of memory stops (and is restarted) rather than limping on.
 
 EXPOSE 8080
 

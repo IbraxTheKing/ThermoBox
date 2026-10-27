@@ -51,7 +51,8 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_DB_URL` | `jdbc:mysql://localhost:3306/thermobox` | Base MySQL |
 | `THERMOBOX_DB_USER` / `THERMOBOX_DB_PASSWORD` | *obligatoires* | Identifiants de la base |
 | `THERMOBOX_DB_MIGRATE` | `true` | `false` : pas de migration de schéma au démarrage |
-| `THERMOBOX_DB_ACCESS` | `jpa` | Accès à la base : `jpa` (EclipseLink) ou `jdbc` (SQL direct, sans JPA), voir [Persistence](Persistence/README.md) |
+| `THERMOBOX_DB_POOL_SIZE` | `20` | Connexions à la base au plus en même temps ; les autres requêtes attendent leur tour |
+| `THERMOBOX_DB_ACCESS` | `jdbc` | Accès à la base : `jdbc` (SQL direct, défaut depuis 26.12) ou `jpa` (EclipseLink, le retour à l'accès de 26.11), voir [Persistence](Persistence/README.md#jpa-ou-jdbc-thermobox_db_access) |
 | `THERMOBOX_JWT_SECRET` | *obligatoire* | Clé de signature des jetons (32 caractères minimum) |
 | `THERMOBOX_JWT_TTL_MINUTES` | `60` | Durée de vie d'un jeton |
 | `THERMOBOX_DRIVER` | `simulated` | `simulated` (boîtiers simulés) ou `mqtt` (vrais boîtiers) ; l'ancienne valeur `simule` est acceptée |
@@ -99,6 +100,35 @@ Depuis 26.12, le code, la base et l'API sont en anglais (salle → `Room`, bâti
 - **Fichiers du dossier de données** : `interface.properties` (`style=glass` ou `panel`) et
   `updates/installation.json` sont écrits en anglais ; les versions françaises sont toujours lues.
 
+## Performances et accès JDBC par défaut (26.12)
+
+Un serveur ThermoBox n'a pas besoin d'une grosse machine. Sur une base de 4 millions de mesures (960
+boîtiers), avec les réglages par défaut (`rest` 1 Go, `mysql` 1,5 Go) :
+
+| Test de charge | Résultat |
+|---|---|
+| 150 utilisateurs, 2 s de lecture par page | 155 requêtes/s, 41 ms (p95), 150 Mo de mémoire Java |
+| 400 utilisateurs, 2 s de lecture par page | 20 ms (p95), ~3 cœurs, 500 Mo de mémoire Java |
+| Sans pause : débit maximal | 770 requêtes/s, sans erreur |
+
+Le premier test de 26.12, avant ce travail, donnait des pages en 36 s (p95) et 3 Go de mémoire Java.
+
+Ce qui a changé : index des courbes et moyennes horaires (migrations V5 à V7, quelques dizaines de
+secondes au premier démarrage sur une grosse base), hiérarchie gardée en mémoire, mini-courbes de
+l'aperçu tirées des moyennes horaires, connexions à MySQL gardées ouvertes, limites de mémoire des
+conteneurs. Le détail, la méthode et les chiffres de chaque étape sont dans [loadtest](loadtest/README.md).
+
+**L'accès à la base passe en JDBC direct par défaut** (`THERMOBOX_DB_ACCESS=jdbc`) : sur le même test,
+il répond à 22 fois plus de requêtes que JPA (EclipseLink). Les deux utilisent les mêmes tables :
+
+- rien à faire pour une installation qui ne fixait pas `THERMOBOX_DB_ACCESS` (elle passe en JDBC) ;
+- un `.env` copié d'une version précédente peut contenir `THERMOBOX_DB_ACCESS=jpa` : remplacez-le par
+  `jdbc`, ou supprimez la ligne ;
+- pour revenir à JPA en cas de problème : `THERMOBOX_DB_ACCESS=jpa`, puis redémarrer. JPA reste
+  disponible pendant quelques versions ; son retrait sera annoncé dans les notes de version.
+
+Mesurer son propre serveur : `k6 run -e USERS=100 loadtest/thermobox.js` (voir [loadtest](loadtest/README.md)).
+
 ## Architecture du Projet
 
 Le projet est un ensemble de modules Maven ; chacun a son README, qui détaille ses dossiers et ses
@@ -138,6 +168,7 @@ ThermoBox/
 ├── docker-compose.yml     MySQL + REST (+ Mosquitto) ; voir DOCKER.md
 ├── Dockerfile             image REST simple (build Maven puis JRE), sans relance automatique
 ├── .env.example           modèle du fichier .env de docker compose
+├── loadtest/             test de charge k6 : combien d'utilisateurs simultanés le serveur tient
 ├── scripts/
 │   ├── init-env.sh        crée .env avec des secrets aléatoires
 │   └── thermobox-rest.sh  lance le serveur hors Docker et le relance après une mise à jour (systemd…)
@@ -170,7 +201,7 @@ backups/                         sauvegardes de la base faites avant une mise à
 ## Stack Technique
 - Langage : Kotlin 2.4+
 - Build Tool : Maven
-- Persistence : Jakarta Persistence (JPA, EclipseLink) ou JDBC direct (`THERMOBOX_DB_ACCESS`), migrations Flyway
+- Persistence : JDBC direct (défaut) ou Jakarta Persistence (JPA, EclipseLink), au choix par `THERMOBOX_DB_ACCESS` ; migrations Flyway
 - API : Jersey, Jetty
 - Sécurité : JWT (JSON Web Tokens)
 - Frontend : client Angular séparé ([Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client))
@@ -298,9 +329,10 @@ l'administrateur.
 liste les opérations à faire, et le mot « incompatible » signale une version incompatible :
 l'interface les met en avant avant l'installation.
 
-**Schéma de la base** : EclipseLink crée les tables manquantes mais ne modifie pas les tables
-existantes. Une colonne ajoutée ou renommée demande une migration décrite dans les notes ; en cas
-de retour arrière, restaurez la sauvegarde :
+**Schéma de la base** : les migrations Flyway de la nouvelle version s'appliquent à son premier
+démarrage (voir [Persistence](Persistence/README.md#migration-et-resourcesdbmigration--le-schéma)).
+Une version antérieure ne sait pas toujours relire une base migrée : en cas de retour arrière,
+restaurez la sauvegarde faite avant la mise à jour :
 `gunzip -c backups/<fichier>.sql.gz | mysql -u <utilisateur> -p <base>`.
 
 API REST :
@@ -362,5 +394,5 @@ voit tout n'est pas limité par ses groupes. Tables `user_group`, `user_group_me
 (migrations `V3__groupes.sql` puis `V4__english_names.sql`).
 
 ## Notes importantes
-- Base de données : Par défaut, le schéma est créé automatiquement au démarrage (action create). Cette configuration doit être vérifiée pour les environnements de production.
+- Base de données : le schéma est créé puis tenu à jour au démarrage par les migrations Flyway ; `THERMOBOX_DB_MIGRATE=false` le laisse à l'administrateur. Ni JDBC ni JPA ne créent ou ne modifient de table.
 - Sécurité : Ne pas exposer les identifiants ou la clé JWT secrète dans un environnement public.
