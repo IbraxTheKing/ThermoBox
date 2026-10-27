@@ -186,7 +186,19 @@ function get(path, token, page) {
   });
   check(r, { [`${page}: 200`]: (x) => x.status === 200 });
   if (r.status >= 500 || r.status === 0) serverErrors.add(1, { page });
+  if (r.status !== 200) reportError(r, page);
   return r;
+}
+
+// The first errors of each kind, in full (per simulated user: k6 shares nothing between them)
+const reported = {};
+function reportError(r, page) {
+  const name = r.request.url.split('?')[0].replace(BASE, '').replace(/\/\d+/g, '/{id}');
+  const key = `${r.status} ${name}`;
+  reported[key] = (reported[key] || 0) + 1;
+  if (reported[key] > 1) return;
+  const why = r.status === 0 ? r.error : String(r.body || '').slice(0, 300);
+  console.warn(`${page}: ${key} -> ${why}`);
 }
 
 const iso = (ms) => new Date(ms).toISOString();

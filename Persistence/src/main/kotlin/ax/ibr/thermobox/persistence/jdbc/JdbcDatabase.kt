@@ -20,19 +20,28 @@ import java.util.concurrent.TimeUnit
  * Like the JPA services, each operation takes a connection, runs, and gives it back: the services
  * can be shared by concurrent requests. At most [maxOpen] connections are in use at once (MySQL
  * refuses connections past its max_connections, 151 by default): the other operations wait up to
- * [waitSeconds] for one. Up to [maxIdle] are kept open for the next operations; a connection that
- * died meanwhile (database restarted, idle timeout) is replaced.
+ * [waitSeconds] for one. Up to [maxIdle] (all of them by default) are kept open for the next
+ * operations. A connection idle for more than [checkAfterMillis] is checked before being lent: one
+ * that died meanwhile (database restarted, idle timeout) is replaced.
+ *
+ * Keeping fewer open than may be in use (8 of 20 before 26.12) made a busy server close and open
+ * connections all the time, hundreds a second, each with its TCP handshake and MySQL login; checking
+ * every connection before each operation cost one more exchange with MySQL each time.
  */
 class JdbcDatabase(
     private val url: String,
     private val user: String,
     private val password: String,
-    private val maxIdle: Int = 8,
     private val maxOpen: Int = 20,
+    private val maxIdle: Int = maxOpen,
     private val waitSeconds: Long = 30,
+    private val checkAfterMillis: Long = 10_000,
 ) : AutoCloseable {
 
-    private val idle = ArrayBlockingQueue<Connection>(maxOf(1, minOf(maxIdle, maxOpen)))
+    /** A connection given back, and when (System.nanoTime). */
+    private class Idle(val cx: Connection, val since: Long)
+
+    private val idle = ArrayBlockingQueue<Idle>(maxOf(1, minOf(maxIdle, maxOpen)))
     private val permits = Semaphore(maxOf(1, maxOpen), true)
 
     init {
@@ -77,8 +86,8 @@ class JdbcDatabase(
 
     override fun close() {
         while (true) {
-            val cx = idle.poll() ?: break
-            runCatching { cx.close() }
+            val i = idle.poll() ?: break
+            runCatching { i.cx.close() }
         }
     }
 
@@ -88,9 +97,11 @@ class JdbcDatabase(
         }
         try {
             while (true) {
-                val cx = idle.poll() ?: return DriverManager.getConnection(url, user, password)
-                if (runCatching { cx.isValid(2) }.getOrDefault(false)) return cx
-                runCatching { cx.close() }
+                val i = idle.poll() ?: return DriverManager.getConnection(url, user, password)
+                // Used a moment ago: still alive; checked only after a while
+                val recent = System.nanoTime() - i.since < TimeUnit.MILLISECONDS.toNanos(checkAfterMillis)
+                if (recent || runCatching { i.cx.isValid(2) }.getOrDefault(false)) return i.cx
+                runCatching { i.cx.close() }
             }
         } catch (e: Throwable) {
             permits.release()
@@ -101,7 +112,7 @@ class JdbcDatabase(
     /** Back to the idle ones; closed after an error (its state is unknown) or when enough are idle. */
     private fun giveBack(cx: Connection, healthy: Boolean) {
         try {
-            if (!healthy || !idle.offer(cx)) runCatching { cx.close() }
+            if (!healthy || !idle.offer(Idle(cx, System.nanoTime()))) runCatching { cx.close() }
         } finally {
             permits.release()
         }

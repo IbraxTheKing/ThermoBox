@@ -14,7 +14,7 @@ x-app-env: &app-env
   THERMOBOX_DB_USER: ${MYSQL_USER:-thermobox}
   THERMOBOX_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD missing: run scripts/init-env.sh}"
   # Access to the database: jpa (EclipseLink, default) or jdbc (plain SQL)
-  THERMOBOX_DB_ACCESS: ${THERMOBOX_DB_ACCESS:-jpa}
+  THERMOBOX_DB_ACCESS: ${THERMOBOX_DB_ACCESS:-jdbc}
   # Connections to MySQL at most at once; the other requests wait their turn
   THERMOBOX_DB_POOL_SIZE: ${THERMOBOX_DB_POOL_SIZE:-20}
   THERMOBOX_JWT_SECRET: "${THERMOBOX_JWT_SECRET:?THERMOBOX_JWT_SECRET missing (32 characters minimum): run scripts/init-env.sh}"

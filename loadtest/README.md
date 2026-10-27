@@ -133,4 +133,8 @@ et `docker compose logs -f rest` (erreurs). Ce qui sature en premier :
   son pool (32 connexions par défaut) et les requêtes attendent leur tour ;
 - **les threads de Jetty** (200 par défaut) : au-delà, les requêtes attendent dans la file.
 
+Une réponse autre que 200 est affichée pendant le test, une fois par type d'erreur et par utilisateur
+simulé, avec le message du serveur (ou l'erreur réseau, statut 0) : c'est la cause à chercher dans
+`docker compose logs rest`.
+
 Répétez le test après chaque changement important du serveur, sur la même base, pour comparer.

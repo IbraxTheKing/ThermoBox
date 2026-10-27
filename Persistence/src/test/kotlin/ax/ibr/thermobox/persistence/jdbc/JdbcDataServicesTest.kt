@@ -20,6 +20,7 @@ import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -371,6 +372,22 @@ class JdbcDataServicesTest {
         groups.deleteGroup(g)
         assertNull(groups.getByName("Technicians"))
         assertEquals(listOf("Visitors"), groups.getAll().map { it.name })
+    }
+
+    @Test
+    fun `connections are kept open, and one that died is replaced`() {
+        val env = System.getenv()
+        val small = JdbcDatabase(env["THERMOBOX_TEST_DB_URL"]!!, env["THERMOBOX_TEST_DB_USER"] ?: "root",
+            env["THERMOBOX_TEST_DB_PASSWORD"] ?: "", maxOpen = 2, checkAfterMillis = 0)
+        small.use { db1 ->
+            fun id() = db1.read { cx -> cx.createStatement().use { st -> st.executeQuery("SELECT CONNECTION_ID()").use { it.next(); it.getLong(1) } } }
+            val first = id()
+            // The same connection again: given back, not closed
+            assertEquals(first, id())
+            // Killed by the server: replaced before being lent
+            db.read { cx -> cx.createStatement().use { it.execute("KILL $first") } }
+            assertNotEquals(first, id())
+        }
     }
 
     @Test
