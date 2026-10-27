@@ -448,10 +448,12 @@ class JdbcDataServicesTest {
 class AccessModeTest {
 
     @Test
-    fun `jpa by default, jdbc on demand, anything else refused`() {
-        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(emptyMap()))
-        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " ")))
+    fun `jdbc by default, jpa on demand, anything else refused`() {
+        // JDBC by default since 26.12; JPA when asked
+        assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(emptyMap()))
+        assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " ")))
         assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " JDBC ")))
+        assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to "jpa")))
         assertThrows(IllegalStateException::class.java) { PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to "hibernate")) }
     }
 

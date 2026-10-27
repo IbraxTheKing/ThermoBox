@@ -39,9 +39,12 @@ import java.nio.file.Path
  * The data services of the application, all on the database of `THERMOBOX_DB_URL`.
  *
  * Two implementations of every service, chosen by `THERMOBOX_DB_ACCESS`:
- * - `jpa` (default): JPA with EclipseLink (package `jpa`);
- * - `jdbc`: plain SQL through JDBC (package `jdbc`), without JPA: lighter, and every query is
- *   written out. Both read and write the same tables, so a server can switch at any restart.
+ * - `jdbc` (default since 26.12): plain SQL through JDBC (package `jdbc`), without JPA: every
+ *   query is written out. Under load it answered 22 times more requests than JPA (770 a second
+ *   against 35, loadtest/);
+ * - `jpa`: JPA with EclipseLink (package `jpa`), the access of 26.11 and before, kept for a
+ *   while as a way back.
+ * Both read and write the same tables, so a server can switch at any restart.
  *
  * In both cases the Flyway migrations run first: the schema belongs to them.
  */
@@ -54,14 +57,14 @@ object PersistenceFactory {
     private const val DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/thermobox"
 
     /**
-     * `THERMOBOX_DB_ACCESS`: `jpa` (default) or `jdbc`.
+     * `THERMOBOX_DB_ACCESS`: `jdbc` (default) or `jpa`.
      * @throws IllegalStateException for any other value, so a typo does not go unnoticed
      */
     fun accessMode(env: Map<String, String> = System.getenv()): AccessMode =
         when (val v = env["THERMOBOX_DB_ACCESS"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }) {
-            null, "jpa" -> AccessMode.JPA
-            "jdbc" -> AccessMode.JDBC
-            else -> error("THERMOBOX_DB_ACCESS=$v is not valid: jpa or jdbc")
+            null, "jdbc" -> AccessMode.JDBC
+            "jpa" -> AccessMode.JPA
+            else -> error("THERMOBOX_DB_ACCESS=$v is not valid: jdbc or jpa")
         }
 
     private val mode: AccessMode by lazy { accessMode() }

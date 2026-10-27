@@ -127,10 +127,9 @@ Pendant le test, regardez aussi le serveur : `docker stats` (processeur, mémoir
 et `docker compose logs -f rest` (erreurs). Ce qui sature en premier :
 
 - **le processeur** de `rest` (calculs des courbes, JSON) ou de `mysql` (requêtes) ;
-- **les connexions à MySQL** : MySQL en accepte 151 par défaut (`max_connections`). En mode
-  `THERMOBOX_DB_ACCESS=jdbc`, le serveur ouvre une connexion par requête en cours, sans plafond : au-delà
-  de 151 requêtes simultanées, MySQL répond « Too many connections ». En mode `jpa`, EclipseLink limite
-  son pool (32 connexions par défaut) et les requêtes attendent leur tour ;
+- **les connexions à MySQL** : le serveur en utilise au plus `THERMOBOX_DB_POOL_SIZE` à la fois (20),
+  les autres opérations attendent leur tour (30 s au plus, puis une erreur 500). MySQL en accepte 151
+  (`max_connections`) : un pool plus grand n'a de sens qu'avec un MySQL qui suit ;
 - **les threads de Jetty** (200 par défaut) : au-delà, les requêtes attendent dans la file.
 
 Une réponse autre que 200 est affichée pendant le test, une fois par type d'erreur et par utilisateur
@@ -138,3 +137,37 @@ simulé, avec le message du serveur (ou l'erreur réseau, statut 0) : c'est la c
 `docker compose logs rest`.
 
 Répétez le test après chaque changement important du serveur, sur la même base, pour comparer.
+
+## Résultats de référence
+
+Mesurés en 26.12 sur un PC de bureau (Ryzen 7 5800X, 16 threads, Windows, Docker Desktop ; k6 sur la
+même machine), base `DatabaseSeeder huge` (960 boîtiers, 4 millions de mesures), 100 comptes limités,
+réglages par défaut de `.env.example` (`rest` 1 Go dont 768 Mo pour Java, `mysql` 1,5 Go, pool de 20,
+`THERMOBOX_DB_ACCESS=jdbc`).
+
+| Test | Requêtes/s | Temps de réponse (p95) | Erreurs | Serveur |
+|---|---|---|---|---|
+| `ramp` : jusqu'à 400 utilisateurs, 2 s de lecture | 208 en moyenne (~600 au dernier palier) | 20 ms | 0 % | 19 % du processeur au plus (~3 cœurs), 500 Mo de Java |
+| `steady` : 150 utilisateurs, 2 s de lecture | 155 | 41 ms | 0 % | 11 % du processeur, 150 Mo de Java |
+| `steady` : 50 utilisateurs sans pause (`THINK=0`) | 770 | 130 ms | 0 % | 30 % du processeur (~5 cœurs), 320 Mo de Java |
+| Même test, `THERMOBOX_DB_ACCESS=jpa` | 35 | 3,7 s | 0 % | 9 % du processeur : le serveur attend |
+
+Sans pause, ~130 parcours complets par seconde (aperçu, page d'un élément, courbes de 7 jours) : de
+l'ordre de 500 utilisateurs actifs en même temps, quand chacun lit ses pages quelques secondes.
+
+Pour comparaison, le premier test de 26.12, avant les optimisations : des pages en 36 s (p95),
+3 Go de mémoire Java. Ce qui a compté, dans l'ordre :
+
+1. **Index des courbes** (V6) : une journée d'un boîtier lisait tout son historique (4 321 lignes pour 114).
+2. **Hiérarchie en mémoire** (`HierarchyCache`) : droits, arbre et courbes sans relire les éléments un par un.
+3. **Moyennes horaires** (V7) : une semaine d'un boîtier en 168 lignes ; les mini-courbes de l'aperçu
+   dès 12 heures (5 fois plus de requêtes par seconde sur `/climate/averages`).
+4. **Mémoire par requête** : les mini-courbes lues par petits lots, les dates en nombre. Lire 50 salles
+   d'un coup gardait assez de données pour occuper le ramasse-miettes : 28 requêtes/s au lieu de 109.
+5. **Connexions gardées ouvertes** : 8 sur 20 seulement l'étaient, et le serveur rouvrait des centaines
+   de connexions par seconde (22 % d'erreurs sans pause).
+6. **JDBC par défaut** : 22 fois le débit de JPA sur le même test.
+
+Ces chiffres valent pour cette machine. Pour dimensionner un serveur plus petit, limitez les conteneurs
+à ce qu'il aura (`cpus: 2` sur `rest` et `mysql` dans `docker-compose.yml`, `REST_MEMORY`…) et relancez
+`ramp`.

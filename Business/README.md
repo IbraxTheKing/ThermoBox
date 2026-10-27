@@ -77,6 +77,11 @@ l'ancien parent.
   au-delà, `getRawHistories` pour tout avoir), et une moyenne dans le temps (`movingAverage`) : à chaque
   instant où un boîtier mesure, chaque boîtier compte avec sa dernière valeur connue, puisqu'ils ne
   mesurent pas en même temps.
+- **Mini-courbes** (`getAverageHistories`) : la courbe moyenne de plusieurs salles à la fois, pour
+  l'aperçu. Les moyennes horaires servent dès 12 heures de période (`AVERAGES_HOURLY_FROM`, au lieu de
+  deux jours pour les autres courbes) : une tendance d'un coup d'œil n'a pas besoin de chaque mesure, et
+  50 salles sur 24 h se lisent en 3 600 lignes au lieu de 21 000 (5 fois plus de requêtes par seconde
+  sous charge). `raw = true` (`points=0` dans l'API) donne toujours chaque mesure.
 - **Envoi d'une consigne** (`sendSetpoint(room, value, force)`) :
   1. contrôle de la valeur (`SetpointRules`), puis enregistrement sur l'élément ;
   2. parcours de ses enfants : un étage ou une salle qui a **sa propre** consigne la garde, avec ses
