@@ -8,7 +8,9 @@ ARG JAVA_VERSION=23
 # ---------------------------------------------------------------------------
 # Build stage.
 # ---------------------------------------------------------------------------
-FROM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
+# On the machine that builds (BUILDPLATFORM): the jars are the same for every processor, and an
+# arm64 image built on amd64 would otherwise run Maven under emulation, ten times slower.
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 WORKDIR /workspace
 # Version written into the build, read by the update system (docker-compose.yml: THERMOBOX_VERSION)
 ARG THERMOBOX_VERSION=dev
@@ -28,6 +30,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Runtime image
 # ---------------------------------------------------------------------------
 FROM eclipse-temurin:${JAVA_VERSION}-jre
+ARG THERMOBOX_VERSION=dev
 
 RUN groupadd --system --gid 10001 thermobox \
  && useradd  --system --uid 10001 --gid thermobox --no-create-home \
@@ -52,6 +55,7 @@ USER thermobox
 ENV THERMOBOX_HTTP_HOST=0.0.0.0 \
     THERMOBOX_HTTP_PORT=8080 \
     THERMOBOX_DATA_DIR=/var/lib/thermobox \
+    THERMOBOX_IMAGE_VERSION=${THERMOBOX_VERSION} \
     JAVA_OPTS="-Xms64m -Xmx768m -XX:G1PeriodicGCInterval=60000 -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true"
 # -Xmx768m: the server needs a few hundred MB; without a ceiling the JVM takes a share of the
 # machine's memory and keeps it. G1PeriodicGCInterval gives unused memory back when idle.

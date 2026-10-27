@@ -35,6 +35,8 @@ concurrency:
 jobs:
   prerelease:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,3 +124,13 @@ jobs:
             --title "$tag" \
             --notes "$NOTES" \
             --generate-notes
+
+  # The Docker image of the beta or RC (ghcr.io/<owner>/thermobox:<tag> and :beta / :rc)
+  docker:
+    needs: prerelease
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      tag: ${{ needs.prerelease.outputs.tag }}

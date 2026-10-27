@@ -63,6 +63,37 @@ Avec ces valeurs par défaut, 400 utilisateurs qui changent de page toutes les 2
 millions de mesures, sont servis en moins de 20 ms (95 % des requêtes) ; le serveur utilise alors au
 plus 3 cœurs et 500 Mo de mémoire Java (résultats détaillés dans [loadtest](loadtest/README.md#résultats-de-référence)).
 
+## Image publiée
+
+Chaque version publie l'image du serveur REST sur le registre de GitHub (amd64 et arm64, donc aussi
+Raspberry Pi 4/5) : pas besoin de Maven ni des sources pour l'installer.
+
+| Image | Contenu |
+|---|---|
+| `ghcr.io/ibraxtheking/thermobox:26.12.0` | une version précise (recommandé en production) |
+| `ghcr.io/ibraxtheking/thermobox:latest`, `:26.12` | la dernière version stable (de la série) |
+| `ghcr.io/ibraxtheking/thermobox:beta`, `:rc`, `:nightly`, `:alpha` | la dernière prépublication de ce type |
+
+Avec ce dépôt (pour `docker-compose.yml` et `.env`), dans `.env` :
+
+```bash
+THERMOBOX_IMAGE=ghcr.io/ibraxtheking/thermobox:26.12.0
+```
+
+puis `docker compose pull rest && docker compose up -d` (sans `--build`). Pour changer de version :
+modifier le numéro, puis les mêmes commandes. Sans `THERMOBOX_IMAGE`, l'image est construite ici
+comme avant.
+
+**Image et mises à jour depuis l'interface.** Au démarrage, une image dont la version a changé depuis le
+démarrage précédent (`docker compose pull` d'une autre version) passe avant la version installée depuis
+l'interface : quelqu'un a changé d'image exprès. Le conteneur l'écrit dans son journal et oublie
+`updates/current` (les fichiers de cette version restent dans `updates/`). Une image construite ici
+sans numéro (`THERMOBOX_VERSION=dev`) ne le fait jamais. Avec une image publiée, on peut aussi ne mettre
+à jour qu'en changeant d'image, et couper la vérification quotidienne (`THERMOBOX_UPDATE_CHECK=false`).
+
+Le paquet est créé au premier passage du workflow `docker-image.yml` ; pour l'ouvrir à tous, passez-le
+en public (GitHub → profil → Packages → `thermobox` → Package settings → Change visibility).
+
 ## Mises à jour depuis l'interface
 
 Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/v2/updates/{version}/install`)

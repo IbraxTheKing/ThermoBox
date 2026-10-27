@@ -16,6 +16,7 @@ import ax.ibr.thermobox.common.update.UpdateType
 import ax.ibr.thermobox.common.update.UpdateService
 import ax.ibr.thermobox.common.update.Version
 import ax.ibr.thermobox.common.update.AvailableVersion
+import ax.ibr.thermobox.common.update.RollbackRule
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -106,8 +107,27 @@ class UpdateServiceImpl(
             // The other program may have installed something since: the shared file wins.
             installation = listOfNotNull(installation, shared).maxByOrNull { it.startedAt },
             pending = pending,
+            installedNotes = installed?.let { releaseOf(it) }?.notes,
         )
     }
+
+    /** The release of [version] in the last list read from GitHub (not a draft). */
+    private fun releaseOf(version: Version): GitHubRelease? =
+        releases.firstOrNull { !it.draft && Version.parse(it.tag) == version }
+
+    /**
+     * Going back to [older]: the first version after it, up to [installed] included, whose notes
+     * say there is no going back ([RollbackRule]). Every release read from GitHub counts, not only
+     * the older versions listed.
+     */
+    private fun blockedBy(older: Version, installed: Version): Version? =
+        releases.asSequence()
+            .filter { !it.draft }
+            .mapNotNull { r -> Version.parse(r.tag)?.let { r to it } }
+            .filter { (_, v) -> v > older && v <= installed }
+            .sortedBy { it.second }
+            .firstOrNull { (r, _) -> RollbackRule.of(r.notes) == false }
+            ?.second
 
     @Synchronized
     override fun check(): UpdateStatus {
@@ -159,11 +179,13 @@ class UpdateServiceImpl(
             .sortedByDescending { it.second }
             .take(MAX_OLDER)
             .map { (r, v) ->
+                val blocked = blockedBy(v, installed)
                 AvailableVersion(
                     version = v, type = v.typeFrom(installed), title = r.title, notes = r.notes,
                     publishedAt = r.publishedAt, page = r.page, artifacts = r.artifacts,
-                    migration = ReleaseNotes.migration(r.notes), incompatible = ReleaseNotes.incompatible(r.notes),
-                    older = true,
+                    migration = ReleaseNotes.migration(r.notes),
+                    incompatible = ReleaseNotes.incompatible(r.notes) || blocked != null,
+                    older = true, blockedBy = blocked,
                 )
             }
             .toList()
@@ -221,7 +243,13 @@ class UpdateServiceImpl(
                     " apply too, read them.")
         }
         candidate.migration?.let { checks += Check(CheckLevel.WARNING, "Operations given by the release notes", it) }
-        if (candidate.incompatible) {
+        candidate.blockedBy?.let { z ->
+            checks += Check(CheckLevel.WARNING, "No going back past $z",
+                "The notes of $z say that once it is installed, older versions no longer work with the data. " +
+                    "$v would start on a database it does not understand: restore the backup made before $z was " +
+                    "installed (in ${directory.backups}) after this installation.")
+        }
+        if (ReleaseNotes.incompatible(candidate.notes)) {
             checks += Check(CheckLevel.WARNING, "The notes announce an incompatibility",
                 "Read them before installing. To go back, the database backup will have to be restored.")
         }

@@ -29,10 +29,18 @@ data class AvailableVersion(
     val artifacts: List<Artifact>,
     /** Operations the notes ask for ("Migration" section), null if there are none. */
     val migration: String?,
-    /** The notes announce an incompatibility (database, configuration…). */
+    /**
+     * The notes announce an incompatibility (database, configuration…). For an older version, also
+     * when it can no longer be gone back to: see [blockedBy].
+     */
     val incompatible: Boolean,
     /** Older than the installed version: installing it is a rollback. */
     val older: Boolean = false,
+    /**
+     * Older version only: the first version after it, up to the installed one, whose notes say
+     * there is no going back ("Rétrocompatibilité : non"); null if none does.
+     */
+    val blockedBy: Version? = null,
 )
 
 enum class CheckLevel { OK, INFO, WARNING, BLOCKING }
@@ -109,7 +117,12 @@ data class UpdateStatus(
     val installation: Installation?,
     /** Version put in place by the other component, that this one could not apply yet. */
     val pending: String?,
+    /** Release notes of the installed version, null if GitHub does not list it (or not checked yet). */
+    val installedNotes: String? = null,
 ) {
+    /** What the notes of the installed version say about going back: true, false, null if they don't. */
+    val installedRollback: Boolean? get() = installedNotes?.let { RollbackRule.of(it) }
+
     /** Latest patch of the installed series. */
     val latestPatch: AvailableVersion? get() = available.firstOrNull { it.type == UpdateType.PATCH }
 
@@ -117,6 +130,27 @@ data class UpdateStatus(
     val latestFeature: AvailableVersion? get() = available.firstOrNull { it.type == UpdateType.FEATURE }
 
     val updateAvailable: Boolean get() = available.isNotEmpty()
+}
+
+/**
+ * Whether the release notes of a version allow going back to an older one afterwards. One line,
+ * anywhere in the notes, in French or English, bold or in a list allowed (same rule as the Angular
+ * client):
+ *
+ *     Rétrocompatibilité : oui     going back to the previous version works as it is
+ *     Rétrocompatibilité : non     once installed, older versions no longer work with the data
+ *     Retour arrière : possible / impossible    Rollback: yes / no    Backward compatible: yes / no
+ */
+object RollbackRule {
+    private val LINE = Regex(
+        """^[\s>*_-]*(?:\*\*|__)?\s*(r[ée]tro-?compatib\p{L}*|retour\s+arri[èe]re|rollback|backward[\s-]compatib\p{L}*|downgrade)""" +
+            """\s*(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(oui|non|yes|no|possible|impossible|true|false|ok)(?![\p{L}\d])""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE),
+    )
+    private val YES = setOf("oui", "yes", "possible", "true", "ok")
+
+    /** true: going back works; false: it does not; null: the notes do not say. */
+    fun of(notes: String): Boolean? = LINE.find(notes)?.let { it.groupValues[2].lowercase() in YES }
 }
 
 interface UpdateService {

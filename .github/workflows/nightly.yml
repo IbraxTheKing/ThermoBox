@@ -28,6 +28,9 @@ concurrency:
 jobs:
   nightly:
     runs-on: ubuntu-latest
+    outputs:
+      # Empty when nothing was published (no new commit)
+      tag: ${{ steps.version.outputs.build == 'true' && steps.version.outputs.tag || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -133,3 +136,14 @@ jobs:
             --prerelease \
             --title "$tag ($(date -u +%Y-%m-%d), ${{ steps.version.outputs.branch }})" \
             --generate-notes
+
+  # The Docker image of the nightly (ghcr.io/<owner>/thermobox:<tag> and :nightly)
+  docker:
+    needs: nightly
+    if: needs.nightly.outputs.tag != ''
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      tag: ${{ needs.nightly.outputs.tag }}

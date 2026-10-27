@@ -176,6 +176,7 @@ ThermoBox/
 │   ├── nightly.yml        chaque nuit : pré-version AA.MM.0-nightly.N depuis la branche dev
 │   ├── prerelease.yml     à la demande : beta ou rc
 │   ├── release.yml        version publiée à la main : joint RestServer.jar, base.jar, JsfClient.war
+│   ├── docker-image.yml   image Docker de chaque version sur ghcr.io (amd64, arm64)
 │   ├── qodana_code_quality.yml  analyse de code (Qodana) sur les pull requests et dev
 │   └── summary.yml        résumé automatique des nouvelles issues
 ├── qodana.yaml            réglages de Qodana
@@ -327,7 +328,24 @@ l'administrateur.
 `RestServer.jar`, `base.jar` et `JsfClient.war` (la page « JSF supprimé », voir plus haut) à la version publiée, avec le numéro inscrit dedans
 (`-Dthermobox.version`). Dans les notes, une section `## Migration` (ou des lignes `Migration : …`)
 liste les opérations à faire, et le mot « incompatible » signale une version incompatible :
-l'interface les met en avant avant l'installation.
+l'interface les met en avant avant l'installation. Une ligne dit si l'on peut revenir en arrière
+après l'avoir installée :
+
+```
+Rétrocompatibilité : non
+```
+
+(ou `oui` ; en gras ou dans une liste ; aussi `Retour arrière : possible / impossible`, `Rollback: yes / no`,
+`Backward compatible: yes / no`). Le serveur et le client appliquent la même règle (`RollbackRule`) :
+une version antérieure n'est plus proposée sans avertissement dès qu'une version entre elle et la
+version installée (incluse) dit `non` ; il faut alors restaurer la sauvegarde faite avant celle-ci.
+Sans cette ligne, rien n'est affirmé (« retour arrière non garanti »). Mettez `non` dès qu'une version
+change la base d'une façon que les précédentes ne suivraient pas (copies, tables tenues à jour, noms
+renommés…).
+
+Chaque version publie aussi son **image Docker** (`ghcr.io/ibraxtheking/thermobox:<version>`, voir
+[DOCKER.md](DOCKER.md#image-publiée)) : workflow `docker-image.yml`, lancé par une version publiée à
+la main, par les nightly et par les beta / RC.
 
 **Schéma de la base** : les migrations Flyway de la nouvelle version s'appliquent à son premier
 démarrage (voir [Persistence](Persistence/README.md#migration-et-resourcesdbmigration--le-schéma)).
@@ -339,7 +357,7 @@ API REST :
 
 | Méthode | Route | Rôle |
 |---|---|---|
-| GET | `/api/v2/updates` | Authentifié : version installée, versions disponibles (`latestPatch`, `latestFeature`) |
+| GET | `/api/v2/updates` | Authentifié : version installée, versions disponibles (`latestPatch`, `latestFeature`), versions antérieures en canal prerelease (`olderVersions`, avec `blockedBy` et `incompatible` quand une version plus récente interdit d'y revenir), notes de la version installée (`installedNotes`) et ce qu'elles disent du retour arrière (`installedRollback` : `true`, `false`, `null`) |
 | POST | `/api/v2/updates/check` | ADMIN : vérifier maintenant |
 | GET | `/api/v2/updates/{version}` | ADMIN : contrôles et risques avant installation |
 | POST | `/api/v2/updates/{version}/install` | ADMIN : `{"backupDatabase": true, "acceptRisks": true}`, réponse 202 |
