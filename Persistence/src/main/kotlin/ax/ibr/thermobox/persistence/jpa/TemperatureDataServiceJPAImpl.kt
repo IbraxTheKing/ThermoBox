@@ -2,6 +2,7 @@ package ax.ibr.thermobox.persistence.jpa
 
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.LatestMeasurements
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService
 import ax.ibr.utils.services.jpa.CrudJpaService
 import jakarta.persistence.EntityManagerFactory
@@ -36,6 +37,8 @@ class TemperatureDataServiceJPAImpl(emf: EntityManagerFactory,
             // Its date may have changed: its device works its latest measurement out again
             t.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, it) }
             em.merge(t)
+            em.flush()
+            t.id?.let { em.executeSql(TemperatureHistory.COPY_BY_TEMPERATURE, kindOf(t), t.date, it) }
         }
     }
 

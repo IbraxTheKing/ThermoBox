@@ -55,10 +55,12 @@ class ClimateServiceImpl(
         return owned
     }
 
-    override fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> =
-        hierarchy.getDevices(room).map { device ->
-            DeviceHistory(device, roomTemps.getTemperaturesFromRoomTimed(device, start, end))
-        }
+    override fun getHistories(room: Room, start: Instant, end: Instant): List<DeviceHistory> {
+        val devices = hierarchy.getDevices(room)
+        // Every device in one query
+        val series = roomTemps.getMeasurementsOf(devices, start, end)
+        return devices.map { DeviceHistory(it, series[it.id].orEmpty()) }
+    }
 
     override fun getAverageHistory(room: Room, start: Instant, end: Instant): List<Temperature> =
         movingAverage(getHistories(room, start, end))

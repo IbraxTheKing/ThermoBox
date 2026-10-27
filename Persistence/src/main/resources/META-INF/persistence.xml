@@ -31,6 +31,11 @@
         <class>ax.ibr.thermobox.common.entities.UserGroupMember</class>
         <class>ax.ibr.thermobox.common.entities.UserGroupAccess</class>
 
+        <!-- No shared cache: every operation reads the database (the services already open one
+             EntityManager per operation), so several servers on one database never see stale
+             data, and millions of measurements never pile up in memory. -->
+        <shared-cache-mode>NONE</shared-cache-mode>
+
         <properties>
 
             <property name="jakarta.persistence.jdbc.driver"

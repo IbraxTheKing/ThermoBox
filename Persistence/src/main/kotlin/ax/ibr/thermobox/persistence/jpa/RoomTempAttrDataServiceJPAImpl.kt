@@ -6,6 +6,7 @@ import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.LatestMeasurements
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.RoomTempAttrDataService
 import ax.ibr.utils.services.jpa.CrudJpaService
 import jakarta.persistence.EntityManagerFactory
@@ -24,7 +25,7 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
     override fun getByRoom(roomId: Long): List<RoomTempAttr>? {
         val result = read { em ->
             em.createQuery(
-                "SELECT sta FROM RoomTempAttr sta WHERE sta.room.id = :roomId ORDER BY sta.temperature.date DESC",
+                "SELECT sta FROM RoomTempAttr sta WHERE sta.room.id = :roomId ORDER BY sta.temperature.date DESC, sta.temperature.id DESC",
                 RoomTempAttr::class.java
             ).setParameter("roomId", roomId)
                 .resultList
@@ -58,6 +59,8 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
             em.persist(t)
             em.flush()
             val temperature = t.temperature
+            // Kind and date next to the link: the history of an element is read through one index
+            em.executeSql(TemperatureHistory.COPY_BY_LINK, kindOf(temperature), temperature.date, t.id)
             if (temperature is Measurement && temperature.date != null) {
                 em.executeSql(LatestMeasurements.UPSERT, t.room.id, temperature.id, temperature.date)
             }
@@ -68,7 +71,9 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
         transaction { em ->
             t.temperature.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, it) }
             t.room.id?.let { em.executeSql(LatestMeasurements.FORGET_ROOM, it) }
-            em.merge(t)
+            val merged = em.merge(t)
+            em.flush()
+            em.executeSql(TemperatureHistory.COPY_BY_LINK, kindOf(t.temperature), t.temperature.date, merged.id)
         }
     }
 
@@ -123,12 +128,9 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
         val result = HashMap<Long, Setpoint>()
         read { em ->
             for (part in ids.chunked(LatestMeasurements.CHUNK)) {
-                em.createQuery(
-                    "SELECT sta FROM RoomTempAttr sta WHERE TYPE(sta.temperature) = Setpoint AND sta.room.id IN :ids",
-                    RoomTempAttr::class.java
-                ).setParameter("ids", part).resultList.forEach { a ->
-                    val id = a.room.id ?: return@forEach
-                    val s = a.temperature as? Setpoint ?: return@forEach
+                em.querySql(TemperatureHistory.ofRooms(part.size), kindOf(Setpoint::class.java), *part.toTypedArray()).forEach { row ->
+                    val id = (row[0] as Number).toLong()
+                    val s = temperatureOf(row, 1) as? Setpoint ?: return@forEach
                     val kept = result[id]
                     if (kept == null || newer(s, kept)) result[id] = s
                 }
@@ -163,146 +165,74 @@ class RoomTempAttrDataServiceJPAImpl(emf: EntityManagerFactory,
         return da.isAfter(dbDate) || (da == dbDate && (a.id ?: 0) > (b.id ?: 0))
     }
 
-    /** The latest temperature of [type] among the whole history of [roomId]. */
-    private fun latestFromHistory(roomId: Long, type: Class<out Temperature>): Temperature? {
-        return read { em ->
-            em.createQuery(
-                "SELECT sta.temperature FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = :type " +
-                        "ORDER BY sta.temperature.date DESC, sta.temperature.id DESC",
-                Temperature::class.java
-            ).setParameter("roomId", roomId)
-                .setParameter("type", type)
-                .setMaxResults(1)
-                .resultList
-                .firstOrNull()
-        }
+    /** The latest temperature of [type] in the history of [roomId] (index room, kind, date). */
+    private fun latestFromHistory(roomId: Long, type: Class<out Temperature>): Temperature? = read { em ->
+        em.querySql(TemperatureHistory.LATEST, roomId, kindOf(type)).firstOrNull()?.let { temperatureOf(it) }
     }
 
     override fun getCurrentTemperaturesFromRoom(room: Room): List<Temperature>? {
         val roomId = room.id ?: return null
-
-        val result = read { em ->
-            val types = em.createQuery(
-                "SELECT DISTINCT TYPE(sta.temperature) FROM RoomTempAttr sta WHERE sta.room.id = :roomId",
-                Class::class.java
-            ).setParameter("roomId", roomId)
-                .resultList
-
-            types.mapNotNull { type ->
-                em.createQuery(
-                    "SELECT sta.temperature FROM RoomTempAttr sta " +
-                            "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = :type " +
-                            "ORDER BY sta.temperature.date DESC",
-                    Temperature::class.java
-                ).setParameter("roomId", roomId)
-                    .setParameter("type", type)
-                    .setMaxResults(1)
-                    .resultList
-                    .firstOrNull()
-            }
+        val kinds = read { em ->
+            em.querySql("SELECT DISTINCT kind FROM room_temperature_attr WHERE room_id = ? AND kind IS NOT NULL", roomId)
+                .mapNotNull { it[0] as String? }
         }
-        return result.ifEmpty { null }
+        return kinds.mapNotNull { kind ->
+            if (kind == "Measurement") getLatestMeasurements(listOf(room))[roomId]
+            else read { em -> em.querySql(TemperatureHistory.LATEST, roomId, kind).firstOrNull()?.let { temperatureOf(it) } }
+        }.ifEmpty { null }
     }
 
     override fun getSetpointFromRoom(room: Room): Setpoint? {
         val roomId = room.id ?: return null
-        return read { em ->
-            em.createQuery(
-                "SELECT sta.temperature FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = Setpoint " +
-                        "ORDER BY sta.temperature.date DESC",
-                Setpoint::class.java
-            ).setParameter("roomId", roomId)
-                .setMaxResults(1)
-                .resultList
-                .firstOrNull()
-        }
+        return latestFromHistory(roomId, Setpoint::class.java) as? Setpoint
     }
 
-    override fun getTemperaturesFromRoomTimed(
-        room: Room,
-        start: Instant,
-        end: Instant
-    ): List<Temperature> {
+    override fun getTemperaturesFromRoomTimed(room: Room, start: Instant, end: Instant): List<Temperature> {
         val roomId = room.id ?: return emptyList()
-        return read { em ->
-            em.createQuery(
-                "SELECT sta.temperature FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = Measurement " +
-                        "AND sta.temperature.date BETWEEN :start AND :end " +
-                        "ORDER BY sta.temperature.date ASC",
-                Temperature::class.java
-            ).setParameter("roomId", roomId)
-                .setParameter("start", start.toLocal())
-                .setParameter("end", end.toLocal())
-                .resultList
-        }
+        return period(roomId, Measurement::class.java, start, end)
     }
 
-    override fun getSetpointsFromRoomTimed(
-        room: Room,
-        start: Instant,
-        end: Instant
-    ): List<Setpoint> {
+    override fun getSetpointsFromRoomTimed(room: Room, start: Instant, end: Instant): List<Setpoint> {
         val roomId = room.id ?: return emptyList()
-        return read { em ->
-            em.createQuery(
-                "SELECT sta.temperature FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = Setpoint " +
-                        "AND sta.temperature.date BETWEEN :start AND :end " +
-                        "ORDER BY sta.temperature.date ASC",
-                Setpoint::class.java
-            ).setParameter("roomId", roomId)
-                .setParameter("start", start.toLocal())
-                .setParameter("end", end.toLocal())
-                .resultList
-        }
+        return period(roomId, Setpoint::class.java, start, end).filterIsInstance<Setpoint>()
     }
 
-    override fun getAverageTemperatureFromRoom(
-        room: Room,
-        temperatureClass: Temperature
-    ): Temperature? {
+    /** Plain values read through the index (room, kind, date): no entity per point. */
+    private fun period(roomId: Long, type: Class<out Temperature>, start: Instant, end: Instant): List<Temperature> = read { em ->
+        em.querySql(TemperatureHistory.PERIOD, roomId, kindOf(type), start.toLocal(), end.toLocal()).map { temperatureOf(it) }
+    }
+
+    /** The measurements of every device of [devices] over the period, in one query per thousand devices. */
+    override fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> {
+        val ids = devices.mapNotNull { it.id }.distinct()
+        val result = LinkedHashMap<Long, MutableList<Temperature>>()
+        ids.forEach { result[it] = ArrayList() }
+        if (ids.isEmpty()) return result
+        read { em ->
+            for (part in ids.chunked(LatestMeasurements.CHUNK)) {
+                em.querySql(TemperatureHistory.periodOfRooms(part.size), kindOf(Measurement::class.java), start.toLocal(), end.toLocal(), *part.toTypedArray())
+                    .forEach { row -> result.getValue((row[0] as Number).toLong()).add(temperatureOf(row, 1)) }
+            }
+        }
+        return result
+    }
+
+    override fun getAverageTemperatureFromRoom(room: Room, temperatureClass: Temperature): Temperature? {
         val roomId = room.id ?: return null
-        val avg = read { em ->
-            em.createQuery(
-                "SELECT AVG(sta.temperature.value) FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId AND TYPE(sta.temperature) = :type",
-                java.lang.Double::class.java
-            ).setParameter("roomId", roomId)
-                .setParameter("type", temperatureClass.javaClass)
-                .singleResult
-        } ?: return null
-
+        val avg = read { em -> em.querySql(TemperatureHistory.AVERAGE, roomId, kindOf(temperatureClass)).firstOrNull()?.get(0) as Number? }
+            ?: return null
         return Temperature(avg.toFloat(), LocalDateTime.now())
     }
 
-    override fun getAverageTemperatureFromRoomTimed(
-        room: Room,
-        start: Instant,
-        end: Instant
-    ): List<Temperature> {
+    override fun getAverageTemperatureFromRoomTimed(room: Room, start: Instant, end: Instant): List<Temperature> {
         val roomId = room.id ?: return emptyList()
-        val rows = read { em ->
-            em.createQuery(
-                "SELECT FUNCTION('DATE', sta.temperature.date), AVG(sta.temperature.value) " +
-                        "FROM RoomTempAttr sta " +
-                        "WHERE sta.room.id = :roomId " +
-                        "AND sta.temperature.date BETWEEN :start AND :end " +
-                        "GROUP BY FUNCTION('DATE', sta.temperature.date) " +
-                        "ORDER BY FUNCTION('DATE', sta.temperature.date) ASC",
-                Array<Any>::class.java
-            ).setParameter("roomId", roomId)
-                .setParameter("start", start.toLocal())
-                .setParameter("end", end.toLocal())
-                .resultList
-        }
-
-        return rows.map { row ->
-            val day = row[0] as java.sql.Date
-            val avg = (row[1] as Number).toFloat()
-            Temperature(avg, day.toLocalDate().atStartOfDay())
+        return read { em -> em.querySql(TemperatureHistory.DAILY_AVERAGES, roomId, start.toLocal(), end.toLocal()) }.mapNotNull { row ->
+            val day = when (val d = row[0]) {
+                is java.sql.Date -> d.toLocalDate()
+                is java.time.LocalDate -> d
+                else -> null
+            } ?: return@mapNotNull null
+            Temperature((row[1] as Number).toFloat(), day.atStartOfDay())
         }
     }
 

@@ -2,6 +2,7 @@ package ax.ibr.thermobox.persistence.jdbc
 
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.thermobox.persistence.LatestMeasurements
+import ax.ibr.thermobox.persistence.TemperatureHistory
 import ax.ibr.thermobox.persistence.dataservices.TemperatureDataService
 import java.sql.Connection
 import java.sql.ResultSet
@@ -21,6 +22,7 @@ class TemperatureDataServiceJdbcImpl(db: JdbcDatabase) : TemperatureDataService,
 
     override fun updateRow(cx: Connection, t: Temperature) {
         updateTemperature(cx, t)
+        cx.execute(TemperatureHistory.COPY_BY_TEMPERATURE, Rows.temperatureType(t), t.date, t.id)
         // Its date may have changed: its device works its latest measurement out again
         cx.execute(LatestMeasurements.FORGET_ROOMS_OF_TEMPERATURE, t.id)
     }

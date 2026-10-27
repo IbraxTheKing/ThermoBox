@@ -44,6 +44,13 @@ interface RoomTempAttrService: CrudService<RoomTempAttr> {
     fun getRoomIdsOfTemperatures(temperatureIds: Collection<Long>): Map<Long, Long> =
         temperatureIds.mapNotNull { id -> getByTemperature(id)?.room?.id?.let { id to it } }.toMap()
 
+    /**
+     * The measurements of each of [devices] over the period, oldest first, by device id (every
+     * device given has an entry). The storage answers in one query; the default asks device by device.
+     */
+    fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
+        devices.mapNotNull { d -> d.id?.let { it to getTemperaturesFromRoomTimed(d, start, end) } }.toMap()
+
     /** At most [limit] links, the most recent temperatures first, skipping [offset]. */
     fun getPage(offset: Int, limit: Int): List<RoomTempAttr> =
         getAll().sortedByDescending { it.temperature.date }.drop(offset).take(limit)

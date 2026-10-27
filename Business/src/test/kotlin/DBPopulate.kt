@@ -324,10 +324,12 @@ class HugeSeeder(private val o: HugeOptions) {
                     st.generatedKeys.use { rs -> buildList { while (rs.next()) add(rs.getLong(1)) } }
                 }
                 check(ids.size == values.size) { "Expected ${values.size} generated ids, got ${ids.size}" }
-                cx.prepareStatement("INSERT INTO room_temperature_attr (room_id, temperature_id) VALUES (?, ?)").use { st ->
-                    for (id in ids) {
+                // Kind and date copied next to the link, as the data services do (migration V6)
+                cx.prepareStatement("INSERT INTO room_temperature_attr (room_id, temperature_id, kind, date) VALUES (?, ?, 'Measurement', ?)").use { st ->
+                    for ((i, id) in ids.withIndex()) {
                         st.setLong(1, deviceId)
                         st.setLong(2, id)
+                        st.setTimestamp(3, Timestamp.valueOf(values[i].first))
                         st.addBatch()
                     }
                     st.executeBatch()

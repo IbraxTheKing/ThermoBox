@@ -197,6 +197,34 @@ class JdbcDataServicesTest {
     }
 
     @Test
+    fun `periods are read through the copies of kind and date, kept up to date`() {
+        val d1 = Device("D1").also(rooms::add)
+        val d2 = Device("D2").also(rooms::add)
+        val now = LocalDateTime.now().withNano(0)
+        val zone = ZoneId.systemDefault()
+        fun at(t: LocalDateTime) = t.atZone(zone).toInstant()
+        val inside = RoomTempAttr(d1, Measurement(20f, now.minusHours(3))).also(roomTemperatures::add)
+        roomTemperatures.add(RoomTempAttr(d1, Measurement(21f, now.minusHours(1))))
+        roomTemperatures.add(RoomTempAttr(d1, Measurement(25f, now.minusDays(3))))
+        roomTemperatures.add(RoomTempAttr(d2, Measurement(18f, now.minusHours(2))))
+        roomTemperatures.add(RoomTempAttr(d2, Setpoint(19f, now.minusHours(2))))
+
+        val copies = db.read { cx -> cx.query("SELECT kind, date FROM room_temperature_attr WHERE id = ?", inside.id) { it.getString("kind") to it.dateTime("date") }.single() }
+        assertEquals("Measurement" to now.minusHours(3), copies)
+
+        val day = roomTemperatures.getMeasurementsOf(listOf(d1, d2, Device("unsaved")), at(now.minusDays(1)), at(now))
+        assertEquals(mapOf(d1.id to listOf(20f, 21f), d2.id to listOf(18f)), day.mapValues { e -> e.value.map { it.value } })
+
+        // A date changed on the temperature itself: the copy follows
+        val t = inside.temperature
+        t.date = now.minusDays(2)
+        temperatures.update(t)
+        assertEquals(listOf(21f), roomTemperatures.getTemperaturesFromRoomTimed(d1, at(now.minusDays(1)), at(now)).map { it.value })
+        assertEquals(listOf(19f), roomTemperatures.getSetpointsFromRoomTimed(d2, at(now.minusDays(1)), at(now)).map { it.value })
+        assertEquals(setOf(18f, 19f), roomTemperatures.getCurrentTemperaturesFromRoom(d2)!!.map { it.value }.toSet())
+    }
+
+    @Test
     fun `setpoints, owners and pages in one query`() {
         val room = Room("R").also(rooms::add)
         val floor = Floor("F").also(rooms::add)

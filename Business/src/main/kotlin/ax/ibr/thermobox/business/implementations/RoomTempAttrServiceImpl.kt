@@ -126,4 +126,7 @@ class RoomTempAttrServiceImpl(
         roomTempAttrService.getRoomIdsOfTemperatures(temperatureIds)
 
     override fun getPage(offset: Int, limit: Int): List<RoomTempAttr> = roomTempAttrService.getPage(offset, limit)
+
+    override fun getMeasurementsOf(devices: Collection<Room>, start: Instant, end: Instant): Map<Long, List<Temperature>> =
+        roomTempAttrService.getMeasurementsOf(devices, start, end)
 }
