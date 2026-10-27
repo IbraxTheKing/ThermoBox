@@ -1,12 +1,10 @@
-name: Beta / RC
+name: Alpha / Beta / RC
 
-# Lancement manuel (onglet Actions → « Beta / RC » → Run workflow) : publie une beta ou une
-# release candidate de la prochaine version fonctionnelle, construite depuis la branche dev.
-#
-# Numéro : la série qui suit la dernière stable (après 26.10.x : 26.11), puis
-# AA.MM.0-beta.N ou AA.MM.0-rc.N, N = le dernier de ce type pour la série + 1 (format du README).
-# La version est inscrite dans le build (-Dthermobox.version) et les fichiers sont joints à une
-# pre-release GitHub : le système de mise à jour les propose sur le canal prerelease.
+# Lancement manuel depuis Actions.
+# "Branche à construire" détermine le commit réellement compilé.
+# Une version spécifique peut être indiquée ; sinon, le calcul tient compte du dernier tag stable
+# et des branches stabilization/AA.MM. Exemple : stabilization/26.11 réserve 26.11,
+# donc la prochaine série automatique est 26.12.0.
 
 on:
   workflow_dispatch:
@@ -14,19 +12,25 @@ on:
       type:
         description: Type de prépublication
         type: choice
-        options: [beta, rc]
+        options: [alpha, beta, rc]
         default: beta
         required: true
       branche:
-        description: Branche à construire
+        description: Branche à construire (ex. main ou dev)
         default: dev
         required: true
-      notes:
-        description: Texte ajouté en tête des notes (facultatif ; « ## Migration » pour les opérations à prévoir)
+      version:
+        description: Version de base spécifique (ex. 26.12.0 ; vide = calcul automatique)
+        type: string
         required: false
+        default: ""
+      notes:
+        description: Texte facultatif ajouté aux notes de publication
+        required: false
+        default: ""
 
 permissions:
-  contents: write          # créer le tag et la pre-release
+  contents: write
 
 concurrency:
   group: prerelease
@@ -38,58 +42,91 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # tous les tags et toutes les branches
+          fetch-depth: 0
 
-      - name: Version
+      - name: Calculer la version
         id: version
         env:
           TYPE: ${{ inputs.type }}
           BRANCHE: ${{ inputs.branche }}
+          VERSION: ${{ inputs.version }}
         run: |
-          if ! git rev-parse -q --verify "origin/$BRANCHE^{commit}" >/dev/null; then
-            echo "::error::Branche $BRANCHE introuvable"
+          if ! git check-ref-format --branch "$BRANCHE" >/dev/null 2>&1; then
+            echo "::error::Nom de branche invalide : $BRANCHE"
             exit 1
           fi
-          commit=$(git rev-parse "origin/$BRANCHE")
-
-          # Série : celle qui suit la dernière stable (26.10.1 -> 26.11, 26.12.x -> 27.01).
+          if ! git rev-parse -q --verify "refs/remotes/origin/$BRANCHE^{commit}" >/dev/null; then
+            echo "::error::Branche distante origin/$BRANCHE introuvable"
+            exit 1
+          fi
+          commit=$(git rev-parse "refs/remotes/origin/$BRANCHE")
           stable=$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -n1 || true)
-          if [ -n "$stable" ]; then
-            aa=$((10#$(echo "$stable" | cut -d. -f1)))
-            mm=$((10#$(echo "$stable" | cut -d. -f2)))
-            if [ "$mm" -eq 12 ]; then aa=$((aa + 1)); mm=1; else mm=$((mm + 1)); fi
-          else
-            aa=$((10#$(date -u +%y)))
-            mm=$((10#$(date -u +%m)))
-          fi
-          base=$(printf '%d.%02d.0' "$aa" "$mm")
-          motif="^${base//./\\.}-${TYPE}[.-]([0-9]+)$"
 
-          if git rev-parse -q --verify "refs/tags/$base" >/dev/null; then
-            echo "::error::$base est déjà publiée en stable : plus de $TYPE pour cette série."
+          if [ -n "$VERSION" ]; then
+            if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Version invalide : $VERSION. Format attendu : 26.12.0"
+              exit 1
+            fi
+            base="$VERSION"
+          else
+            # Retenir la version la plus récente entre les tags stables et les branches
+            # stabilization/AA.MM ou stabilization/AA.MM.PATCH.
+            latest=""
+            if [ -n "$stable" ]; then latest="$stable"; fi
+
+            while IFS= read -r branch; do
+              branch="${branch#origin/}"
+              series="${branch#stabilization/}"
+              if printf '%s' "$series" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+                parts=$(printf '%s' "$series" | awk -F. '{ printf "%d.%02d.0", $1, $2 }')
+                if [ -z "$latest" ] || [ "$(printf '%s\n%s\n' "$latest" "$parts" | sort -V | tail -n1)" = "$parts" ]; then
+                  latest="$parts"
+                fi
+              fi
+            done < <(git branch -r --list 'origin/stabilization/*' | sed 's/^[[:space:]]*//')
+
+            if [ -n "$latest" ]; then
+              aa=$((10#$(echo "$latest" | cut -d. -f1)))
+              mm=$((10#$(echo "$latest" | cut -d. -f2)))
+              if [ "$mm" -eq 12 ]; then aa=$((aa + 1)); mm=1; else mm=$((mm + 1)); fi
+            else
+              aa=$((10#$(date -u +%y)))
+              mm=$((10#$(date -u +%m)))
+            fi
+            base=$(printf '%d.%02d.0' "$aa" "$mm")
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$base^{commit}" >/dev/null || \
+             git rev-parse -q --verify "refs/tags/v$base^{commit}" >/dev/null; then
+            echo "::error::La version stable $base existe déjà : impossible de créer une préversion pour cette version."
             exit 1
           fi
-          if [ "$TYPE" = beta ] && git tag --list "${base}-rc*" | grep -q .; then
-            echo "::warning::Une RC de $base existe déjà : cette beta passera avant elle dans l'ordre des versions."
-          fi
 
-          last=$(git tag --list "${base}-${TYPE}*" | sed -nE "s/${motif}/\1/p" | sort -n | tail -n1 || true)
+          escaped_base=$(printf '%s' "$base" | sed 's/\./\\./g')
+          motif="^${escaped_base}-${TYPE}[.-]([0-9]+)$"
+          last=$(git tag --list "${base}-${TYPE}*" | sed -nE "s/${motif}/\\1/p" | sort -n | tail -n1 || true)
+
           if [ -n "$last" ]; then
             last_tag=$(git tag --list "${base}-${TYPE}.${last}" "${base}-${TYPE}-${last}" | head -n1)
-            if [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
+            if [ -n "$last_tag" ] && [ "$(git rev-list -n1 "$last_tag")" = "$commit" ]; then
               echo "::error::$last_tag a déjà été publiée depuis ce commit de $BRANCHE."
               exit 1
             fi
           fi
-          tag="${base}-${TYPE}.$(( ${last:-0} + 1 ))"
 
-          echo "Dernière stable : ${stable:-aucune} ; $BRANCHE ($commit) -> $tag"
+          tag="${base}-${TYPE}.$(( ${last:-0} + 1 ))"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Le tag $tag existe déjà."
+            exit 1
+          fi
+
+          echo "Dernière stable : ${stable:-aucune} ; série de référence : ${latest:-aucune} ; base : $base ; $BRANCHE ($commit) -> $tag"
           {
             echo "tag=$tag"
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Passer sur la branche
+      - name: Basculer sur le commit choisi
         run: git checkout --detach "${{ steps.version.outputs.commit }}"
 
       - name: Installer le JDK 23
@@ -110,7 +147,7 @@ jobs:
           zip -j "dist/thermobox-${{ steps.version.outputs.tag }}.zip" deploy/base.jar deploy/RestServer.jar deploy/JsfClient.war
           ls -l dist
 
-      - name: Créer la pre-release
+      - name: Créer la prépublication
         env:
           GH_TOKEN: ${{ github.token }}
           NOTES: ${{ inputs.notes }}
