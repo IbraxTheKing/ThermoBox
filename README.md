@@ -138,6 +138,7 @@ ThermoBox/
 ├── docker-compose.yml     MySQL + REST (+ Mosquitto) ; voir DOCKER.md
 ├── Dockerfile             image REST simple (build Maven puis JRE), sans relance automatique
 ├── .env.example           modèle du fichier .env de docker compose
+├── loadtest/             test de charge k6 : combien d'utilisateurs simultanés le serveur tient
 ├── scripts/
 │   ├── init-env.sh        crée .env avec des secrets aléatoires
 │   └── thermobox-rest.sh  lance le serveur hors Docker et le relance après une mise à jour (systemd…)

@@ -262,6 +262,7 @@ compressés avec toutes ses mesures, et à environ 2 Ko avec `points=500`.
 | `GET` | `/limits` | Températures acceptées (°C) : `{"measurement": {"min": -10, "max": 50}, "setpoint": {"min": -10, "max": 50}}`. | Authentifié |
 | `PUT` | `/limits` | Change les limites (une partie absente est gardée). | ADMIN |
 | `DELETE` | `/limits` | Revient aux limites par défaut (-10 à 50 °C). | ADMIN |
+| `GET` | `/metrics` | Charge du serveur : processeur (`processCpu`, `systemCpu` en %), mémoire Java (`heapUsedMb`, `heapMaxMb`…), threads, ramasse-miettes. Lu par le test de charge (`loadtest/`). | ADMIN |
 
 **Limites de température.** `measurement` borne les mesures : celles envoyées par un boîtier hors de ces limites sont ignorées (erreur de capteur), celles ajoutées à la main sont refusées. `setpoint` borne les consignes : une consigne hors limites est refusée (`ImpossibleValueException` sous le minimum, `TooHotException` au-dessus du maximum). Les limites sont gardées dans `temperature-limits.properties` du dossier de données ; aucune ne peut sortir de -100 à 200 °C.
 

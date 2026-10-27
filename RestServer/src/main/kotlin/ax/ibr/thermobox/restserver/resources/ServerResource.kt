@@ -8,6 +8,7 @@ import ax.ibr.thermobox.restserver.branding.Logo
 import ax.ibr.thermobox.restserver.branding.LogoImages
 import ax.ibr.thermobox.restserver.branding.LogoSource
 import ax.ibr.thermobox.restserver.branding.ServerLogo
+import ax.ibr.thermobox.restserver.monitoring.ServerMetricsDto
 import ax.ibr.utils.rest.PublicEndpoint
 import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole
@@ -156,6 +157,13 @@ class ServerResource {
         TemperatureLimitsStore.instance.reset()
         return TemperatureLimitsDto.of(TemperatureLimitsStore.instance.get())
     }
+
+    /** What the server process uses right now: CPU, memory, threads (ADMIN; see ServerMetricsDto). */
+    @GET
+    @Path("/metrics")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresRole("ADMIN")
+    fun metrics(): ServerMetricsDto = ServerMetricsDto.now()
 
     /** The name the client used to reach the server, behind a reverse proxy too (without the port). */
     private fun host(): String? {
