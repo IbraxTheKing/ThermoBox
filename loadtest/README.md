@@ -93,7 +93,7 @@ temps de réponse :
 | `server_cpu_system_percent` | Processeur de toute la machine (ou du conteneur) |
 | `server_heap_used_mb` | Mémoire Java utilisée (Mo) ; la limite est affichée au début du test |
 | `server_threads` | Threads du serveur (Jetty en ajoute quand les requêtes s'accumulent) |
-| `server_gc_ms_per_interval` | Temps passé par le ramasse-miettes entre deux relevés |
+| `server_gc_ms_per_interval` | Temps pendant lequel le ramasse-miettes a arrêté le serveur entre deux relevés (5 s) : au-delà de quelques centaines de ms, la mémoire freine le serveur |
 
 Il faut un compte ADMIN : `admin` avec le mot de passe `PASSWORD` par défaut (`MONITOR_USER`,
 `MONITOR_PASSWORD` sinon). Si le compte ne convient pas, le test continue et prévient qu'il ne mesure pas

@@ -120,11 +120,14 @@ class ClimateResource {
         if (!validPoints(points)) return error(POINTS_ERROR)
         val requested = ids.orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }.distinct()
         if (requested.size > MAX_ELEMENTS) return error("At most $MAX_ELEMENTS ids per request")
+        val elements = requested.mapNotNull { view.element(it) }
         val result = LinkedHashMap<String, List<PointDto>>()
-        for (id in requested) {
-            val s = view.element(id) ?: continue
-            val curve = if (points == 0) ClimateServiceImpl.movingAverage(climate.getRawHistories(s, de, a)) else climate.getAverageHistory(s, de, a)
-            result[id.toString()] = reduce(curve, points).map { PointDto.of(it) }
+        // A dashboard asks for dozens of rooms at once: their devices are read a few rooms per
+        // query, and each curve is reduced at once, so a request never holds every full curve
+        // in memory (150 users doing so kept the garbage collector busy all the time).
+        for (part in elements.chunked(AVERAGES_PER_QUERY)) {
+            val curves = climate.getAverageHistories(part, de, a, raw = points == 0)
+            for (s in part) result[s.id.toString()] = reduce(curves[s.id].orEmpty(), points).map { PointDto.of(it) }
         }
         return Response.ok(result).build()
     }
@@ -173,6 +176,13 @@ class ClimateResource {
 
     private companion object {
         const val MAX_ELEMENTS = 200
+        /**
+         * Rooms whose devices are read in one query by /averages. Measured with 150 concurrent
+         * requests of 50 rooms: 1 room per query = 50 queries; 3 = as little garbage collection,
+         * and the best throughput; 8 or more = results big enough to outlive the young
+         * collections, and the collector working 7 to 15 times longer.
+         */
+        const val AVERAGES_PER_QUERY = 3
         const val MAX_POINTS = 10_000
         /** Without ?points: enough for a chart as wide as a screen, a bounded response in any case. */
         const val DEFAULT_POINTS = 1000

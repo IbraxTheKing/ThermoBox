@@ -69,6 +69,13 @@ interface ClimateService {
      */
     fun getAverageHistory(room: Room, start: Instant, end: Instant): List<Temperature>
 
+    /**
+     * [getAverageHistory] of each of [rooms], by room id ([raw]: every measure, whatever the
+     * period). An implementation reads them all at once; the default asks room by room.
+     */
+    fun getAverageHistories(rooms: Collection<Room>, start: Instant, end: Instant, raw: Boolean = false): Map<Long, List<Temperature>> =
+        rooms.mapNotNull { r -> r.id?.let { it to getAverageHistory(r, start, end) } }.toMap()
+
     /** Setpoints over the period, taken where the current one comes from (inherited or not). */
     fun getSetpoints(room: Room, start: Instant, end: Instant): List<Setpoint>
 

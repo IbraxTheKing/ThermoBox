@@ -1,5 +1,8 @@
 package ax.ibr.thermobox.persistence
 
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+
 /**
  * Reads of the history of an element (migration V6): `room_temperature_attr` keeps a copy of the
  * kind (DTYPE) and of the date of each temperature, so "this device, this kind, this period" is a
@@ -11,8 +14,19 @@ package ax.ibr.thermobox.persistence
  */
 object TemperatureHistory {
 
-    /** Selected columns, in this order, by every read below. */
+    /** Selected columns, in this order, by the reads below (except the curves: [CURVE_COLUMNS]). */
     const val COLUMNS = "t.id AS t_id, t.DTYPE AS t_dtype, t.value AS t_value, t.date AS t_date"
+
+    /**
+     * Same columns for the curves (thousands of rows), with the date as a number of seconds since
+     * 1970-01-01, counted on the date as stored (no time zone involved): [dateOf] gives it back.
+     * Reading a DATETIME through JDBC costs nearly a kilobyte of garbage per row with some drivers,
+     * which kept the garbage collector busy under load; a number costs nothing.
+     */
+    const val CURVE_COLUMNS = "t.id AS t_id, t.DTYPE AS t_dtype, t.value AS t_value, TIMESTAMPDIFF(SECOND, '1970-01-01', t.date) AS t_seconds"
+
+    /** The date of a [CURVE_COLUMNS] row. */
+    fun dateOf(seconds: Long): LocalDateTime = LocalDateTime.ofEpochSecond(seconds, 0, ZoneOffset.UTC)
 
     /** Parameters: kind, date, link id. */
     const val COPY_BY_LINK = "UPDATE room_temperature_attr SET kind = ?, date = ? WHERE id = ?"
@@ -22,12 +36,12 @@ object TemperatureHistory {
 
     /** Parameters: room id, kind, start, end. Oldest first. */
     const val PERIOD =
-        "SELECT $COLUMNS FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
+        "SELECT $CURVE_COLUMNS FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
             "WHERE e.room_id = ? AND e.kind = ? AND e.date BETWEEN ? AND ? ORDER BY e.date, e.temperature_id"
 
     /** Parameters: kind, start, end, then the room ids of the IN list ([inList]). By room, oldest first. */
     fun periodOfRooms(rooms: Int) =
-        "SELECT e.room_id AS r, $COLUMNS FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
+        "SELECT e.room_id AS r, $CURVE_COLUMNS FROM room_temperature_attr e JOIN temperature t ON t.id = e.temperature_id " +
             "WHERE e.kind = ? AND e.date BETWEEN ? AND ? AND e.room_id IN (${inList(rooms)}) " +
             "ORDER BY e.room_id, e.date, e.temperature_id"
 

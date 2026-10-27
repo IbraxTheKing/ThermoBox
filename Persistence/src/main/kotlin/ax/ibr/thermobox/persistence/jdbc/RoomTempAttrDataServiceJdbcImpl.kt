@@ -231,9 +231,19 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
         val kind = Rows.temperatureType(Measurement::class.java)
         db.read { cx ->
             for (part in ids.chunked(LatestMeasurements.CHUNK)) {
-                cx.query(TemperatureHistory.periodOfRooms(part.size), kind, start.toLocal(), end.toLocal(), *part.toTypedArray()) { rs ->
-                    Rows.temperature(rs, "t")?.let { rs.getLong("r") to it }
-                }.forEach { (r, t) -> result.getValue(r).add(t) }
+                // Rows grouped by room (ORDER BY room_id): no pair per row
+                cx.statement(TemperatureHistory.periodOfRooms(part.size), kind, start.toLocal(), end.toLocal(), *part.toTypedArray()).use { st ->
+                    st.fetchSize = 1000
+                    st.executeQuery().use { rs ->
+                        var currentRoom = -1L
+                        var current: MutableList<Temperature>? = null
+                        while (rs.next()) {
+                            val r = rs.getLong(1)
+                            if (r != currentRoom) { currentRoom = r; current = result[r] }
+                            Rows.temperatureAt(rs, 2)?.let { current?.add(it) }
+                        }
+                    }
+                }
             }
         }
         return result
@@ -246,7 +256,7 @@ class RoomTempAttrDataServiceJdbcImpl(db: JdbcDatabase) : RoomTempAttrDataServic
         cx.query(TemperatureHistory.LATEST, roomId, type) { Rows.temperature(it, "t") }.firstOrNull()
 
     private fun timed(roomId: Long, type: String, start: Instant, end: Instant): List<Temperature> = db.read { cx ->
-        cx.query(TemperatureHistory.PERIOD, roomId, type, start.toLocal(), end.toLocal()) { Rows.temperature(it, "t") }
+        cx.query(TemperatureHistory.PERIOD, roomId, type, start.toLocal(), end.toLocal()) { Rows.temperatureAt(it, 1) }
     }
 
     // Instant (UTC, from the API) -> LocalDateTime (no time zone, as stored in the database)

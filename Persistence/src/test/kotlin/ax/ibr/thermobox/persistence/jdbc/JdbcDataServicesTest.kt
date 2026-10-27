@@ -257,7 +257,8 @@ class JdbcDataServicesTest {
 
         // Same answer as working it out from every measurement
         assertEquals(hourly()[d.id], roomTemperatures.getMeasurementsOf(listOf(d), at(hour.minusHours(1)), at(hour.plusHours(3)))[d.id]!!
-            .groupBy { it.date!!.hour }.toSortedMap().map { (h, l) -> h to l.map { it.value!! }.average().toFloat() })
+            .groupBy { it.date!!.truncatedTo(java.time.temporal.ChronoUnit.HOURS) }.toSortedMap()
+            .map { (h, l) -> h.hour to l.map { it.value!! }.average().toFloat() })
     }
 
     @Test

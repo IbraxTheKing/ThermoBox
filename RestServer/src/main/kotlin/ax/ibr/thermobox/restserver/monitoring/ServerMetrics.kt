@@ -21,7 +21,11 @@ data class ServerMetricsDto(
     /** Memory outside the heap (classes, compiled code…), in MB. */
     val nonHeapUsedMb: Long,
     val threads: Int,
-    /** Garbage collections since the start, and the time they took. */
+    /**
+     * Garbage collections since the start, and the time the server was paused by them. The work the
+     * collector does alongside the requests (G1 "Concurrent GC", ZGC cycles) is not counted: it does
+     * not stop them, and counting it gave seconds of "GC" per 5 s under load.
+     */
     val gcCount: Long,
     val gcTimeMs: Long,
     val uptimeSeconds: Long,
@@ -29,12 +33,16 @@ data class ServerMetricsDto(
     companion object {
         private const val MB = 1024L * 1024
 
+        /** A collector whose time stops the requests (not one working alongside them). */
+        internal fun pauses(collector: String): Boolean =
+            !collector.contains("Concurrent", ignoreCase = true) && !collector.contains("Cycles", ignoreCase = true)
+
         fun now(): ServerMetricsDto {
             val os = ManagementFactory.getOperatingSystemMXBean()
             val sun = os as? com.sun.management.OperatingSystemMXBean
             val memory = ManagementFactory.getMemoryMXBean()
             val heap = memory.heapMemoryUsage
-            val gcs = ManagementFactory.getGarbageCollectorMXBeans()
+            val gcs = ManagementFactory.getGarbageCollectorMXBeans().filter { pauses(it.name) }
             fun percent(v: Double?) = v?.takeIf { it >= 0 }?.let { Math.round(it * 1000) / 10.0 }
             return ServerMetricsDto(
                 processCpu = percent(sun?.processCpuLoad),

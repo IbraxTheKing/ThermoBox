@@ -39,6 +39,8 @@ internal fun temperatureOf(row: Array<Any?>, at: Int = 0): Temperature {
     val date = when (val d = row[at + 3]) {
         is Timestamp -> d.toLocalDateTime()
         is LocalDateTime -> d
+        // Seconds since 1970-01-01 as stored (TemperatureHistory.CURVE_COLUMNS)
+        is Number -> ax.ibr.thermobox.persistence.TemperatureHistory.dateOf(d.toLong())
         else -> null
     }
     val t = when (row[at + 1] as String?) {
