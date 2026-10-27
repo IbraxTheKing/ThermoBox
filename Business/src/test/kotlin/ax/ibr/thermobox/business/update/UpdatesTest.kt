@@ -248,6 +248,36 @@ class UpdatesTest {
     }
 
     @Test
+    fun `no going back past a version whose notes say so`() = FakeGitHub().use { gh ->
+        // 26.11.0 forbids going back; 26.11.1 (installed) allows going back to 26.11.0
+        gh.releases = "[${gh.publish("26.11.1", notes = "Fixes.\nRétrocompatibilité : oui")}," +
+            "${gh.publish("26.11.0", notes = "## Migration\n- V8\n\nRétrocompatibilité : non")}," +
+            "${gh.publish("26.10.1")},${gh.publish("26.10.0")}]"
+        val config = configuration(gh).copy(channel = ax.ibr.thermobox.common.update.Channel.PRERELEASE)
+        val service = service(config, Fake(Component.REST), installed = "26.11.1")
+        val state = service.check()
+
+        assertEquals("Fixes.\nRétrocompatibilité : oui", state.installedNotes)
+        assertEquals(true, state.installedRollback)
+        val older = state.olderVersions.associateBy { it.version.tag }
+        assertNull(older.getValue("26.11.0").blockedBy)
+        assertFalse(older.getValue("26.11.0").incompatible)
+        assertEquals("26.11.0", older.getValue("26.10.1").blockedBy?.tag)
+        assertTrue(older.getValue("26.10.1").incompatible)
+        assertTrue(older.getValue("26.10.0").incompatible)
+
+        val prep = service.prepare("26.10.1")
+        assertTrue(prep.checks.any { it.level == CheckLevel.WARNING && it.title == "No going back past 26.11.0" })
+        assertTrue(prep.checks.none { it.title == "The notes announce an incompatibility" })
+
+        // Even outside the older versions listed: the installed version counts too
+        gh.releases = "[${gh.publish("26.11.1", notes = "Rollback: no")},${gh.publish("26.10.1")}]"
+        val state2 = service.check()
+        assertEquals(false, state2.installedRollback)
+        assertEquals("26.11.1", state2.olderVersions.single().blockedBy?.tag)
+    }
+
+    @Test
     fun `GitHub errors are reported`() = FakeGitHub().use { gh ->
         gh.status = 403
         val state = service(configuration(gh), Fake(Component.REST)).check()

@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.business.update
 
 import ax.ibr.thermobox.common.update.Artifact
+import ax.ibr.thermobox.common.update.RollbackRule
 import ax.ibr.thermobox.persistence.backup.DatabaseBackup
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -30,6 +31,21 @@ class ReleaseNotesAndArtifactsTest {
         assertEquals("- Add the column `room.photo`\n- Run HashExistingPasswords again", ReleaseNotes.migration(notes))
         assertEquals("- clear the cache", ReleaseNotes.migration("Fixes.\nMigration: clear the cache"))
         assertNull(ReleaseNotes.migration("## What's Changed\n* Fix by @ib"))
+    }
+
+    @Test
+    fun `going back, as the notes say it`() {
+        assertEquals(false, RollbackRule.of("## Nouveautés\n- Courbes\n\nRétrocompatibilité : non\n"))
+        assertEquals(true, RollbackRule.of("**Rétrocompatibilité** : **oui**"))
+        assertEquals(true, RollbackRule.of("- Retour arrière : possible"))
+        assertEquals(false, RollbackRule.of("> Rollback: no"))
+        assertEquals(false, RollbackRule.of("Backward-compatible: false"))
+        assertEquals(false, RollbackRule.of("retro-compatibilite : NON"))
+        // Not a line of the rule
+        assertNull(RollbackRule.of("Retour arrière non garanti"))
+        assertNull(RollbackRule.of("Rétrocompatibilité : nonobstant"))
+        assertNull(RollbackRule.of("Le rollback : nous verrons"))
+        assertNull(RollbackRule.of(""))
     }
 
     @Test

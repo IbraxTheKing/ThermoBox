@@ -66,7 +66,9 @@ services:
       dockerfile: docker/rest/Dockerfile
       args:
         THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
-    image: thermobox/rest:local
+    # Built here by default; THERMOBOX_IMAGE=ghcr.io/ibraxtheking/thermobox:<version> takes the
+    # published image instead (docker compose pull rest, then up -d without --build; see DOCKER.md)
+    image: ${THERMOBOX_IMAGE:-thermobox/rest:local}
     restart: unless-stopped
     mem_limit: ${REST_MEMORY:-1g}
     environment:

@@ -32,6 +32,13 @@ data class UpdateStatusDto(
     val installMode: String?,
     /** Last installation, ADMIN only. */
     val installation: InstallationDto?,
+    /**
+     * Can the installed version be left for an older one? From its release notes
+     * ("Rétrocompatibilité : oui / non"); null when they don't say, or GitHub doesn't list it.
+     */
+    val installedRollback: Boolean?,
+    /** Release notes of the installed version (Markdown), null if GitHub doesn't list it. */
+    val installedNotes: String?,
 ) {
     companion object {
         fun from(e: UpdateStatus, admin: Boolean) = UpdateStatusDto(
@@ -49,6 +56,8 @@ data class UpdateStatusDto(
             automaticInstall = e.mode.automatic.takeIf { admin },
             installMode = e.mode.detail.takeIf { admin },
             installation = e.installation?.takeIf { admin }?.let { InstallationDto.from(it) },
+            installedRollback = e.installedRollback,
+            installedNotes = e.installedNotes,
         )
     }
 }
@@ -71,7 +80,10 @@ data class AvailableVersionDto(
     /** Release notes (changelog), Markdown. */
     val notes: String,
     val migration: String?,
+    /** The notes announce an incompatibility; for an older version, also when [blockedBy] is set. */
     val incompatible: Boolean,
+    /** Older version only: the version, up to the installed one, whose notes forbid going back past it. */
+    val blockedBy: String?,
 ) {
     companion object {
         fun from(v: AvailableVersion) = AvailableVersionDto(
@@ -79,7 +91,7 @@ data class AvailableVersionDto(
             recommended = v.type == UpdateType.PATCH && !v.incompatible && !v.older, prerelease = v.version.isPrerelease,
             channel = v.version.channel, older = v.older,
             title = v.title, publishedAt = v.publishedAt?.toString(), url = v.page, notes = v.notes,
-            migration = v.migration, incompatible = v.incompatible,
+            migration = v.migration, incompatible = v.incompatible, blockedBy = v.blockedBy?.tag,
         )
     }
 }
