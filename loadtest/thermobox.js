@@ -91,6 +91,9 @@ export const options = {
     'http_req_duration{page:overview}': ['p(95)<2000'],
     'http_req_duration{page:element}': ['p(95)<2000'],
     'http_req_duration{page:curves}': ['p(95)<3000'],
+    // The two kinds of curves apart, to see which one is slow
+    'http_req_duration{name:/api/v2/climate/averages}': ['p(95)<3000'],
+    'http_req_duration{name:/api/v2/climate/{id}/history}': ['p(95)<3000'],
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
@@ -178,7 +181,8 @@ export function monitor(data) {
 function get(path, token, page) {
   const r = http.get(`${BASE}${path}`, {
     headers: { ...ACCEPT, Authorization: `Bearer ${token}`, 'Accept-Encoding': 'gzip' },
-    tags: { page },
+    // One series per kind of request, not per URL (ids and dates would make k6 keep thousands)
+    tags: { page, name: path.split('?')[0].replace(/\/\d+/g, '/{id}') },
   });
   check(r, { [`${page}: 200`]: (x) => x.status === 200 });
   if (r.status >= 500 || r.status === 0) serverErrors.add(1, { page });
