@@ -27,6 +27,7 @@ Business/src/main/kotlin/ax/ibr/thermobox/business/
 ├── images/            ImageProcessor : contrôle et réduction des photos
 ├── charts/            CurveSampling : réduction d'une courbe à N points (LTTB)
 ├── climate/           ClimateSnapshot : toute la hiérarchie et ses températures, lue en une fois
+├── hierarchy/         HierarchyCache : bâtiments, étages, salles, boîtiers et leurs liens en mémoire
 ├── update/            le système de mises à jour depuis GitHub
 └── exceptions/        TooHotException, ImpossibleValueException
 Business/src/main/resources/thermobox-version.properties   version inscrite par Maven
@@ -153,11 +154,24 @@ PNG, GIF ou BMP), redressée selon son orientation EXIF, réduite à 1600 px de 
 ré-encodée en JPEG (qualité 0,85). Le ré-encodage supprime les métadonnées (position GPS d'une photo
 de téléphone). Les images de plus de 40 millions de pixels sont refusées avant décodage.
 
+## `hierarchy/` — `HierarchyCache`
+
+Chaque requête demande des parents, des enfants, des chemins ou les boîtiers contenus (droits d'accès,
+arbre, courbes), alors que la hiérarchie ne change presque jamais. `HierarchyCache` la garde en mémoire
+(éléments et liens, lus en deux requêtes) ; `HierarchyServiceImpl` y répond quand il en reçoit un (celui
+de `BusinessFactory`), sinon il interroge les services comme avant (les tests). Elle est relue :
+- aussitôt après un changement passé par les services (`RoomServiceImpl`, `RoomRoomAttrServiceImpl`
+  appellent `HierarchyCache.invalidate()`) ;
+- au plus tard 30 s après, pour les changements faits ailleurs (autre serveur sur la même base, script).
+
+Les éléments donnés sont des copies : les modifier ne touche pas le cache. Les accès d'un utilisateur
+limité, recalculés à chaque requête, passent ainsi de 16 ms à 1 ms sur le jeu « huge ».
+
 ## `climate/` — `ClimateSnapshot`
 
-Pour les pages qui montrent tous les éléments à la fois (l'arbre de l'aperçu) : la hiérarchie, la
-dernière mesure de chaque boîtier et la consigne propre de chaque élément sont lues en quelques
-requêtes, puis tout est calculé en mémoire avec les mêmes règles que `HierarchyService` et
+Pour les pages qui montrent tous les éléments à la fois (l'arbre de l'aperçu) : la hiérarchie (celle de
+`HierarchyCache`), la dernière mesure de chaque boîtier et la consigne propre de chaque élément sont lues
+en deux requêtes, puis tout est calculé en mémoire avec les mêmes règles que `HierarchyService` et
 `ClimateService` (boîtiers contenus, moyenne, consigne héritée). Un instantané vaut pour une requête :
 on n'en garde jamais. `ClimateServiceImpl.effectiveSetpoint` porte la règle de la consigne héritée,
 partagée par les deux.

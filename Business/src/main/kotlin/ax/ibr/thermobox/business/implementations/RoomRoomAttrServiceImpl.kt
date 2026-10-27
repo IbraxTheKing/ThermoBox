@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
 import ax.ibr.thermobox.business.rules.HierarchyRules
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomRoomAttr
@@ -27,16 +28,19 @@ class RoomRoomAttrServiceImpl(
     override fun add(t: RoomRoomAttr) {
         verification(t)
         roomRoomAttrService.add(t)
+        HierarchyCache.invalidate()
     }
 
     /** @throws IllegalArgumentException if the link breaks the hierarchy rules. */
     override fun update(t: RoomRoomAttr) {
         verification(t)
         roomRoomAttrService.update(t)
+        HierarchyCache.invalidate()
     }
 
     override fun remove(t: RoomRoomAttr) {
         roomRoomAttrService.remove(t)
+        HierarchyCache.invalidate()
     }
 
     override fun getAll(): List<RoomRoomAttr> {

@@ -1,11 +1,10 @@
 package ax.ibr.thermobox.business.implementations
 
 import ax.ibr.thermobox.business.climate.ClimateSnapshot
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
 import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.common.entities.RoomRoomAttr
-import ax.ibr.thermobox.common.services.RoomRoomAttrService
-import ax.ibr.thermobox.common.services.RoomService
 import ax.ibr.thermobox.common.entities.Building
 import ax.ibr.thermobox.common.entities.Device
 import ax.ibr.thermobox.common.entities.Setpoint
@@ -155,13 +154,8 @@ class InheritedSetpointTest {
         temperatures.add(RoomTempAttr(x3, Measurement(18f, LocalDateTime.of(2026, 1, 1, 10, 0))))
 
         val all = listOf(b, e, s1, s2, s3, x1, x2, x3)
-        val rooms = java.lang.reflect.Proxy.newProxyInstance(javaClass.classLoader, arrayOf(RoomService::class.java)) { _, m, _ ->
-            if (m.name == "getAll") all else throw UnsupportedOperationException(m.name)
-        } as RoomService
-        val links = java.lang.reflect.Proxy.newProxyInstance(javaClass.classLoader, arrayOf(RoomRoomAttrService::class.java)) { _, m, _ ->
-            if (m.name == "getAll") parents.map { (child, parent) -> RoomRoomAttr(parent, child) } else throw UnsupportedOperationException(m.name)
-        } as RoomRoomAttrService
-        val snapshot = ClimateSnapshot(rooms, links, temperatures)
+        val tree = HierarchyCache.Tree(all, parents.map { (child, parent) -> child.id!! to parent.id!! })
+        val snapshot = ClimateSnapshot(tree, temperatures)
 
         for (room in all.filter { it !is Device }) {
             val expected = climate.getEffectiveSetpoint(room)
@@ -172,7 +166,7 @@ class InheritedSetpointTest {
         }
         assertEquals(listOf(x1, x2, x3).map { it.id }, snapshot.devices(b).mapNotNull { it.id }.sorted())
         assertEquals(listOf(22f, null, 18f), snapshot.measurements(b).sortedBy { it.device.id }.map { it.measurement?.value })
-        assertEquals(listOf(b, e), snapshot.path(s1))
+        assertEquals(listOf(b.id, e.id), snapshot.path(s1).map { it.id })
         assertEquals(listOf(s1, s2, s3).map { it.id }, snapshot.below(b, RoomKind.ROOM).mapNotNull { it.id }.sorted())
     }
 }

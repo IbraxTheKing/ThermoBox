@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.implementations
 
+import ax.ibr.thermobox.business.hierarchy.HierarchyCache
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.services.FavoriteService
 import ax.ibr.thermobox.common.services.RoomImageService
@@ -33,11 +34,13 @@ class RoomServiceImpl(
     @Transactional
     override fun add(t: Room) {
         roomService.add(t)
+        HierarchyCache.invalidate()
     }
 
     @Transactional
     override fun update(t: Room) {
         roomService.update(t)
+        HierarchyCache.invalidate()
     }
 
     @Transactional
@@ -56,6 +59,7 @@ class RoomServiceImpl(
         links.getByRoom(t).forEach { links.remove(it) }
         history.getByRoom(t).orEmpty().forEach { history.remove(it) }
         roomService.remove(t)
+        HierarchyCache.invalidate()
     }
 
     override fun getAll(): List<Room> {
