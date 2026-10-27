@@ -51,6 +51,7 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_DB_URL` | `jdbc:mysql://localhost:3306/thermobox` | Base MySQL |
 | `THERMOBOX_DB_USER` / `THERMOBOX_DB_PASSWORD` | *obligatoires* | Identifiants de la base |
 | `THERMOBOX_DB_MIGRATE` | `true` | `false` : pas de migration de schéma au démarrage |
+| `THERMOBOX_DB_POOL_SIZE` | `20` | Connexions à la base au plus en même temps ; les autres requêtes attendent leur tour |
 | `THERMOBOX_DB_ACCESS` | `jpa` | Accès à la base : `jpa` (EclipseLink) ou `jdbc` (SQL direct, sans JPA), voir [Persistence](Persistence/README.md) |
 | `THERMOBOX_JWT_SECRET` | *obligatoire* | Clé de signature des jetons (32 caractères minimum) |
 | `THERMOBOX_JWT_TTL_MINUTES` | `60` | Durée de vie d'un jeton |

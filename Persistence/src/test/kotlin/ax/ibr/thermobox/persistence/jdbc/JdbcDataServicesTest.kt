@@ -309,6 +309,24 @@ class JdbcDataServicesTest {
     }
 
     @Test
+    fun `no more connections than allowed, the others wait or give up`() {
+        val env = System.getenv()
+        val small = JdbcDatabase(env["THERMOBOX_TEST_DB_URL"]!!, env["THERMOBOX_TEST_DB_USER"] ?: "root",
+            env["THERMOBOX_TEST_DB_PASSWORD"] ?: "", maxOpen = 1, waitSeconds = 1)
+        small.use { db1 ->
+            db1.read { _ ->
+                // The only connection is taken: another operation gives up after 1 s
+                val other = java.util.concurrent.Executors.newSingleThreadExecutor()
+                val failure = runCatching { other.submit<Int> { db1.read { 1 } }.get() }.exceptionOrNull()
+                other.shutdown()
+                assertInstanceOf(java.sql.SQLTransientConnectionException::class.java, failure?.cause)
+            }
+            // Given back: available again
+            assertEquals(1, db1.read { cx -> cx.query("SELECT 1 AS x") { it.getInt("x") }.first() })
+        }
+    }
+
+    @Test
     fun `nulls and kinds round-trip`() {
         val t = Temperature()
         temperatures.add(t)
@@ -353,6 +371,14 @@ class AccessModeTest {
         assertEquals(PersistenceFactory.AccessMode.JPA, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " ")))
         assertEquals(PersistenceFactory.AccessMode.JDBC, PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to " JDBC ")))
         assertThrows(IllegalStateException::class.java) { PersistenceFactory.accessMode(mapOf("THERMOBOX_DB_ACCESS" to "hibernate")) }
+    }
+
+    @Test
+    fun `size of the connection pool`() {
+        assertEquals(20, PersistenceFactory.poolSize(emptyMap()))
+        assertEquals(5, PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to " 5 ")))
+        assertThrows(IllegalStateException::class.java) { PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to "0")) }
+        assertThrows(IllegalStateException::class.java) { PersistenceFactory.poolSize(mapOf("THERMOBOX_DB_POOL_SIZE" to "many")) }
     }
 
     @Test

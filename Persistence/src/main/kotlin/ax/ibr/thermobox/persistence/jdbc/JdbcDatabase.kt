@@ -4,28 +4,36 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.SQLTransientConnectionException
 import java.sql.Statement
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.LocalDateTime
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 /**
  * The database reached with plain JDBC, without JPA: the connections of the JDBC data services
  * (`THERMOBOX_DB_ACCESS=jdbc`, see PersistenceFactory).
  *
  * Like the JPA services, each operation takes a connection, runs, and gives it back: the services
- * can be shared by concurrent requests. Up to [maxIdle] connections are kept open for the next
- * operations; a connection that died meanwhile (database restarted, idle timeout) is replaced.
+ * can be shared by concurrent requests. At most [maxOpen] connections are in use at once (MySQL
+ * refuses connections past its max_connections, 151 by default): the other operations wait up to
+ * [waitSeconds] for one. Up to [maxIdle] are kept open for the next operations; a connection that
+ * died meanwhile (database restarted, idle timeout) is replaced.
  */
 class JdbcDatabase(
     private val url: String,
     private val user: String,
     private val password: String,
     private val maxIdle: Int = 8,
+    private val maxOpen: Int = 20,
+    private val waitSeconds: Long = 30,
 ) : AutoCloseable {
 
-    private val idle = ArrayBlockingQueue<Connection>(maxIdle)
+    private val idle = ArrayBlockingQueue<Connection>(maxOf(1, minOf(maxIdle, maxOpen)))
+    private val permits = Semaphore(maxOf(1, maxOpen), true)
 
     init {
         // Registered by hand: the shaded base.jar may not keep the drivers' META-INF/services
@@ -75,16 +83,28 @@ class JdbcDatabase(
     }
 
     private fun borrow(): Connection {
-        while (true) {
-            val cx = idle.poll() ?: return DriverManager.getConnection(url, user, password)
-            if (runCatching { cx.isValid(2) }.getOrDefault(false)) return cx
-            runCatching { cx.close() }
+        if (!permits.tryAcquire(waitSeconds, TimeUnit.SECONDS)) {
+            throw SQLTransientConnectionException("All $maxOpen connections to the database stayed busy for $waitSeconds s")
+        }
+        try {
+            while (true) {
+                val cx = idle.poll() ?: return DriverManager.getConnection(url, user, password)
+                if (runCatching { cx.isValid(2) }.getOrDefault(false)) return cx
+                runCatching { cx.close() }
+            }
+        } catch (e: Throwable) {
+            permits.release()
+            throw e
         }
     }
 
     /** Back to the idle ones; closed after an error (its state is unknown) or when enough are idle. */
     private fun giveBack(cx: Connection, healthy: Boolean) {
-        if (!healthy || !idle.offer(cx)) runCatching { cx.close() }
+        try {
+            if (!healthy || !idle.offer(cx)) runCatching { cx.close() }
+        } finally {
+            permits.release()
+        }
     }
 
     companion object {

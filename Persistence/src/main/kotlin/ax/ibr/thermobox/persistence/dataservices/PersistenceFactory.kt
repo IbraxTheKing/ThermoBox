@@ -81,7 +81,7 @@ object PersistenceFactory {
 
     private val jdbcHolder = lazy {
         migrated
-        JdbcDatabase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"))
+        JdbcDatabase(databaseUrl(), requireEnv("THERMOBOX_DB_USER"), requireEnv("THERMOBOX_DB_PASSWORD"), maxOpen = poolSize())
     }
     private val jdbc: JdbcDatabase by jdbcHolder
 
@@ -162,8 +162,24 @@ object PersistenceFactory {
     private fun databaseProperties(): Map<String, String> = mapOf(
         "jakarta.persistence.jdbc.url" to databaseUrl(),
         "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
-        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD")
+        "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD"),
+        // Same ceiling as the JDBC access (EclipseLink: 32 by default)
+        "eclipselink.connection-pool.default.max" to poolSize().toString(),
+        "eclipselink.connection-pool.default.min" to "1",
+        "eclipselink.connection-pool.default.initial" to "1",
     )
+
+    /**
+     * `THERMOBOX_DB_POOL_SIZE`: connections to the database at most at once (20 by default); the
+     * other requests wait their turn. MySQL accepts 151 by default, for every server together.
+     * @throws IllegalStateException for a value that is not a number from 1 to 500
+     */
+    fun poolSize(env: Map<String, String> = System.getenv()): Int {
+        val raw = env["THERMOBOX_DB_POOL_SIZE"]?.trim()?.takeIf { it.isNotEmpty() } ?: return DEFAULT_POOL_SIZE
+        return raw.toIntOrNull()?.takeIf { it in 1..500 } ?: error("THERMOBOX_DB_POOL_SIZE=$raw is not valid: a number from 1 to 500")
+    }
+
+    private const val DEFAULT_POOL_SIZE = 20
 
     private fun requireEnv(name: String): String =
         System.getenv(name) ?: error("Environment variable $name is not set")

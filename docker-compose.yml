@@ -15,6 +15,8 @@ x-app-env: &app-env
   THERMOBOX_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD missing: run scripts/init-env.sh}"
   # Access to the database: jpa (EclipseLink, default) or jdbc (plain SQL)
   THERMOBOX_DB_ACCESS: ${THERMOBOX_DB_ACCESS:-jpa}
+  # Connections to MySQL at most at once; the other requests wait their turn
+  THERMOBOX_DB_POOL_SIZE: ${THERMOBOX_DB_POOL_SIZE:-20}
   THERMOBOX_JWT_SECRET: "${THERMOBOX_JWT_SECRET:?THERMOBOX_JWT_SECRET missing (32 characters minimum): run scripts/init-env.sh}"
   THERMOBOX_JWT_TTL_MINUTES: ${THERMOBOX_JWT_TTL_MINUTES:-60}
   # Updates (see README): stable or prerelease channel, daily check, optional GitHub token
@@ -32,7 +34,14 @@ services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      # Data and indexes kept in memory: 128 MB by default, far less than a few months of measurements
+      - "--innodb-buffer-pool-size=${MYSQL_BUFFER_POOL:-512M}"
+      # Performance statistics: ~200 MB of memory nobody reads here
+      - "--performance-schema=${MYSQL_PERFORMANCE_SCHEMA:-OFF}"
+    mem_limit: ${MYSQL_MEMORY:-1536m}
     environment:
       TZ: ${TZ:-Europe/Paris}
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD missing: run scripts/init-env.sh}"
@@ -59,8 +68,11 @@ services:
         THERMOBOX_VERSION: ${THERMOBOX_VERSION:-dev}
     image: thermobox/rest:local
     restart: unless-stopped
+    mem_limit: ${REST_MEMORY:-1g}
     environment:
       <<: *app-env
+      # Memory of the JVM (the container's limit must stay above -Xmx, see REST_MEMORY)
+      JAVA_OPTS: ${REST_JAVA_OPTS:--Xms64m -Xmx768m -XX:G1PeriodicGCInterval=60000 -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true}
       THERMOBOX_HTTP_HOST: 0.0.0.0
       THERMOBOX_HTTP_PORT: "8080"
     ports:

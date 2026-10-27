@@ -74,8 +74,9 @@ sans risque entre les requêtes, et les entités renvoyées sont détachées. L'
 ### `jdbc/`
 
 - `JdbcDatabase` : connexions (mêmes variables `THERMOBOX_DB_*`), transactions (`transaction { }` :
-  validée ou annulée en bloc), et jusqu'à 8 connexions gardées ouvertes entre deux requêtes (une
-  connexion morte est remplacée). Le pilote JDBC est chargé d'après l'URL (`jdbc:mysql:`,
+  validée ou annulée en bloc), au plus `THERMOBOX_DB_POOL_SIZE` connexions utilisées à la fois (20 par
+  défaut ; les autres opérations attendent jusqu'à 30 s), et jusqu'à 8 gardées ouvertes entre deux
+  requêtes (une connexion morte est remplacée). EclipseLink reçoit le même plafond. Le pilote JDBC est chargé d'après l'URL (`jdbc:mysql:`,
   `jdbc:mariadb:`).
 - `Rows` : correspondance entre lignes et entités. Le type d'un élément ou d'une température vient de
   `DTYPE` (`Building`, `Floor`, `Room`, `Device` ; `Setpoint`, `Measurement`), le rôle d'un

@@ -46,6 +46,16 @@ docker/mosquitto/mosquitto.conf  broker MQTT
 - **Schéma.** Créé et mis à jour au démarrage par les migrations Flyway (voir le README, « Migrations de
   schéma ») : rien à faire à la main, même sur une base existante.
 
+## Mémoire et processeur
+
+Par défaut, `rest` a 1 Go (Java : 768 Mo au plus) et `mysql` 1,5 Go, dont 512 Mo de cache pour les
+données (`innodb_buffer_pool_size`, 128 Mo seulement sans réglage, ce qui oblige MySQL à relire le disque
+dès que l'historique grossit). Les statistiques internes de MySQL (`performance_schema`, ~200 Mo) sont
+coupées. Tout se change dans `.env` : `REST_MEMORY`, `REST_JAVA_OPTS`, `MYSQL_MEMORY`,
+`MYSQL_BUFFER_POOL`, `MYSQL_PERFORMANCE_SCHEMA`, `THERMOBOX_DB_POOL_SIZE`. Un petit site (quelques
+dizaines de boîtiers) tourne avec la moitié ; pour un gros historique, donnez plutôt plus de cache à
+MySQL (`MYSQL_BUFFER_POOL=1G`, avec `MYSQL_MEMORY` au-dessus). `loadtest/` mesure l'effet d'un réglage.
+
 ## Mises à jour depuis l'interface
 
 Les versions installées depuis **Administration → Mises à jour** (ou `POST /api/v2/updates/{version}/install`)
