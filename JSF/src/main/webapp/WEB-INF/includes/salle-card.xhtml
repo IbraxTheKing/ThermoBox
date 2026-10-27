@@ -3,7 +3,8 @@
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="http://primefaces.org/ui">
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:pt="jakarta.faces.passthrough">
     <!-- view-transition-name: card, name, photo and temperature morph into the detail page -->
     <article class="tb-room tb-ton-#{r.etat.ton} #{r.image ne null ? 'tb-room-photo' : ''}" data-flip="#{r.salle.id}"
              style="view-transition-name: salle-card-#{r.salle.id}; view-transition-class: tb-card">
@@ -34,10 +35,7 @@
 
         <div class="tb-room-reading">
             <span class="tb-temp-xl" style="view-transition-name: salle-temp-#{r.salle.id}" data-watch="t#{r.salle.id}">
-                <h:outputText value="#{r.moyenne}" rendered="#{r.moyenne ne null}">
-                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                </h:outputText>
-                <h:outputText value="—" rendered="#{r.moyenne eq null}"/>
+                #{unite.t(r.moyenne)}
                 <span class="tb-deg">°</span>
             </span>
             <div class="tb-room-badges">
@@ -49,7 +47,16 @@
         </div>
 
         <!-- Last 24 h: average of the boxes; dashed line = consigne -->
-        <h:panelGroup layout="block" styleClass="tb-spark" rendered="#{r.tendance ne null}">
+        <!-- Curves are computed after the page is shown (DashboardBean.chargerCourbes): placeholder meanwhile -->
+        <h:panelGroup layout="block" styleClass="tb-spark-loading" rendered="#{dashboardBean.courbesEnAttente}"
+                      pt:aria-busy="true" pt:aria-label="Courbe des dernières 24 h en cours de chargement">
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <path d="M0 26 C 12 18, 22 30, 34 22 S 56 10, 68 20 S 88 30, 100 16"/>
+            </svg>
+            <span class="tb-spark-caption">24 h</span>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="tb-spark #{dashboardBean.courbesNouvelles ? 'tb-spark-new' : ''}"
+                      rendered="#{not dashboardBean.courbesEnAttente and r.tendance ne null}">
             <svg class="tb-spark-fill" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                 <path d="#{r.tendance.aire}"/>
             </svg>
@@ -61,18 +68,16 @@
             <span class="tb-spark-dot" style="left: #{r.tendance.dernierX}%; top: #{r.tendance.dernierY}%"/>
             <span class="tb-spark-caption">24 h</span>
         </h:panelGroup>
-        <h:panelGroup layout="block" styleClass="tb-spark tb-spark-empty" rendered="#{r.tendance eq null}">
+        <h:panelGroup layout="block" styleClass="tb-spark tb-spark-empty #{dashboardBean.courbesNouvelles ? 'tb-spark-new' : ''}"
+                      rendered="#{not dashboardBean.courbesEnAttente and r.tendance eq null}">
             Pas encore assez de mesures pour une courbe
         </h:panelGroup>
 
         <div class="tb-room-foot">
             <span class="tb-consigne-pill" title="#{r.consigneTitre}">
                 <i class="pi #{r.consigneSource ne null ? 'pi-sitemap' : 'pi-sliders-h'}"/>
-                <h:outputText value="#{r.consigne.value}" rendered="#{r.consigne ne null}">
-                    <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                </h:outputText>
-                <h:outputText value="—" rendered="#{r.consigne eq null}"/>
-                °C
+                #{unite.t(r.consigne.value)}
+                #{unite.symbole}
                 <b>#{r.ecartLabel}</b>
             </span>
             <span class="tb-room-meta">

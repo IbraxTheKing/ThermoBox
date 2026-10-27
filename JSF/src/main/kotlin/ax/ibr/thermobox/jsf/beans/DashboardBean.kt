@@ -5,6 +5,7 @@ import ax.ibr.thermobox.common.entities.Boitier
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.jsf.Services
+import ax.ibr.thermobox.jsf.util.Unite
 import ax.ibr.thermobox.jsf.auth.LoginBean
 import ax.ibr.thermobox.jsf.basculerFavori as basculerFavoriEnBase
 import ax.ibr.thermobox.jsf.favorisDe
@@ -73,7 +74,7 @@ data class SalleResume(
 
     /** Écart à la consigne, ex. « +0,8° » (vide si pas de données). */
     val ecartLabel: String
-        get() = ecart?.let { String.format(Locale.FRANCE, "%+.1f°", it) } ?: ""
+        get() = Unite.courante().ecart(ecart)
 }
 
 /** Number of salles in a state, for the summary chips at the top of the dashboard. */
@@ -120,6 +121,12 @@ class DashboardBean : Serializable {
     private var tendances: Map<Long, Sparkline?> = emptyMap()
     private var tendancesCalculees: LocalDateTime? = null
 
+    /** First render: the cards show a placeholder until [chargerCourbes] has computed the curves. */
+    var courbesEnAttente: Boolean = true
+
+    /** True in the response that brings the curves: they draw themselves once (CSS tb-spark-new). */
+    var courbesNouvelles: Boolean = false
+
     val isVide: Boolean get() = toutes.isEmpty()
     val isAucunResultat: Boolean get() = toutes.isNotEmpty() && favoris.isEmpty() && groupes.isEmpty()
 
@@ -138,9 +145,12 @@ class DashboardBean : Serializable {
         val favorisIds = favorisDe(login.currentUser)
         val images = Services.images.getDates()
         // Exact type: étages, bâtiments and boîtiers are Salle subclasses but not salles.
-        val salles = Services.salles.getAllByType(Salle(null))
+        // Only those the user may see (AccesService), checked on the server at every refresh.
+        val acces = login.perimetre
+        val salles = Services.salles.getAllByType(Salle(null)).filter { acces.peutVoir(it) }
         val consignes = salles.associate { it.id to Services.climat.getConsigneEffective(it) }
-        chargerTendances(salles, consignes.mapValues { it.value?.consigne })
+        courbesNouvelles = false
+        if (!courbesEnAttente) chargerTendances(salles, consignes.mapValues { it.value?.consigne })
         toutes = salles.map { salle ->
             val chemin = Services.hierarchie.getChemin(salle)
             val mesures = Services.climat.getMesures(salle)
@@ -158,10 +168,17 @@ class DashboardBean : Serializable {
                 tendance = tendances[salle.id],
             )
         }
-        batiments = Services.salles.getAllByType(Batiment(null)).sortedBy { it.name?.lowercase() }
-        // Average of every box of the building, not of the salle averages (salles differ in size).
-        moyennesBatiments = batiments.associate { it.id to Services.climat.getMoyenne(it) }
-        boitiersNonRattaches = Services.hierarchie.getRacines().count { it is Boitier }
+        batiments = Services.salles.getAllByType(Batiment(null)).filter { acces.estVisible(it) }.sortedBy { it.name?.lowercase() }
+        moyennesBatiments = if (acces.tout) {
+            // Average of every box of the building, not of the salle averages (salles differ in size).
+            batiments.associate { it.id to Services.climat.getMoyenne(it) }
+        } else {
+            // Limited user: over the salles they may see only, weighted by their number of boxes
+            // (the building's own average would tell about the others).
+            toutes.filter { it.moyenne != null && it.boitiers > 0 }.groupBy { it.batiment?.id }
+                .mapValues { (_, l) -> (l.sumOf { it.moyenne!!.toDouble() * it.boitiers } / l.sumOf { it.boitiers }).toFloat() }
+        }
+        boitiersNonRattaches = if (acces.tout) Services.hierarchie.getRacines().count { it is Boitier } else 0
         compteurs = toutes.groupingBy { it.etat }.eachCount().toSortedMap().map { (etat, n) -> Compteur(etat, n) }
         filtrer()
     }
@@ -182,6 +199,13 @@ class DashboardBean : Serializable {
             salle.id!! to Sparkline.of(historique, debut, maintenant, consignes[salle.id]?.value)
         }
         tendancesCalculees = maintenant
+    }
+
+    /** p:remoteCommand run once the page is shown: computes the curves (a day of measures per salle). */
+    fun chargerCourbes() {
+        courbesEnAttente = false
+        refresh()
+        courbesNouvelles = true
     }
 
     /** "Actualiser": unlike the poll, also redraws the curves. */

@@ -4,6 +4,8 @@ package ax.ibr.thermobox.restserver.resources
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.restserver.dto.AccesDto
+import ax.ibr.thermobox.restserver.dto.AccesRequest
 import ax.ibr.thermobox.restserver.dto.UserDto
 import ax.ibr.utils.exceptions.AlreadyExistsException
 import ax.ibr.utils.rest.PublicEndpoint
@@ -29,6 +31,8 @@ import javax.naming.InvalidNameException
 @Consumes(MediaType.APPLICATION_JSON)
 class UserResource {
     private val service = BusinessFactory.getUserService()
+    private val salleService = BusinessFactory.getSalleService()
+    private val acces = BusinessFactory.getAccesService()
 
     @GET
     @Path("/{id}")
@@ -68,9 +72,9 @@ class UserResource {
         } catch (e: AlreadyExistsException) {
             error(Response.Status.CONFLICT, e.message ?: "Username already taken")
         } catch (e: InvalidNameException) {
-            error(Response.Status.CONFLICT, e.message ?: "${username} is not a valid username.")
+            error(Response.Status.CONFLICT, e.message ?: "Username is not a valid username")
         } catch (e: Exception) {
-            error(Response.Status.BAD_REQUEST, e.message ?: "${username} is not a valid username: ${e.message}")
+            error(Response.Status.BAD_REQUEST, e.message ?: "Username is not a valid username: ${e.message}")
         }
     }
 
@@ -129,6 +133,36 @@ class UserResource {
     ): Response {
         val user = service.getByUsername(username) ?: return notFound()
         return Response.ok(UserDto.from(user)).build()
+    }
+
+    /**
+     * Accesses of a user: unlimited, or limited to some bâtiments / étages / salles and what
+     * they contain. An ADMIN reads anyone's, a user their own.
+     */
+    @GET
+    @Path("/{id}/acces")
+    @RequiresAuth(roles = ["ADMIN"], allowOwner = true)
+    fun getAcces(@PathParam("id") id: Long): Response {
+        val user = service.getById(id) ?: return notFound()
+        return Response.ok(AccesDto.of(user)).build()
+    }
+
+    /** Replaces the accesses of a user (ADMIN). An ADMIN account can't be limited. */
+    @PUT
+    @Path("/{id}/acces")
+    @RequiresRole("ADMIN")
+    fun setAcces(@PathParam("id") id: Long, demande: AccesRequest?): Response {
+        val user = service.getById(id) ?: return notFound()
+        if (demande == null) return error(Response.Status.BAD_REQUEST, "Missing body")
+        val salles = demande.elements.map { sid ->
+            salleService.getById(sid) ?: return error(Response.Status.BAD_REQUEST, "Unknown element $sid")
+        }
+        return try {
+            acces.definir(user, demande.restricted, salles)
+            Response.ok(AccesDto.of(user)).build()
+        } catch (e: IllegalArgumentException) {
+            error(Response.Status.BAD_REQUEST, e.message ?: "Invalid accesses")
+        }
     }
 
     /** BCrypt only uses the first 72 bytes: refuse rather than silently ignore the rest. */

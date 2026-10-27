@@ -96,7 +96,10 @@ object DatabaseSeeder {
         println("== Seed : Utilisateurs ==")
         utilisateurs.forEach { (username, type) ->
             if (users.getByUsername(username) == null) {
-                users.add(User(username, MOT_DE_PASSE, type))
+                val user = User(username, MOT_DE_PASSE, type)
+                users.add(user)
+                // A new account sees nothing until it is given accesses: the demo accounts see everything.
+                if (type != UserType.ADMIN) BusinessFactory.getAccesService().definir(user, false, emptyList())
                 println("Utilisateur ajouté : $username ($type) / $MOT_DE_PASSE")
             } else {
                 println("Utilisateur déjà existant : $username")

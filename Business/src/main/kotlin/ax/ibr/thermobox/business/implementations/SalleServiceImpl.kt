@@ -17,6 +17,7 @@ class SalleServiceImpl(
 
     // Only needed by remove(); lazy so tests of the other methods don't open the database.
     private val links: SalleSalleAttrService by lazy { PersistenceFactory.getSalleSalleAttrDataService() }
+    private val acces by lazy { PersistenceFactory.getAccesDataService() }
     private val history: SalleTempAttrService by lazy { PersistenceFactory.getSalleTempAttrDataService() }
     private val favoris: FavoriService by lazy { PersistenceFactory.getFavoriDataService() }
     private val images: SalleImageService by lazy { PersistenceFactory.getSalleImageDataService() }
@@ -48,6 +49,9 @@ class SalleServiceImpl(
         if (t.id != null) {
             favoris.getBySalle(t).forEach { favoris.remove(it) }
             images.getBySalle(t)?.let { images.remove(it) }
+            acces.supprimerPourSalle(t)
+            // …and the groups that gave access to it
+            PersistenceFactory.getGroupeDataService().oublierSalle(t)
         }
         links.getBySalle(t).forEach { links.remove(it) }
         history.getBySalle(t).orEmpty().forEach { history.remove(it) }

@@ -1,16 +1,17 @@
+
 package ax.ibr.thermobox.restserver.security
 
+import ax.ibr.thermobox.business.implementations.BusinessFactory
+import ax.ibr.thermobox.common.acces.Perimetre
 import ax.ibr.thermobox.common.entities.User
 import com.auth0.jwt.interfaces.DecodedJWT
 import jakarta.ws.rs.core.SecurityContext
 import java.security.Principal
 
 /**
- * Security context installed by the security filter once a request is authenticated.
- * Resources get it through `@Context SecurityContext`; roles come from the database user,
- * not from the token, so a role change applies immediately.
+ * Transporte l'utilisateur et son JWT dans le Principal exposé par Jersey.
+ * On ne dépend pas de l'implémentation interne du SecurityContext de Jersey.
  */
-
 data class JwtPrincipal(
     val user: User,
     val token: DecodedJWT
@@ -19,8 +20,8 @@ data class JwtPrincipal(
 }
 
 class JwtSecurityContext(
-    val user: User,
-    val token: DecodedJWT,
+    user: User,
+    token: DecodedJWT,
     private val secure: Boolean
 ) : SecurityContext {
 
@@ -36,7 +37,17 @@ class JwtSecurityContext(
     override fun getAuthenticationScheme(): String = "Bearer"
 }
 
-/** Authenticated user of the current request. Only valid on non-public endpoints. */
+/**
+ * Extensions pour récupérer les données depuis le Principal,
+ * sans caster le SecurityContext lui-même.
+ */
 val SecurityContext.currentUser: User
     get() = (userPrincipal as? JwtPrincipal)?.user
         ?: throw IllegalStateException("Authenticated ThermoBox user not found")
+
+val SecurityContext.currentToken: DecodedJWT
+    get() = (userPrincipal as? JwtPrincipal)?.token
+        ?: throw IllegalStateException("Authenticated ThermoBox token not found")
+
+val SecurityContext.perimetre: Perimetre
+    get() = BusinessFactory.getAccesService().perimetre(currentUser)

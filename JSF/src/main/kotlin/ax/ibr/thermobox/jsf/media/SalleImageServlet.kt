@@ -3,6 +3,7 @@ package ax.ibr.thermobox.jsf.media
 import ax.ibr.thermobox.common.entities.Salle
 import ax.ibr.thermobox.jsf.Services
 import ax.ibr.thermobox.jsf.auth.AuthFilter
+import ax.ibr.thermobox.jsf.auth.AuthenticatedUser
 import jakarta.servlet.annotation.WebServlet
 import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
@@ -19,16 +20,22 @@ import java.time.ZoneId
 class SalleImageServlet : HttpServlet() {
 
     override fun doGet(req: HttpServletRequest, res: HttpServletResponse) {
-        if (req.getAttribute(AuthFilter.CURRENT_USER) == null) return res.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+        val auth = req.getAttribute(AuthFilter.CURRENT_USER) as? AuthenticatedUser
+            ?: return res.sendError(HttpServletResponse.SC_UNAUTHORIZED)
 
         val id = req.pathInfo?.removePrefix("/")?.toLongOrNull()
             ?: return res.sendError(HttpServletResponse.SC_NOT_FOUND)
+        // A photo outside the user's accesses answers like a missing one.
+        if (!auth.hasRole("ADMIN") && !Services.acces.perimetre(auth.user).peutVoir(id)) {
+            return res.sendError(HttpServletResponse.SC_NOT_FOUND)
+        }
         val image = Services.images.getBySalle(Salle().apply { this.id = id })
             ?: return res.sendError(HttpServletResponse.SC_NOT_FOUND)
 
         val etag = "\"${version(image.updated)}\""
         res.setHeader("ETag", etag)
-        res.setHeader("Cache-Control", "private, max-age=31536000, immutable")
+        // Not "immutable": a withdrawn access must not leave the photo in the browser cache for a year.
+        res.setHeader("Cache-Control", "private, no-cache")
         if (req.getHeader("If-None-Match") == etag) return res.setStatus(HttpServletResponse.SC_NOT_MODIFIED)
 
         res.contentType = image.contentType

@@ -2,6 +2,7 @@ package ax.ibr.thermobox.jsf.auth
 
 import ax.ibr.thermobox.business.security.Authenticator
 import ax.ibr.thermobox.business.security.JwtService
+import ax.ibr.thermobox.common.acces.Perimetre
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.jsf.util.Faces
 import jakarta.enterprise.context.RequestScoped
@@ -38,6 +39,14 @@ class LoginBean {
 
     /** PUT /api/salletemps/room/{id}/consigne : ADMIN or GESTIONNAIRE. */
     val canSetConsigne: Boolean get() = isGestionnaire
+
+    /**
+     * Bâtiments, étages and salles this user may see (AccesService), worked out once per request
+     * (this bean is request-scoped): a change of accesses applies to the next request.
+     */
+    val perimetre: Perimetre by lazy {
+        if (isAdmin) Perimetre.TOUT else ax.ibr.thermobox.jsf.Services.acces.perimetre(currentUser)
+    }
 
     /** Boxes are hardware: VIEWERs only see bâtiments, étages, salles and their temperatures (#30). */
     val canSeeBoitiers: Boolean get() = isGestionnaire

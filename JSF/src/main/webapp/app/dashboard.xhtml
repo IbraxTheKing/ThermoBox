@@ -19,6 +19,9 @@
                                  process="@this" update="grille resume" styleClass="tb-tonal" onstart="tbFlip.first()" oncomplete="tbFlip.play()"/>
             </header>
 
+            <ui:include src="/WEB-INF/includes/update-banner.xhtml"/>
+            <ui:include src="/WEB-INF/includes/deprecation-banner.xhtml"/>
+
             <h:panelGroup id="resume" layout="block" styleClass="tb-summary">
                 <!-- Filter chips: one click shows only the salles in that state, a second click shows them all -->
                 <ui:repeat value="#{dashboardBean.compteurs}" var="c">
@@ -30,6 +33,15 @@
                     </p:commandLink>
                 </ui:repeat>
             </h:panelGroup>
+
+            <!-- The 24 h curves come in a second request, so the page shows without waiting for them.
+                 Not before the end of the transition from a salle: replacing the grid during the card's
+                 morph would cut it short (tbAnim.apresTransition). -->
+            <p:remoteCommand name="tbChargerCourbes" action="#{dashboardBean.chargerCourbes}" process="@this"
+                             update="grille"/>
+            <ui:fragment rendered="#{dashboardBean.courbesEnAttente}">
+                <script>$(function () { tbAnim.apresTransition(function () { tbChargerCourbes(); }); });</script>
+            </ui:fragment>
 
             <!-- tbWatch: the temperatures that changed since the last refresh pulse once -->
             <p:poll interval="30" listener="#{dashboardBean.refresh}" process="@this" update="grille resume"
@@ -67,9 +79,11 @@
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.vide}">
                     <span class="tb-empty-icon"><i class="pi pi-building"/></span>
-                    <strong>Aucune salle pour le moment</strong>
+                    <strong>#{loginBean.perimetre.tout ? 'Aucune salle pour le moment' : 'Aucune salle ne vous est accessible pour le moment'}</strong>
+                    <h:outputText value="Un administrateur vous donne accès aux bâtiments, étages ou salles à suivre."
+                                  rendered="#{not loginBean.perimetre.tout}"/>
                     <p:linkButton value="Gérer les bâtiments et salles" outcome="/app/salles"
-                                  styleClass="tb-tonal"/>
+                                  rendered="#{loginBean.admin}" styleClass="tb-tonal"/>
                 </h:panelGroup>
 
                 <h:panelGroup layout="block" styleClass="tb-empty" rendered="#{dashboardBean.aucunResultat}">
@@ -111,10 +125,8 @@
                                 <span class="tb-section-meta">
                                     #{g.salles.size()} salle(s)
                                     <h:outputText value=" · " rendered="#{g.moyenne ne null}"/>
-                                    <h:outputText value="#{g.moyenne}" rendered="#{g.moyenne ne null}">
-                                        <f:convertNumber minFractionDigits="1" maxFractionDigits="1"/>
-                                    </h:outputText>
-                                    <h:outputText value=" °C en moyenne" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value="#{unite.t(g.moyenne)}" rendered="#{g.moyenne ne null}"/>
+                                    <h:outputText value=" #{unite.symbole} en moyenne" rendered="#{g.moyenne ne null}"/>
                                 </span>
                                 <i class="pi pi-chevron-down tb-section-chevron"/>
                             </button>

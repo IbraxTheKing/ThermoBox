@@ -25,6 +25,11 @@
         <class>ax.ibr.thermobox.common.entities.SalleTempAttr</class>
         <class>ax.ibr.thermobox.common.entities.Consigne</class>
         <class>ax.ibr.thermobox.common.entities.Mesurer</class>
+        <class>ax.ibr.thermobox.common.entities.Acces</class>
+        <class>ax.ibr.thermobox.common.entities.AccesRestreint</class>
+        <class>ax.ibr.thermobox.common.entities.Groupe</class>
+        <class>ax.ibr.thermobox.common.entities.GroupeMembre</class>
+        <class>ax.ibr.thermobox.common.entities.GroupeAcces</class>
 
         <properties>
 
@@ -33,8 +38,9 @@
 
             <!-- URL, user and password come from environment variables (see PersistenceFactory). -->
 
+            <!-- The schema belongs to the Flyway migrations (db/migration, see MigrationsBase). -->
             <property name="jakarta.persistence.schema-generation.database.action"
-                      value="create"/>
+                      value="none"/>
 
         </properties>
 

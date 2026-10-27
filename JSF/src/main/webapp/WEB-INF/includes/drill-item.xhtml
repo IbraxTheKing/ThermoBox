@@ -1,0 +1,24 @@
+<!-- One line of the phone list of salles.xhtml. Expects "n" (Noeud). -->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui">
+    <i class="pi #{n.icon} tb-tree-icon"/>
+    <span class="tb-drill-text">
+        <span class="tb-drill-name">#{n.salle.name}</span>
+        <span class="tb-drill-meta">
+            #{n.kind.label}
+            <h:outputText value=" · #{salleBean.nombreEnfants(n)} élément(s)" rendered="#{salleBean.estDossier(n)}"/>
+            <h:outputText value=" · #{n.boitiers} boîtier(s)"
+                          rendered="#{loginBean.canSeeBoitiers and n.kind eq 'SALLE' and n.boitiers gt 0}"/>
+            <p:tag value="Non rattaché" severity="warning" rendered="#{not n.rattache}"/>
+        </span>
+    </span>
+    <span class="tb-drill-temp">
+        <h:outputText value="#{unite.t(n.temperature)}" rendered="#{n.temperature ne null}"/>
+        <h:outputText value="°" rendered="#{n.temperature ne null}"/>
+        <h:outputText value="—" rendered="#{n.temperature eq null and n.accessible}"/>
+    </span>
+    <i class="pi #{salleBean.estDossier(n) ? 'pi-angle-right' : 'pi-arrow-up-right'} tb-drill-go"/>
+</ui:composition>

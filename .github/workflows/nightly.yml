@@ -5,7 +5,8 @@ name: Nightly pre-release
 # (format du README ; les anciennes nightly en -nightly-<n> sont encore comptées).
 # Les correctifs (26.10.x) ne passent pas par ici : ils sont publiés comme versions stables.
 #
-# Branche construite : dev/<série> (ex. dev/26.11) si elle existe, sinon la seule branche dev/*.
+# Branche construite : dev/<série> (ex. dev/26.11) si elle existe, sinon la branche « dev »,
+# sinon la seule branche dev/*.
 # Un cron ne lit que le fichier du workflow présent sur la branche par défaut du dépôt.
 
 on:
@@ -50,11 +51,13 @@ jobs:
           fi
           serie=$(printf '%d.%02d' "$aa" "$mm")
 
-          branches=$(git branch -r --format='%(refname:short)' | sed -n 's#^origin/##p' | grep '^dev/' || true)
+          branches=$(git branch -r --format='%(refname:short)' | sed -n 's#^origin/##p' | grep -E '^dev(/|$)' || true)
           if [ -n "$DEMANDEE" ]; then
             branche="$DEMANDEE"
           elif echo "$branches" | grep -qx "dev/$serie"; then
             branche="dev/$serie"
+          elif echo "$branches" | grep -qx "dev"; then
+            branche="dev"
           elif [ -n "$branches" ] && [ "$(echo "$branches" | wc -l)" -eq 1 ]; then
             branche="$branches"
           else

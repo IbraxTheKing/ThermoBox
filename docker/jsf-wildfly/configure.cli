@@ -1,0 +1,17 @@
+# Configuration de WildFly, exécutée une seule fois pendant le build de l'image.
+#
+# Pas de datasource ici : l'application ouvre sa propre connexion JDBC avec les variables
+# d'environnement THERMOBOX_DB_* (PersistenceFactory), une datasource JNDI ne serait pas utilisée.
+
+embed-server --server-config=standalone.xml --std-out=echo
+
+# Retire la page d'accueil WildFly pour que ROOT.war réponde sur "/"
+if (outcome == success) of /subsystem=undertow/server=default-server/host=default-host/location=\/:read-resource
+    /subsystem=undertow/server=default-server/host=default-host/location=\/:remove
+end-if
+
+# Envoi de photos de salles : web.xml autorise 11 Mo par requête (max-request-size),
+# la limite Undertow par défaut est de 10 Mo.
+/subsystem=undertow/server=default-server/http-listener=default:write-attribute(name=max-post-size, value=12582912)
+
+stop-embedded-server

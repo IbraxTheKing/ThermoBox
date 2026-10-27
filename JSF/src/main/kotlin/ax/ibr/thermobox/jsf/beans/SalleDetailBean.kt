@@ -16,6 +16,7 @@ import ax.ibr.thermobox.jsf.media.SalleImageServlet
 import ax.ibr.thermobox.jsf.util.ChartBuilder
 import ax.ibr.thermobox.jsf.util.ChartBuilder.Serie
 import ax.ibr.thermobox.jsf.util.Faces
+import ax.ibr.thermobox.jsf.util.Unite
 import jakarta.faces.view.ViewScoped
 import jakarta.inject.Inject
 import jakarta.inject.Named
@@ -24,7 +25,6 @@ import org.primefaces.model.charts.line.LineChartModel
 import java.io.Serializable
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Locale
 
 /**
  * Page détail d'un élément : moyenne de ses boîtiers, consigne, historique. Une salle montre
@@ -76,6 +76,9 @@ class SalleDetailBean : Serializable {
     val kindLabel: String get() = salle?.kind?.label.orEmpty()
     val isBoitier: Boolean get() = salle?.kind == SalleKind.BOITIER
 
+    /** Breadcrumb: an ancestor outside the user's accesses is shown as plain text, not as a link. */
+    fun accessible(s: Salle): Boolean = login.perimetre.peutVoir(s)
+
     /** Only salles go on the dashboard, so only they can be favourites. */
     val isSalleSimple: Boolean get() = salle?.kind == SalleKind.SALLE
 
@@ -85,8 +88,10 @@ class SalleDetailBean : Serializable {
     /** f:viewAction (appelé une seule fois, pas sur les postbacks) */
     fun load() {
         salle = id?.let { runCatching { Services.salles.getById(it) }.getOrNull() }
-            // A VIEWER gets the same "not found" page as for an unknown id.
+            // A VIEWER gets the same "not found" page as for an unknown id, and so does anyone
+            // for an element outside their accesses (even typed by hand in the URL).
             ?.takeUnless { it.kind == SalleKind.BOITIER && !login.canSeeBoitiers }
+            ?.takeIf { login.perimetre.peutVoir(it) }
         val s = salle ?: return
         ancetres = Services.hierarchie.getChemin(s)
         favori = s.id in favorisDe(login.currentUser)
@@ -100,17 +105,28 @@ class SalleDetailBean : Serializable {
     /** Appelé aussi par le p:poll. */
     fun refresh() {
         val s = salle ?: return
+        // Accesses withdrawn while the page was open: nothing more is shown.
+        if (!login.perimetre.peutVoir(s)) {
+            salle = null
+            Faces.warn("Vous n'avez plus accès à cet élément")
+            return
+        }
         mesures = Services.climat.getMesures(s)
         moyenne = mesures.mapNotNull { it.mesure?.value }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
         consigneEffective = Services.climat.getConsigneEffective(s)
         consignesPropres = if (isBoitier) emptyList() else Services.climat.getConsignesPropres(s)
         if (isConteneur) salles = Services.hierarchie.getSalles(s).map { resumer(it) }
         // The spinner starts from the current consigne rather than from its minimum.
-        if (nouvelleConsigne == null) nouvelleConsigne = consigne?.value ?: CONSIGNE_PAR_DEFAUT
+        // Shown in the unit of the Préférences page (rounded to the step of the field)
+        if (nouvelleConsigne == null) nouvelleConsigne = (consigne?.value ?: CONSIGNE_PAR_DEFAUT).let { c ->
+            val u = Unite.courante()
+            if (u == Unite.FAHRENHEIT) Math.round(u.depuisCelsius(c)).toFloat() else c
+        }
     }
 
     fun basculerFavori() {
         val s = salle ?: return
+        if (!login.require(login.perimetre.peutVoir(s))) return
         val user = login.currentUser ?: return
         try {
             favori = basculerFavoriEnBase(user, s)
@@ -169,13 +185,13 @@ class SalleDetailBean : Serializable {
 
     /** « Étage 1 (19,0 °C), Everest (22,5 °C) » */
     val consignesPropresLabel: String
-        get() = consignesPropres.joinToString { String.format(Locale.FRANCE, "%s (%.1f °C)", it.source.name, it.consigne.value) }
+        get() = Unite.courante().let { u -> consignesPropres.joinToString { "${it.source.name} (${u.texte(it.consigne.value)} ${u.symbole})" } }
 
     /** Écart d'un boîtier à la moyenne de la salle, ex. « +0,4° ». */
     fun ecart(m: MesureBoitier): String {
         val valeur = m.mesure?.value ?: return ""
         val moy = moyenne ?: return ""
-        return String.format(Locale.FRANCE, "%+.1f°", valeur - moy)
+        return Unite.courante().ecart(valeur - moy)
     }
 
     /**
@@ -184,8 +200,11 @@ class SalleDetailBean : Serializable {
      */
     fun envoyerConsigne() {
         val s = salle ?: return
-        val value = nouvelleConsigne ?: return
-        if (!login.require(login.canSetConsigne)) return
+        val unite = Unite.courante()
+        // Entered in the unit of the Préférences page, stored in Celsius
+        val saisie = nouvelleConsigne ?: return
+        val value = Math.round(unite.versCelsius(saisie) * 10f) / 10f
+        if (!login.require(login.canSetConsigne && login.perimetre.peutVoir(s))) return
 
         val envoi = try {
             Services.climat.envoyerConsigne(s, value, forcer)
@@ -193,7 +212,7 @@ class SalleDetailBean : Serializable {
             Faces.error("Consigne refusée", e.message)
             return
         }
-        val titre = String.format(Locale.FRANCE, "Consigne de %.1f °C enregistrée", value)
+        val titre = "Consigne de ${unite.texte(value)} ${unite.symbole} enregistrée"
         val details = buildList {
             add(if (envoi.boitiers.isEmpty()) "aucun boîtier à prévenir" else "envoyée à ${envoi.boitiers.size} boîtier(s)")
             if (envoi.remplacees.isNotEmpty()) add("remplace celle de ${envoi.remplacees.joinToString { it.name.orEmpty() }}")
