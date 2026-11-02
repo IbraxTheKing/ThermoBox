@@ -61,4 +61,21 @@ class SetpointWatchTest {
         assertTrue(SetpointWatch.changes(c, 20.5f, t0, t0.plusMinutes(16)).isEmpty())
         assertEquals(1, SetpointWatch.changes(c, 20.5f, t0, t0.plusMinutes(25)).size)
     }
+
+    @Test
+    fun `an app that asks every 2 minutes gets each change once`() {
+        // HEATING until 15, STABLE from 15 to 35, TOO_HOT from 35: two changes
+        val c = curve(18f, 18f, 18f, 20.5f, 20.5f, 20.5f, 20.5f, 22f, 22f, 22f, 22f, 22f, 22f)
+        val got = mutableListOf<SetpointState>()
+        var since = t0.plusMinutes(1)
+        var now = since
+        while (now.isBefore(t0.plusMinutes(70))) {
+            now = now.plusMinutes(2)
+            // The measures the server has by then
+            val known = c.filter { !it.date!!.isAfter(now) }
+            got += SetpointWatch.changes(known, 20.5f, since, now).map { it.state }
+            since = now
+        }
+        assertEquals(listOf(SetpointState.STABLE, SetpointState.TOO_HOT), got)
+    }
 }
