@@ -26,8 +26,12 @@ data class SetpointChange(
  * When a room starts or stops respecting its setpoint, from its average curve: the changes of
  * [SetpointState] along it. A state counts once it has lasted [HOLD] (a measure that crosses the
  * line and comes back is not a change), and is dated from its first measure. The state before
- * the period asked for is read from the curve before it (LOOKBACK): only the changes inside the
- * period are given.
+ * the period asked for is read from the curve before it (LOOKBACK).
+ *
+ * A change belongs to the period in which it became known (its start + [HOLD]), not to the one
+ * in which it started: an app that asks every 2 minutes « since my last question » would
+ * otherwise never get it (known 10 minutes after its start, it had started before the period
+ * asked for). Each change is in exactly one of a run of periods that follow each other.
  *
  * Nothing is stored: the changes are read again from the measures on each request, so a client
  * that asks « since my last visit » gets what happened meanwhile, whoever else asked.
@@ -53,9 +57,10 @@ object SetpointWatch {
     }
 
     /**
-     * Changes of state along [curve] (oldest first) against [setpoint], those that started at or
-     * after [since]. [now]: a state reached by the last measures counts if it has lasted [hold] by
-     * then (the boxes report every few minutes, not continuously).
+     * Changes of state along [curve] (oldest first) against [setpoint], those that became known
+     * (their start + [hold]) after [since] and by [now]. A state reached by the last measures
+     * counts if it has lasted [hold] by [now] (the boxes report every few minutes, not
+     * continuously).
      */
     fun changes(
         curve: List<Temperature>,
@@ -74,7 +79,8 @@ object SetpointWatch {
             val state = candidate ?: return
             val start = candidateStart ?: return
             val previous = confirmed
-            if (previous != null && previous != state && !start.isBefore(since)) {
+            val known = start.plus(hold)
+            if (previous != null && previous != state && known.isAfter(since) && !known.isAfter(now)) {
                 result += SetpointChange(previous, state, start, candidateLast)
             }
             confirmed = state
