@@ -107,7 +107,9 @@ internal object Rows {
     // --- user: the type is stored as its ordinal (JPA's default for an enum) ---
 
     fun userColumns(alias: String, prefix: String = alias) =
-        "$alias.id AS ${prefix}_id, $alias.username AS ${prefix}_username, $alias.password AS ${prefix}_password, $alias.type AS ${prefix}_type"
+        "$alias.id AS ${prefix}_id, $alias.username AS ${prefix}_username, $alias.password AS ${prefix}_password, $alias.type AS ${prefix}_type, " +
+            "$alias.first_name AS ${prefix}_first_name, $alias.last_name AS ${prefix}_last_name, $alias.email AS ${prefix}_email, " +
+            "$alias.password_change_required AS ${prefix}_pcr, $alias.provisional_expires_at AS ${prefix}_pexp"
 
     fun user(rs: ResultSet, prefix: String): User? {
         val id = rs.longOrNull("${prefix}_id") ?: return null
@@ -116,6 +118,11 @@ internal object Rows {
             username = rs.getString("${prefix}_username")
             password = rs.getString("${prefix}_password")
             type = rs.intOrNull("${prefix}_type")?.let { UserType.entries.getOrNull(it) }
+            firstName = rs.getString("${prefix}_first_name")
+            lastName = rs.getString("${prefix}_last_name")
+            email = rs.getString("${prefix}_email")
+            passwordChangeRequired = rs.getBoolean("${prefix}_pcr")
+            provisionalExpiresAt = rs.dateTime("${prefix}_pexp")
         }
     }
 

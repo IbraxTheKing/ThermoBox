@@ -4,6 +4,7 @@ import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.business.update.BuildInfo
+import ax.ibr.thermobox.business.users.FirstAdmin
 import ax.ibr.thermobox.restserver.update.RestComponent
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.message.GZipEncoder
@@ -35,6 +36,9 @@ fun main() {
         baseUri,
         config
     )
+
+    // An empty database: its first ADMIN account, with a provisional password (never printed)
+    FirstAdmin.ensure()?.let(::println)
 
     // Listen to the boxes
     BusinessFactory.getDriver().listen()

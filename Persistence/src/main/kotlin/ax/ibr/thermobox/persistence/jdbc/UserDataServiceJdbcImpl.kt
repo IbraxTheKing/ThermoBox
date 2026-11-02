@@ -17,13 +17,23 @@ class UserDataServiceJdbcImpl(db: JdbcDatabase) : UserDataService, CrudJdbcServi
     override fun setId(t: User, id: Long) { t.id = id }
 
     override fun insert(cx: Connection, t: User): Long =
-        cx.insert("INSERT INTO `user` (username, password, type) VALUES (?, ?, ?)", t.username, t.password, Rows.userType(t.type))
+        cx.insert(
+            "INSERT INTO `user` (username, password, type, first_name, last_name, email, password_change_required, provisional_expires_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            t.username, t.password, Rows.userType(t.type), t.firstName, t.lastName, t.email, t.passwordChangeRequired, t.provisionalExpiresAt,
+        )
 
     override fun updateRow(cx: Connection, t: User) {
-        cx.execute("UPDATE `user` SET username = ?, password = ?, type = ? WHERE id = ?", t.username, t.password, Rows.userType(t.type), t.id)
+        cx.execute(
+            "UPDATE `user` SET username = ?, password = ?, type = ?, first_name = ?, last_name = ?, email = ?, " +
+                "password_change_required = ?, provisional_expires_at = ? WHERE id = ?",
+            t.username, t.password, Rows.userType(t.type), t.firstName, t.lastName, t.email, t.passwordChangeRequired, t.provisionalExpiresAt, t.id,
+        )
     }
 
     override fun getByUsername(username: String): User? = list("WHERE e.username = ? ORDER BY e.id LIMIT 1", username).firstOrNull()
 
     override fun getByType(userType: UserType): List<User> = list("WHERE e.type = ? ORDER BY e.id", userType.ordinal)
+
+    override fun getByEmail(email: String): User? = list("WHERE LOWER(e.email) = LOWER(?) ORDER BY e.id LIMIT 1", email.trim()).firstOrNull()
 }
