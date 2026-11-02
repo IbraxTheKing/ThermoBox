@@ -107,4 +107,22 @@ class UserView(private val user: User, private val access: AccessScope) {
             },
         )
     }
+
+    /**
+     * Rooms this user may read, with the setpoint they are held to (their own or inherited): those
+     * of [ids] (a building or a floor gives the rooms under it), or every one with null.
+     */
+    fun watchedRooms(ids: Collection<Long>?): List<Pair<Room, Float>> {
+        val rooms = if (ids == null) {
+            snapshot.elements.values.filter { it.kind == RoomKind.ROOM }
+        } else {
+            ids.mapNotNull { snapshot.elements[it] }.flatMap { if (it.kind == RoomKind.ROOM) listOf(it) else snapshot.below(it, RoomKind.ROOM) }
+        }
+        return rooms.distinctBy { it.id }
+            .filter { accessible(it) }
+            .mapNotNull { r -> snapshot.effectiveSetpoint(r)?.setpoint?.value?.let { r to it } }
+    }
+
+    /** « Bâtiment A › Étage 1 »: where [room] is, the parts this user may see. */
+    fun placeOf(room: Room): String = snapshot.path(room).filter { visible(it) }.mapNotNull { it.name }.joinToString(" › ")
 }
