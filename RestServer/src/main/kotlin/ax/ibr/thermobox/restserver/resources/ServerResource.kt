@@ -200,9 +200,14 @@ data class ServerInfoDto(
     val apiVersions: List<String>,
     val logo: String,
     val logoSource: String,
+    /** What this server can do beyond the API of its version, for the clients to show it. */
+    val features: List<String> = FEATURES,
 ) {
     companion object {
         val API_VERSIONS = listOf("v1", "v2")
+
+        /** Import of accounts (users/import), provisional passwords and their change (auth/password). */
+        val FEATURES = listOf("user-import", "provisional-passwords")
 
         fun of(logo: Logo) = ServerInfoDto(
             "ThermoBox", BuildInfo.text, API_VERSIONS, "/api/v2/server/logo?v=${logo.version}", logo.source.name.lowercase(),

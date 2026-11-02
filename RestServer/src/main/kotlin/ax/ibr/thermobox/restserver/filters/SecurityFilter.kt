@@ -2,8 +2,10 @@ package ax.ibr.thermobox.restserver.filters
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.User
+import ax.ibr.thermobox.restserver.security.AllowedWithProvisionalPassword
 import ax.ibr.thermobox.restserver.security.JwtSecurityContext
 import ax.ibr.thermobox.business.security.JwtService
+import ax.ibr.thermobox.business.security.ProvisionalPasswords
 import ax.ibr.utils.rest.PublicEndpoint
 import ax.ibr.utils.rest.RequiresAuth
 import ax.ibr.utils.rest.RequiresRole
@@ -25,6 +27,11 @@ import jakarta.ws.rs.ext.Provider
  *
  * A token is accepted only if it is validly signed, not expired, not revoked (logout) and
  * still points to an existing user. Missing/invalid credentials give 401, insufficient rights 403.
+ *
+ * A user whose password is provisional (imported account, password reset by an admin) only
+ * reaches the endpoints marked [AllowedWithProvisionalPassword] until they choose theirs: the
+ * others answer 403 with `"code": "password_change_required"` (401 `provisional_expired` once the
+ * provisional password is out of date).
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION)
@@ -57,6 +64,11 @@ class SecurityFilter : ContainerRequestFilter {
         requestContext.securityContext =
             JwtSecurityContext(user, jwt, requestContext.securityContext?.isSecure == true)
 
+        if (user.passwordChangeRequired && !method.isAnnotationPresent(AllowedWithProvisionalPassword::class.java)) {
+            if (ProvisionalPasswords.expired(user)) return unauthorized(requestContext, "Provisional password expired", "provisional_expired")
+            return abort(requestContext, Response.Status.FORBIDDEN, "Password change required", "password_change_required")
+        }
+
         method.getAnnotation(RequiresRole::class.java)?.let {
             if (!userType.hasRole(it.value)) return forbidden(requestContext)
         }
@@ -79,12 +91,21 @@ class SecurityFilter : ContainerRequestFilter {
         return ownerId != null && ownerId == user.id
     }
 
-    private fun unauthorized(context: ContainerRequestContext, message: String) {
+    private fun unauthorized(context: ContainerRequestContext, message: String, code: String? = null) {
         context.abortWith(
             Response.status(Response.Status.UNAUTHORIZED)
                 .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                 .type(MediaType.APPLICATION_JSON_TYPE)
-                .entity(mapOf("error" to message))
+                .entity(if (code == null) mapOf("error" to message) else mapOf("error" to message, "code" to code))
+                .build()
+        )
+    }
+
+    private fun abort(context: ContainerRequestContext, status: Response.Status, message: String, code: String) {
+        context.abortWith(
+            Response.status(status)
+                .type(MediaType.APPLICATION_JSON_TYPE)
+                .entity(mapOf("error" to message, "code" to code))
                 .build()
         )
     }

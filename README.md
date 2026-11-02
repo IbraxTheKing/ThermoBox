@@ -61,6 +61,9 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
 | `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour, réglages choisis par un administrateur (style d'affichage, logo, limites de température) |
 | `THERMOBOX_UPDATE_CHANNEL` / `_CHECK` / `THERMOBOX_GITHUB_TOKEN` | `stable` / `true` / *aucun* | Mises à jour (voir plus bas) |
+| `THERMOBOX_ADMIN_USERNAME` / `THERMOBOX_ADMIN_PASSWORD` | `admin` / *tiré au hasard* | Premier compte, créé seulement si la base n'a aucun utilisateur (voir plus bas) |
+| `THERMOBOX_PROVISIONAL_PASSWORD_DAYS` | `7` | Validité des mots de passe provisoires (1 à 90 jours) |
+| `THERMOBOX_IMPORT_SOURCES` | `<données>/import-sources.json` | Bases de données d'où importer des utilisateurs (voir plus bas) |
 
 Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
 
@@ -366,6 +369,97 @@ API REST :
 Variables : `THERMOBOX_UPDATE_CHANNEL` (`stable` / `prerelease`), `THERMOBOX_UPDATE_CHECK`
 (`false` coupe la vérification quotidienne), `THERMOBOX_DATA_DIR`, `THERMOBOX_UPDATE_REPO`,
 `THERMOBOX_GITHUB_TOKEN` (facultatif).
+
+## Premier compte, import d'utilisateurs et mots de passe provisoires (26.12)
+
+### Premier compte
+
+Au démarrage, si la base n'a **aucun utilisateur**, le serveur crée un compte **ADMIN** (`admin`,
+ou `THERMOBOX_ADMIN_USERNAME`). Son mot de passe est `THERMOBOX_ADMIN_PASSWORD` s'il est donné,
+sinon il est tiré au hasard et écrit dans `<dossier de données>/first-admin-password.txt`, lisible
+par le seul propriétaire du fichier : jamais dans la console ni dans les journaux (la console dit
+seulement où le trouver). Dans les deux cas il est **provisoire** : à remplacer à la première
+connexion, le fichier est alors effacé. Ce mot de passe-là n'expire pas.
+
+### Import d'utilisateurs
+
+Un ADMIN crée d'un coup les comptes d'une liste de personnes (client : **Gérer → Accès →
+Importer**) :
+
+1. **la liste** : un fichier Excel (`.xlsx`) ou CSV (séparateur `;`, `,` ou tabulation, UTF-8 ou
+   Windows-1252, comme Excel les exporte), 10 Mo et 20 000 lignes au plus, la première ligne
+   donnant les colonnes ; ou une **base de données** déclarée sur le serveur (ci-dessous). Un
+   ancien `.xls` est refusé avec un message demandant de l'enregistrer en `.xlsx` ou `.csv` ;
+2. **les colonnes** : le serveur propose une colonne pour chaque champ d'après les noms
+   (« Prénom », « Nom », « Courriel », « Identifiant », « Rôle »…), l'admin corrige ;
+3. **la vérification** : chaque ligne est à créer, en **doublon** (identifiant ou adresse déjà pris
+   par un compte, ou par une ligne au-dessus) ou **invalide** (adresse mal formée, rôle inconnu,
+   identifiant impossible), avec la raison. Sans identifiant, il est fait des noms (`jdupont`, puis
+   `jeandupont`, `jduponta`…) ; un identifiant donné est mis dans la forme de ThermoBox (lettres
+   seules : `j.dupont` → `jdupont`, `Éloïse` → `Eloise`) ;
+4. **la confirmation** : les lignes valides deviennent des comptes ; une ligne qui échoue
+   n'arrête pas les autres.
+
+Chaque compte reçoit un **mot de passe provisoire** : 12 signes tirés par `SecureRandom`
+(`k7Pm-Xq3t-R9wz`, sans 0/O ni 1/l/I), différent pour chacun. Il n'existe en clair que dans la
+réponse de la confirmation (`Cache-Control: no-store`), pour que l'admin le remette à la personne
+(le client permet de les copier, de les télécharger ou d'imprimer une fiche par personne) ; le
+serveur n'en garde que le hachage BCrypt. Les listes lues restent en mémoire seulement, une
+demi-heure au plus, pour l'admin qui les a données ; rien de leur contenu ne va dans les journaux
+(seulement le nombre de comptes créés).
+
+API (ADMIN) :
+
+| | |
+|---|---|
+| `GET /api/v2/users/import/sources` | Les bases de données déclarées |
+| `POST /api/v2/users/import/file?name=liste.xlsx` | Le fichier en corps (octets) → `{id, columns, sample, rowCount, suggested}` |
+| `POST /api/v2/users/import/source` `{"name": …}` | Même chose depuis une base |
+| `POST /api/v2/users/import/{id}/check` | `{"mapping": {"FIRST_NAME": "Prénom", …}, "defaultRole": "VIEWER", "validityDays": 7}` → chaque ligne et son état |
+| `POST /api/v2/users/import/{id}/confirm` | Même corps → comptes créés (avec leur mot de passe provisoire), lignes laissées, échecs |
+| `POST /api/v2/users/{id}/provisional-password?days=7` | Nouveau mot de passe provisoire pour un compte (oubli, provisoire expiré) |
+
+Champs : `USERNAME`, `FIRST_NAME`, `LAST_NAME`, `EMAIL`, `ROLE` (« admin », « gestionnaire »,
+« lecteur »… ; vide : `defaultRole`).
+
+### Autres bases de données
+
+Déclarées par l'administrateur du serveur, jamais depuis l'interface, dans un fichier JSON
+(`THERMOBOX_IMPORT_SOURCES`, sinon `<dossier de données>/import-sources.json`) :
+
+```json
+[
+  {
+    "name": "Annuaire RH",
+    "url": "jdbc:mysql://rh.exemple.local:3306/rh",
+    "user": "thermobox_lecture",
+    "passwordEnv": "RH_DB_PASSWORD",
+    "query": "SELECT prenom, nom, mail AS courriel FROM employes WHERE actif = 1"
+  }
+]
+```
+
+Le mot de passe de la base est dans la variable d'environnement nommée par `passwordEnv`, jamais
+dans le fichier ni envoyé au client. La connexion est en lecture seule, la requête limitée à 30 s
+et 20 000 lignes ; ses colonnes jouent le rôle de la première ligne d'un fichier. MySQL et MariaDB
+sont fournis ; pour une autre base (PostgreSQL, SQL Server, Oracle…), déposer son pilote JDBC
+(`.jar`) dans `<dossier de données>/jdbc-drivers/`. Donner un compte qui ne peut que lire.
+
+### Mots de passe provisoires
+
+Un compte importé, le premier compte, ou un compte dont un admin a réinitialisé le mot de passe
+est **provisoire** (`password_change_required`) :
+
+- à la connexion, `user.mustChangePassword` vaut `true` ; tant que le mot de passe n'est pas
+  changé, seuls `GET /api/v2/auth/me`, `POST /api/v2/auth/logout` et `POST /api/v2/auth/password`
+  répondent, toute autre requête reçoit `403 {"code": "password_change_required"}` ;
+- `POST /api/v2/auth/password` `{"currentPassword", "newPassword"}` : le nouveau suit les règles
+  de `GET /api/v2/auth/password-policy` (10 caractères au moins, lettres et chiffres, pas le nom du
+  compte, 72 octets au plus) et doit différer du provisoire ; le compte n'est alors plus
+  provisoire, le provisoire ne sert plus jamais (son hachage est remplacé) ;
+- un mot de passe provisoire **expire** (`THERMOBOX_PROVISIONAL_PASSWORD_DAYS`, 7 jours par
+  défaut, ou le choix de l'admin à l'import) : la connexion répond alors
+  `401 {"code": "provisional_expired"}` et un admin en donne un nouveau.
 
 ## Accès aux bâtiments, étages et salles
 

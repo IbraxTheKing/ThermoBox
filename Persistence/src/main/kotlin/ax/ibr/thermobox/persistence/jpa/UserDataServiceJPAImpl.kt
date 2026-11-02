@@ -27,4 +27,13 @@ class UserDataServiceJPAImpl(emf: EntityManagerFactory,
         ).setParameter("type", userType)
             .resultList
     }
+
+    override fun getByEmail(email: String): User? = read { em ->
+        em.createQuery(
+            "SELECT u FROM User u WHERE LOWER(u.email) = :email",
+            User::class.java
+        ).setParameter("email", email.trim().lowercase())
+            .resultList
+            .firstOrNull()
+    }
 }

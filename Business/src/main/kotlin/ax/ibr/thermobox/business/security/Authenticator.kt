@@ -9,6 +9,23 @@ import java.util.UUID
 /** Credential check of the REST login. */
 object Authenticator {
 
+    /** What a login attempt gives. */
+    sealed interface Result {
+        data class Accepted(val user: User) : Result
+        /** Wrong name or password. */
+        data object Refused : Result
+        /** Right provisional password, but out of date: an admin must give a new one. */
+        data object ProvisionalExpired : Result
+    }
+
+    /** Same as [authenticate], telling apart an expired provisional password. */
+    fun check(username: String, password: String): Result = check(username, password, BusinessFactory.getUserService())
+
+    internal fun check(username: String, password: String, users: UserService): Result {
+        val user = authenticate(username, password, users) ?: return Result.Refused
+        return if (ProvisionalPasswords.expired(user)) Result.ProvisionalExpired else Result.Accepted(user)
+    }
+
     /** Hash of a random value: unknown usernames pay the same BCrypt cost as real ones. */
     private val DUMMY_HASH: String by lazy { PasswordHasher.hash(UUID.randomUUID().toString()) }
 

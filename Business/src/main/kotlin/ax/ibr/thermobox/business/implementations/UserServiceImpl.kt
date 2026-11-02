@@ -28,6 +28,8 @@ class UserServiceImpl(
         return userService.getByType(userType)
     }
 
+    override fun getByEmail(email: String): User? = userService.getByEmail(email)
+
     override fun add(t: User) {
         hashPassword(t)
         if (!UserVerification.verifyUsername(t.username!!))

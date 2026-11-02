@@ -96,6 +96,35 @@ class JdbcDataServicesTest {
     }
 
     @Test
+    fun `who the person is and the provisional state are kept, the address is found`() {
+        val expires = LocalDateTime.of(2026, 11, 9, 8, 30)
+        val u = User("jdupont", "hash", UserType.VIEWER).apply {
+            firstName = "Jean"
+            lastName = "Dupont"
+            email = "Jean.Dupont@exemple.fr"
+            passwordChangeRequired = true
+            provisionalExpiresAt = expires
+        }
+        users.add(u)
+        users.add(User("bob", "hash2"))
+
+        val read = users.getByEmail("jean.dupont@EXEMPLE.fr")!!
+        assertEquals(u.id, read.id)
+        assertEquals("Jean", read.firstName)
+        assertEquals("Dupont", read.lastName)
+        assertTrue(read.passwordChangeRequired)
+        assertEquals(expires, read.provisionalExpiresAt)
+        assertFalse(users.getByUsername("bob")!!.passwordChangeRequired)
+        assertNull(users.getByEmail("personne@exemple.fr"))
+
+        read.passwordChangeRequired = false
+        read.provisionalExpiresAt = null
+        users.update(read)
+        assertFalse(users.getById(u.id!!)!!.passwordChangeRequired)
+        assertNull(users.getById(u.id!!)!!.provisionalExpiresAt)
+    }
+
+    @Test
     fun `rooms keep their kind, links give parents and children`() {
         val building = Building("B").also(rooms::add)
         val floor = Floor("F1").also(rooms::add)

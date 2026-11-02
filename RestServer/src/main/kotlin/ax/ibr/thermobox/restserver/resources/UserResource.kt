@@ -3,6 +3,8 @@ package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.security.PasswordHasher
+import ax.ibr.thermobox.business.security.ProvisionalPasswords
+import ax.ibr.thermobox.restserver.dto.ProvisionalPasswordDto
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.restserver.dto.AccessDto
 import ax.ibr.thermobox.restserver.dto.AccessRequest
@@ -109,6 +111,18 @@ class UserResource {
             existing.password = changes.password // hashed by the UserService
         }
         if (changes.type != null) existing.type = changes.type
+        // Who the person is: "" clears it, null leaves it
+        changes.firstName?.let { existing.firstName = it.trim().take(100).ifEmpty { null } }
+        changes.lastName?.let { existing.lastName = it.trim().take(100).ifEmpty { null } }
+        changes.email?.let { raw ->
+            val email = raw.trim().ifEmpty { null }
+            if (email != null) {
+                if (email.length > 255 || !EMAIL.matches(email)) return error(Response.Status.BAD_REQUEST, "Invalid email address")
+                val other = service.getByEmail(email)
+                if (other != null && other.id != existing.id) return error(Response.Status.CONFLICT, "Email address already used")
+            }
+            existing.email = email
+        }
 
         service.update(existing)
         return Response.ok(UserDto.from(existing)).build()
@@ -163,6 +177,26 @@ class UserResource {
         } catch (e: IllegalArgumentException) {
             error(Response.Status.BAD_REQUEST, e.message ?: "Invalid accesses")
         }
+    }
+
+    /**
+     * An admin gives a user a new provisional password (forgotten password, expired provisional
+     * one): returned once in clear, stored hashed; the user must replace it at their next login.
+     * `?days=` its validity (default THERMOBOX_PROVISIONAL_PASSWORD_DAYS, 7).
+     */
+    @POST
+    @Path("/{id}/provisional-password")
+    @RequiresRole("ADMIN")
+    fun provisionalPassword(@PathParam("id") id: Long, @jakarta.ws.rs.QueryParam("days") days: Int?): Response {
+        val user = service.getById(id) ?: return notFound()
+        val validity = days?.coerceIn(1, 90)?.let { java.time.Duration.ofDays(it.toLong()) } ?: ProvisionalPasswords.defaultValidity
+        val password = ProvisionalPasswords.assign(user, validity)
+        service.update(user)
+        return Response.ok(ProvisionalPasswordDto(user.id, user.username, password, user.provisionalExpiresAt?.toString())).build()
+    }
+
+    private companion object {
+        val EMAIL = Regex("""^[^@\s]+@[^@\s]+\.[^@\s.]+$""")
     }
 
     /** BCrypt only uses the first 72 bytes: refuse rather than silently ignore the rest. */
