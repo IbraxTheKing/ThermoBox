@@ -33,7 +33,8 @@ object XlsxReader {
         val lines = cells(sheet, shared)
         if (lines.isEmpty()) throw ImportException("empty", "The first sheet is empty.")
         if (lines.size - 1 > ImportTable.MAX_ROWS) throw ImportException("too_many_rows", "More than ${ImportTable.MAX_ROWS} lines.")
-        return ImportTable(lines[0], lines.drop(1))
+        val rows = lines.drop(1)
+        return ImportTable(lines[0].second, rows.map { it.second }, rows.map { it.first })
     }
 
     /** The XML parts of the zip that are needed (the others are skipped, still counted). */
@@ -131,10 +132,13 @@ object XlsxReader {
         return children(e, "r").joinToString("") { r -> children(r, "t").joinToString("") { it.textContent } }
     }
 
-    private fun cells(sheet: Document, shared: List<String>): List<List<String>> {
+    /** The lines that have something, with their number in the sheet (the `r` of the row). */
+    private fun cells(sheet: Document, shared: List<String>): List<Pair<Int, List<String>>> {
         val data = descendants(sheet.documentElement, "sheetData").firstOrNull() ?: return emptyList()
-        val lines = mutableListOf<List<String>>()
+        val lines = mutableListOf<Pair<Int, List<String>>>()
+        var number = 0
         for (row in children(data, "row")) {
+            number = row.getAttribute("r").toIntOrNull() ?: (number + 1)
             val line = mutableListOf<String>()
             var next = 0
             for (c in children(row, "c")) {
@@ -144,11 +148,10 @@ object XlsxReader {
                 line += value(c, shared)
                 next = col + 1
             }
-            // A line skipped by Excel (r="5" after r="3") stays out: empty lines are dropped anyway
-            lines += line
+            if (line.any { it.isNotBlank() }) lines += number to line
             if (lines.size > ImportTable.MAX_ROWS + 1) throw ImportException("too_many_rows", "More than ${ImportTable.MAX_ROWS} lines.")
         }
-        return lines.filter { l -> l.any { it.isNotBlank() } }
+        return lines
     }
 
     private fun value(c: Element, shared: List<String>): String {

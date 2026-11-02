@@ -90,6 +90,9 @@ class UserImportTest {
         assertEquals(listOf("alambert", "dleroy"), result.created.map { it.username })
         assertEquals(listOf(3 to "create_failed"), result.failed)
         assertEquals(listOf(4), result.skipped.map { it.line })
+        // Lines numbered as in the file
+        val withGap = ImportTable(columns, listOf(listOf("a", "Anne", "Aa", "", "", ""), List(6) { "" }, listOf("b", "Bob", "Bb", "", "", "")))
+        assertEquals(listOf(2, 4), UserImport.plan(withGap, ImportOptions(mapping), FakeUsers()).map { it.line })
         val passwords = result.created.map { it.password }
         assertEquals(2, passwords.toSet().size)
         for ((account, user) in result.created.zip(users.lines)) {

@@ -38,6 +38,15 @@ class ReadersTest {
         assertEquals(listOf("Prénom", "Nom", "Matricule", "Courriel"), t.columns)
         assertEquals(listOf("Élodie", "Martin", "1042", ""), t.rows[0])
         assertEquals(listOf("Paul", "", "17", "p@ex.fr"), t.rows[1])
+        // Their numbers in the sheet, the empty line 3 counted
+        assertEquals(listOf(2, 4), t.lines)
+    }
+
+    @Test
+    fun `the lines keep their number in the file, empty ones counted`() {
+        val t = CsvReader.read("\n\nNom;Prénom\nDupont;Jean\n;\n\nMartin;Paul\n".toByteArray())
+        assertEquals(listOf("Nom", "Prénom"), t.columns)
+        assertEquals(listOf(4, 7), t.lines)
     }
 
     @Test

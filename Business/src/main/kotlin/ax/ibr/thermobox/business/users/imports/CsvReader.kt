@@ -16,10 +16,13 @@ object CsvReader {
         val text = decode(bytes)
         val separator = separator(text)
         val lines = parse(text, separator)
-        if (lines.isEmpty()) throw ImportException("empty", "The file is empty.")
-        if (lines.size - 1 > ImportTable.MAX_ROWS) throw ImportException("too_many_rows", "More than ${ImportTable.MAX_ROWS} lines.")
-        if (lines[0].size > ImportTable.MAX_COLUMNS) throw ImportException("too_many_columns", "More than ${ImportTable.MAX_COLUMNS} columns.")
-        return ImportTable(lines[0], lines.drop(1))
+        // The columns: the first line that is not empty
+        val head = lines.indexOfFirst { l -> l.any { it.isNotBlank() } }
+        if (head < 0) throw ImportException("empty", "The file is empty.")
+        if (lines.size - head - 1 > ImportTable.MAX_ROWS) throw ImportException("too_many_rows", "More than ${ImportTable.MAX_ROWS} lines.")
+        if (lines[head].size > ImportTable.MAX_COLUMNS) throw ImportException("too_many_columns", "More than ${ImportTable.MAX_COLUMNS} columns.")
+        val rows = lines.drop(head + 1)
+        return ImportTable(lines[head], rows, rows.indices.map { it + head + 2 })
     }
 
     internal fun decode(bytes: ByteArray): String {
@@ -38,11 +41,14 @@ object CsvReader {
         }
     }
 
-    /** The separator most used on the first line (outside quotes). */
+    /** The separator most used on the first line that is not empty (outside quotes). */
     internal fun separator(text: String): Char {
         val counts = mutableMapOf(';' to 0, ',' to 0, '\t' to 0, '|' to 0)
         var quoted = false
+        var started = false
         for (c in text) {
+            if (!started && (c == '\n' || c == '\r' || c == ' ')) continue
+            started = true
             if (c == '"') quoted = !quoted
             else if (!quoted && (c == '\n' || c == '\r')) break
             else if (!quoted && c in counts) counts[c] = counts[c]!! + 1
@@ -88,6 +94,6 @@ object CsvReader {
             i++
         }
         if (field.isNotEmpty() || line.isNotEmpty()) endLine()
-        return lines.filter { l -> l.any { it.isNotBlank() } }
+        return lines
     }
 }

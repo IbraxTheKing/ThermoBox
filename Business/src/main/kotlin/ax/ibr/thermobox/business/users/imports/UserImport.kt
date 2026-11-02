@@ -115,7 +115,7 @@ object UserImport {
         fun cell(row: List<String>, field: ImportField) = index[field]?.let { row[it] }?.trim()?.takeIf { it.isNotEmpty() }
 
         return table.rows.mapIndexed { i, row ->
-            val line = i + 2 // the first line of the list gives the columns
+            val line = table.lines[i]
             val problems = mutableListOf<String>()
             var duplicate = false
             val first = cell(row, ImportField.FIRST_NAME)
