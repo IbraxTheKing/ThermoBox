@@ -69,6 +69,7 @@ aux éléments (`AccessScope`) sont appliquées dans la ressource : un élément
 | `SettingsResource` | `/api/v2/settings` |
 | `ServerResource` | `/api/v2/server` |
 | `UpdateResource` | `/api/v2/updates` |
+| `NotificationResource` | `/api/v2/notifications` |
 
 ### `dto/` — le JSON
 
@@ -243,6 +244,31 @@ compressés avec toutes ses mesures, et à environ 2 Ko avec `points=500`.
 | `GET` | `/` | Ids des salles épinglées par l'utilisateur. | Authentifié |
 | `PUT` | `/{id}` | Épingle une salle. | Authentifié |
 | `DELETE` | `/{id}` | Retire une salle des favoris. | Authentifié |
+
+### Notifications (`/api/v2/notifications`)
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/setpoints?since=…&ids=…` | Les salles qui ont commencé ou cessé de respecter leur consigne depuis `since`. | Authentifié |
+
+Pour les notifications des applications (« Salle A001 a atteint sa consigne », « … est trop chaude ») :
+
+```json
+{ "since": "2026-12-01T08:00:00", "now": "2026-12-01T08:05:00",
+  "events": [ { "roomId": 12, "name": "Salle A001", "place": "Bâtiment A › Étage 1",
+                "state": "STABLE", "previous": "HEATING", "temperature": 20.3, "setpoint": 20.5,
+                "at": "2026-12-01T07:58:00" } ] }
+```
+
+- `state`, `previous` : `STABLE` (à moins d'un demi-degré de la consigne : respectée), `HEATING`
+  (en dessous), `TOO_HOT` (au-dessus) — les seuils des clients.
+- Un état compte une fois qu'il a duré 10 minutes (une mesure qui franchit la limite et revient
+  n'est pas un changement) ; `at` est le début de cet état.
+- `since` : le `now` de la réponse précédente (date locale du serveur, ou instant ISO-8601) ;
+  15 minutes avant sans lui, jamais plus de 6 heures avant.
+- `ids` : les salles suivies (un bâtiment ou un étage donne les salles en dessous) ; toutes celles
+  que l'utilisateur voit sans lui. Seulement les salles qu'il a le droit de voir.
+- Rien n'est stocké : les changements sont relus dans les mesures à chaque requête
+  (`SetpointWatch`), quel que soit le client et le moment.
 
 ### Photos (`/api/v2/rooms/{id}/image`)
 | Méthode | Chemin | Description | Accès |
