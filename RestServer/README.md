@@ -70,6 +70,7 @@ aux éléments (`AccessScope`) sont appliquées dans la ressource : un élément
 | `ServerResource` | `/api/v2/server` |
 | `UpdateResource` | `/api/v2/updates` |
 | `NotificationResource` | `/api/v2/notifications` |
+| `AlertResource` | `/api/v2/alerts` |
 
 ### `dto/` — le JSON
 
@@ -269,6 +270,78 @@ Pour les notifications des applications (« Salle A001 a atteint sa consigne »,
   que l'utilisateur voit sans lui. Seulement les salles qu'il a le droit de voir.
 - Rien n'est stocké : les changements sont relus dans les mesures à chaque requête
   (`SetpointWatch`), quel que soit le client et le moment.
+
+### Alertes (`/api/v2/alerts`)
+
+Tout est réservé aux ADMIN. Le fonctionnement (dépassement, rappels, retour à la normale, envoi,
+secrets) est décrit dans le [README principal](../README.md#alertes-de-température-2612).
+
+| Méthode | Chemin | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | Tout pour une page d'alertes : état de la surveillance, canaux, règles, alertes en cours, derniers échecs d'envoi. |
+| `GET` | `/status` | État de la surveillance : `enabled`, `running`, `lastRun`, `watchedRooms`, `lastError`, `runByAnotherServer`. |
+| `GET` / `POST` | `/channels` | Les canaux ; en créer un. |
+| `GET` / `PUT` / `DELETE` | `/channels/{id}` | Un canal. Le supprimer le retire des règles (l'historique garde son nom). |
+| `PUT` | `/channels/{id}/enabled` | `{"enabled": false}` : le couper ou le rallumer, sans rien changer d'autre. |
+| `POST` | `/channels/{id}/test` | Envoie un message de test maintenant ; la réponse dit `SENT` ou `FAILED` avec l'erreur. |
+| `GET` / `POST` | `/rules` | Les règles ; en créer une. |
+| `GET` / `PUT` / `DELETE` | `/rules/{id}` | Une règle. La supprimer annule ses alertes en cours. |
+| `PUT` | `/rules/{id}/enabled` | `{"enabled": false}`. |
+| `GET` | `/events?state=&roomId=&ruleId=&limit=50&before=` | Historique, le plus récent d'abord (`ACTIVE`, `RESOLVED`, `CANCELLED`) ; page suivante avec `before` = l'id du dernier. `deliveryFailed` : un message n'a pas pu partir. |
+| `GET` | `/events/{id}` | Une alerte et tous ses messages (`deliveries`). |
+| `GET` | `/deliveries?status=FAILED&limit=100` | Les messages (`PENDING`, `SENT`, `FAILED`) avec leurs tentatives et leur dernière erreur. |
+
+Canal email :
+
+```json
+{ "name": "Astreinte", "kind": "EMAIL", "enabled": true,
+  "email": { "host": "smtp.example.org", "port": 587, "security": "STARTTLS",
+             "username": "alertes", "password": "…", "from": "thermobox@example.org",
+             "fromName": "ThermoBox", "recipients": ["astreinte@example.org"] } }
+```
+
+Canal webhook (`format` : `DISCORD`, `SLACK` ou `GENERIC`) :
+
+```json
+{ "name": "Discord technique", "kind": "WEBHOOK",
+  "webhook": { "format": "DISCORD", "url": "https://discord.com/api/webhooks/…" } }
+```
+
+- **Secrets** (`password`, `url`, `authorization`, `signingSecret`) : envoyés seulement, jamais
+  renvoyés. Absents ou `null` dans un `PUT`, ils restent ceux enregistrés ; `""` les efface. La réponse
+  dit seulement `passwordSet`, `urlSet`, `authorizationSet`, `signingSecretSet` et `urlPreview`
+  (`https://discord.com/…`). `secretUnreadable` : la clé des secrets a changé, il faut les saisir à
+  nouveau.
+- `kind` ne change pas après la création.
+- Un webhook vers une adresse privée ou locale est refusé (400), sauf avec
+  `THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS=true`.
+
+Règle :
+
+```json
+{ "name": "Salles serveurs", "enabled": true, "tolerance": 0.5, "minDurationSeconds": 300,
+  "clearAfterSeconds": 600, "reminderSeconds": 3600, "notifyResolution": true,
+  "global": false, "scope": [12, 15], "channels": [1, 2] }
+```
+
+La réponse donne `scope` et `channels` avec leurs noms (`{"id", "name", "kind"}`). `scope` : des
+bâtiments, étages ou salles, pas des boîtiers ; `global: true` pour toute l'installation.
+
+Webhook `GENERIC` : `POST` en JSON, en-têtes `X-ThermoBox-Event` (`TRIGGERED`, `REMINDER`,
+`RESOLVED`, `TEST`), `Authorization` et `X-ThermoBox-Signature: sha256=<HMAC-SHA256 du corps>` si
+définis :
+
+```json
+{ "source": "thermobox", "type": "temperature_alert", "kind": "TRIGGERED",
+  "subject": "[ThermoBox] Dépassement de température : Salle serveurs (25,4 °C)", "text": "…",
+  "sentAt": "2026-12-01T08:20:00",
+  "alert": { "id": 42, "state": "ACTIVE", "ruleId": 3, "rule": "Salles serveurs",
+             "room": { "id": 12, "name": "Salle serveurs", "place": "Bâtiment A › Étage 1" },
+             "temperature": 25.4, "peak": 25.4, "setpoint": 22.0, "threshold": 22.5,
+             "exceededSince": "2026-12-01T08:10:00", "triggeredAt": "2026-12-01T08:20:00",
+             "devices": [ { "id": 31, "name": "Baie 1", "exceeding": true, "temperature": 25.4,
+                            "at": "2026-12-01T08:19:30" } ] } }
+```
 
 ### Photos (`/api/v2/rooms/{id}/image`)
 | Méthode | Chemin | Description | Accès |

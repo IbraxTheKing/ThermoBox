@@ -47,8 +47,14 @@ fun main() {
     val updates = BusinessFactory.getUpdateService()
     updates.start(RestComponent())
 
+    // Temperature alerts: the rooms are watched here, whether a client is connected or not
+    // (THERMOBOX_ALERTS=false: not by this server).
+    val alerts = BusinessFactory.getAlertMonitor()
+    alerts.start()
+
     // Release the database connection pool when the server stops.
     Runtime.getRuntime().addShutdownHook(Thread {
+        alerts.stop()
         updates.stop()
         PersistenceFactory.close()
     })

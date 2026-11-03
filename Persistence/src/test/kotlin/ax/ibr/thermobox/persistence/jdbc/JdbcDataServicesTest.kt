@@ -17,6 +17,15 @@ import ax.ibr.thermobox.common.entities.UserGroup
 import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
+import ax.ibr.thermobox.common.alerts.AlertChannel
+import ax.ibr.thermobox.common.alerts.AlertDelivery
+import ax.ibr.thermobox.common.alerts.AlertDevice
+import ax.ibr.thermobox.common.alerts.AlertEvent
+import ax.ibr.thermobox.common.alerts.AlertRule
+import ax.ibr.thermobox.common.alerts.AlertState
+import ax.ibr.thermobox.common.alerts.ChannelKind
+import ax.ibr.thermobox.common.alerts.DeliveryKind
+import ax.ibr.thermobox.common.alerts.DeliveryStatus
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -67,6 +76,7 @@ class JdbcDataServicesTest {
         groups = UserGroupDataServiceJdbcImpl(db)
         db.transaction { cx ->
             listOf(
+                "alert_delivery", "alert_event", "alert_rule_channel", "alert_rule_scope", "alert_rule", "alert_channel",
                 "measurement_hourly", "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
                 "room_image", "favorite", "room_temperature_attr", "temperature", "room_attr", "room", "`user`",
             ).forEach { cx.execute("DELETE FROM $it") }
@@ -401,6 +411,58 @@ class JdbcDataServicesTest {
         groups.deleteGroup(g)
         assertNull(groups.getByName("Technicians"))
         assertEquals(listOf("Visitors"), groups.getAll().map { it.name })
+    }
+
+    @Test
+    fun `alert channels, rules with their scope, events and deliveries`() {
+        val alerts = AlertDataServiceJdbcImpl(db)
+        val building = Building("A").also { rooms.add(it) }
+        val room = Room("Server room").also { rooms.add(it) }
+
+        val mail = alerts.save(AlertChannel(name = "Ops", kind = ChannelKind.EMAIL, settings = "{\"host\":\"smtp\"}", secret = "x"))
+        val hook = alerts.save(AlertChannel(name = "Discord", kind = ChannelKind.WEBHOOK, enabled = false))
+        assertEquals(listOf("Discord", "Ops"), alerts.channels().map { it.name })
+        assertEquals("x", alerts.channel(mail.id!!)!!.secret)
+        alerts.save(mail.copy(name = "Ops team", secret = null))
+        assertNull(alerts.channel(mail.id!!)!!.secret)
+
+        val rule = alerts.save(AlertRule(name = "Servers", tolerance = 0.5f, global = false, scope = listOf(room.id!!, building.id!!), channels = listOf(mail.id!!, hook.id!!)))
+        val read = alerts.rule(rule.id!!)!!
+        assertEquals(listOf(building.id, room.id).sortedBy { it }, read.scope.sortedBy { it })
+        assertEquals(setOf(mail.id, hook.id), read.channels.toSet())
+        assertEquals(0.5f, read.tolerance)
+        // A deleted channel leaves the rule; a deleted element leaves its scope
+        alerts.deleteChannel(hook.id!!)
+        rooms.remove(building)
+        assertEquals(listOf(mail.id), alerts.rule(rule.id!!)!!.channels)
+        assertEquals(listOf(room.id), alerts.rule(rule.id!!)!!.scope)
+
+        val since = LocalDateTime.of(2026, 11, 3, 10, 0)
+        val devices = listOf(AlertDevice(7, "Box\t1", 27.5f, since, true), AlertDevice(8, null, null, null, false))
+        val event = alerts.save(AlertEvent(ruleId = rule.id, ruleName = "Servers", roomId = room.id!!, roomName = "Server room", place = "A",
+            exceededSince = since, triggeredAt = since.plusMinutes(10), setpoint = 22f, threshold = 22.5f, temperature = 27.5f, devices = devices))
+        assertEquals(devices, alerts.event(event.id!!)!!.devices)
+        assertEquals(listOf(event.id), alerts.activeEvents().map { it.id })
+
+        val d = alerts.save(AlertDelivery(eventId = event.id, channelId = mail.id, channelName = "Ops", kind = DeliveryKind.TRIGGERED))
+        assertEquals(listOf(d.id), alerts.dueDeliveries(since).map { it.id })
+        alerts.save(d.copy(attempts = 1, nextAttemptAt = since.plusMinutes(5), lastError = "timeout"))
+        assertTrue(alerts.dueDeliveries(since).isEmpty())
+        assertEquals(listOf(d.id), alerts.dueDeliveries(since.plusMinutes(5)).map { it.id })
+        alerts.save(d.copy(status = DeliveryStatus.FAILED, attempts = 6))
+        assertTrue(alerts.event(event.id!!)!!.deliveryFailed)
+        assertEquals(listOf(d.id), alerts.deliveries(DeliveryStatus.FAILED).map { it.id })
+
+        // Resolved, then purged with its deliveries; the rule may go, the history stays
+        alerts.save(alerts.event(event.id!!)!!.copy(state = AlertState.RESOLVED, resolvedAt = since.plusHours(1)))
+        alerts.deleteRule(rule.id!!)
+        assertEquals(AlertState.RESOLVED, alerts.events(roomId = room.id).single().state)
+        assertEquals(1, alerts.purge(since.plusDays(1)))
+        assertTrue(alerts.events().isEmpty())
+        assertTrue(alerts.deliveries(event.id!!).isEmpty())
+
+        // One holder of a lock at a time
+        assertEquals(1, alerts.exclusively("tb-test") { alerts.exclusively("tb-test") { 2 } ?: 1 })
     }
 
     @Test

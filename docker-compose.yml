@@ -32,6 +32,10 @@ x-app-env: &app-env
   THERMOBOX_MQTT_URL: ${THERMOBOX_MQTT_URL:-tcp://mosquitto:1883}
   THERMOBOX_MQTT_USER: ${THERMOBOX_MQTT_USER:-}
   THERMOBOX_MQTT_PASSWORD: ${THERMOBOX_MQTT_PASSWORD:-}
+  # Temperature alerts (see README): watched by this server, webhooks to the local network, key of the secrets
+  THERMOBOX_ALERTS: ${THERMOBOX_ALERTS:-true}
+  THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS: ${THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS:-false}
+  THERMOBOX_SECRETS_KEY: ${THERMOBOX_SECRETS_KEY:-}
 
 services:
 

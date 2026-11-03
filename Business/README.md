@@ -29,6 +29,7 @@ Business/src/main/kotlin/ax/ibr/thermobox/business/
 ├── climate/           ClimateSnapshot : toute la hiérarchie et ses températures, lue en une fois
 ├── hierarchy/         HierarchyCache : bâtiments, étages, salles, boîtiers et leurs liens en mémoire
 ├── update/            le système de mises à jour depuis GitHub
+├── alerts/            alertes de température : surveillance, règles, email et webhooks
 └── exceptions/        TooHotException, ImpossibleValueException
 Business/src/main/resources/thermobox-version.properties   version inscrite par Maven
 Business/src/test/                                          tests, et deux outils (DatabaseSeeder, HashExistingPasswords)
@@ -214,6 +215,22 @@ le code 75 et son lanceur le relance sur la nouvelle version. Au redémarrage, l
 (`follow`) et bascule aussi. Détails pour les administrateurs : README principal, « Mises à jour
 depuis l'interface ».
 
+## `alerts/` — alertes de température
+
+Ce que décrit la section « Alertes de température » du README principal, côté code :
+
+| Fichier | Rôle |
+|---|---|
+| `AlertMonitor` | La surveillance, toutes les 30 s dans son propre fil, sous un verrou MySQL (un seul serveur) : lit la hiérarchie (`ClimateSnapshot`) et les mesures récentes, ouvre, suit et clôt les alertes, met les messages en file puis les envoie (4 à la fois), réessaie avec attente croissante (`BACKOFF`), efface l'historique de plus d'un an. Aucun état en mémoire. |
+| `AlertEvaluator` | Les décisions, sans aucune lecture : règle applicable (la plus proche), état d'un boîtier face au seuil, début du dépassement, retour à la normale, boîtier muet (`STALE`). |
+| `AlertService` | L'administration (pour `/api/v2/alerts`) : contrôle de chaque valeur, secrets gardés / remplacés / effacés, jamais rendus, test d'un canal, historique. |
+| `AlertMessages` | Les textes en français (dépassement, rappel, retour à la normale, test) et les `{variables}` des textes personnalisés. |
+| `ChannelSender` | Envoi selon le type de canal, 20 messages par minute et par canal au plus. Un nouveau type : une valeur de `ChannelKind`, ses réglages dans `ChannelJson`, une branche ici. |
+| `SmtpClient` | SMTP sans bibliothèque : NONE / STARTTLS / SSL (certificat et nom vérifiés), AUTH PLAIN ou LOGIN, UTF-8, adresses contrôlées (aucune injection d'en-tête). |
+| `WebhookSender`, `SafeUrl` | Discord, Slack et JSON générique (signature HMAC facultative), sans redirection ; `SafeUrl` refuse les adresses privées et locales (SSRF). |
+| `AlertSecrets` | Chiffrement AES-256-GCM des secrets avec `secrets.key` (dossier de données) ou `THERMOBOX_SECRETS_KEY`. |
+| `AlertConfig` | `THERMOBOX_ALERTS`, `THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS`, `THERMOBOX_SECRETS_KEY`. |
+
 ## Tests
 
 `Business/src/test` : les tests utilisent des services en mémoire (aucune base nécessaire), sauf
@@ -229,6 +246,9 @@ depuis l'interface ».
 | `update/ReleaseNotesAndArtifactsTest`, `update/VersionTest` | Notes, choix des fichiers, extraction de zip, numéros de version. |
 | `config/ConfigDriverTest` | Lecture de `THERMOBOX_DRIVER`. |
 | `charts/CurveSamplingTest` | Réduction d'un mois de mesures, conservation d'un pic, courbes courtes. |
+| `alerts/AlertMonitorTest` | Des heures de mesures simulées : alerte après la durée minimale, une seule fois, rappels, retour à la normale, règle la plus proche, consigne changée, boîtier muet, réessais puis échec, verrou tenu ailleurs. |
+| `alerts/AlertEvaluatorTest` | Règle applicable, début d'un dépassement, retour à la normale, textes des messages. |
+| `alerts/ChannelsTest` | SMTP contre un faux serveur, webhooks contre un faux service (formats, signature, 429, redirection), adresses refusées, chiffrement des secrets, contrôles et secrets de l'administration, limite par minute. |
 | `java/BusinessServiceDelegationTest.java` | Les services délèguent bien au stockage. |
 
 Deux programmes y sont rangés parce qu'ils ne doivent pas être livrés : `DBPopulate.kt`

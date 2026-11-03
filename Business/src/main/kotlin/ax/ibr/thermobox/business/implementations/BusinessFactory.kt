@@ -18,6 +18,16 @@ import ax.ibr.thermobox.common.services.AccessService
 import ax.ibr.thermobox.common.services.UserGroupService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
 import ax.ibr.thermobox.business.config.ConfigDriver
+import ax.ibr.thermobox.business.alerts.AlertConfig
+import ax.ibr.thermobox.business.alerts.AlertMonitor
+import ax.ibr.thermobox.business.alerts.AlertSecrets
+import ax.ibr.thermobox.business.alerts.AlertSender
+import ax.ibr.thermobox.business.alerts.AlertService
+import ax.ibr.thermobox.business.alerts.AlertView
+import ax.ibr.thermobox.business.alerts.ChannelSender
+import ax.ibr.thermobox.business.alerts.WebhookSender
+import ax.ibr.thermobox.business.climate.ClimateSnapshot
+import ax.ibr.thermobox.common.entities.kind
 
 object BusinessFactory {
 
@@ -80,4 +90,42 @@ object BusinessFactory {
     fun getUserGroupService(): UserGroupService = userGroupServiceInstance
 
     fun getDriver(): ProtocolDriver = driverInstance
+
+    // --- Temperature alerts (THERMOBOX_ALERTS…, see AlertConfig)
+
+    private val alertConfigInstance: AlertConfig by lazy { AlertConfig.fromEnvironment() }
+
+    private val alertSecretsInstance: AlertSecrets by lazy {
+        AlertSecrets(alertConfigInstance.dataDirectory.resolve(AlertSecrets.KEY_FILE), alertConfigInstance.secretsKey)
+    }
+
+    private val alertSenderInstance: AlertSender by lazy {
+        ChannelSender(alertSecretsInstance, webhooks = WebhookSender({ alertConfigInstance.allowPrivateNetworks }))
+    }
+
+    private val alertMonitorInstance: AlertMonitor by lazy {
+        AlertMonitor(
+            store = PersistenceFactory.getAlertDataService(),
+            sender = alertSenderInstance,
+            config = alertConfigInstance,
+            view = { AlertView.of(ClimateSnapshot()) },
+            measures = AlertMonitor.measuresOf(roomTempAttrServiceInstance),
+        )
+    }
+
+    private val alertServiceInstance: AlertService by lazy {
+        AlertService(
+            store = PersistenceFactory.getAlertDataService(),
+            secrets = alertSecretsInstance,
+            sender = alertSenderInstance,
+            monitor = alertMonitorInstance,
+            config = alertConfigInstance,
+            kindOf = { id -> hierarchyCacheInstance.tree().elements[id]?.kind },
+        )
+    }
+
+    /** Watches the rooms and sends the alerts; started by the program (Main). */
+    fun getAlertMonitor(): AlertMonitor = alertMonitorInstance
+
+    fun getAlertService(): AlertService = alertServiceInstance
 }
