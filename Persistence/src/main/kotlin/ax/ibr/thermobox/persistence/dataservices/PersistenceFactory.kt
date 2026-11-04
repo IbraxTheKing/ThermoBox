@@ -21,6 +21,7 @@ import ax.ibr.thermobox.persistence.jpa.UserDataServiceJPAImpl
 import ax.ibr.thermobox.persistence.backup.BackupResult
 import ax.ibr.thermobox.persistence.backup.DatabaseBackup
 import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
+import ax.ibr.thermobox.persistence.jdbc.AlertDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.AccessDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.FavoriteDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.JdbcDatabase
@@ -146,6 +147,14 @@ object PersistenceFactory {
     fun getFavoriteDataService(): FavoriteDataService = favoriteService
 
     fun getRoomImageDataService(): RoomImageDataService = roomImageService
+
+    /**
+     * The temperature alerts (V9), in plain JDBC whatever [accessMode] says: with `jpa`, a JDBC
+     * pool is opened for them next to EclipseLink's.
+     */
+    fun getAlertDataService(): AlertDataService = alertService
+
+    private val alertService: AlertDataService by lazy { AlertDataServiceJdbcImpl(jdbc) }
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()

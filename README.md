@@ -64,6 +64,9 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_ADMIN_USERNAME` / `THERMOBOX_ADMIN_PASSWORD` | `admin` / *tiré au hasard* | Premier compte, créé seulement si la base n'a aucun utilisateur (voir plus bas) |
 | `THERMOBOX_PROVISIONAL_PASSWORD_DAYS` | `7` | Validité des mots de passe provisoires (1 à 90 jours) |
 | `THERMOBOX_IMPORT_SOURCES` | `<données>/import-sources.json` | Bases de données d'où importer des utilisateurs (voir plus bas) |
+| `THERMOBOX_ALERTS` | `true` | `false` : ce serveur ne surveille pas les salles et n'envoie pas d'alertes (voir plus bas) |
+| `THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS` | `false` | `true` : les webhooks peuvent viser le réseau local (et HTTP) |
+| `THERMOBOX_SECRETS_KEY` | `<données>/secrets.key` | Clé des secrets des canaux d'alerte (32 octets en Base64) |
 
 Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
 
@@ -200,6 +203,7 @@ updates/<version>/               RestServer.jar, base.jar d'une version téléch
 updates/current                  version à lancer (lue par les lanceurs)
 updates/installation.json        dernière installation et ses étapes
 backups/                         sauvegardes de la base faites avant une mise à jour
+secrets.key                      clé des mots de passe SMTP et URL de webhooks enregistrés (alertes)
 ```
 
 ## Stack Technique
@@ -460,6 +464,77 @@ est **provisoire** (`password_change_required`) :
 - un mot de passe provisoire **expire** (`THERMOBOX_PROVISIONAL_PASSWORD_DAYS`, 7 jours par
   défaut, ou le choix de l'admin à l'import) : la connexion répond alors
   `401 {"code": "provisional_expired"}` et un admin en donne un nouveau.
+
+## Alertes de température (26.12)
+
+Le serveur surveille lui-même les salles, qu'un client soit connecté ou non : quand une salle reste
+au-dessus de sa consigne, il prévient les personnes concernées **par email ou par webhook** (Discord,
+Slack, Mattermost, Teams, n8n, Home Assistant…), puis quand elle revient à la normale. Tout se règle
+depuis un client, par un ADMIN (`/api/v2/alerts`, voir [RestServer](RestServer/README.md#alertes-apiv2alerts)) :
+aucun fichier à modifier sur le serveur. Les notifications des applications (`/api/v2/notifications`)
+restent telles quelles : les alertes les complètent, pour qui n'a pas l'application ouverte.
+
+**Canaux** : où envoyer.
+
+- **Email** : serveur SMTP, port, chiffrement (`STARTTLS`, `SSL`, ou `NONE` sur un réseau de
+  confiance), identifiant et mot de passe, expéditeur, jusqu'à 50 destinataires.
+- **Webhook** : une URL et son format, `DISCORD` (un message avec un encadré coloré), `SLACK`
+  (`{"text": …}`, aussi compris par Mattermost, Rocket.Chat, Teams) ou `GENERIC` (toute l'alerte en
+  JSON, pour n'importe quel service), avec un en-tête `Authorization` et une signature HMAC
+  (`X-ThermoBox-Signature: sha256=…`) facultatifs.
+- Un texte personnalisé (`template`) peut remplacer le message par défaut, avec `{type}`, `{room}`,
+  `{place}`, `{temperature}`, `{peak}`, `{setpoint}`, `{threshold}`, `{since}`, `{duration}`,
+  `{devices}`, `{rule}`, `{channel}`, `{date}`.
+- **Tester** un canal envoie aussitôt un message de test et dit s'il est parti ou pourquoi il a échoué.
+
+**Règles** : quand alerter, et qui.
+
+| Réglage | Défaut | Rôle |
+|---|---|---|
+| `tolerance` | 1 °C | Écart au-dessus de la consigne avant qu'une mesure compte (0 à 20 °C) |
+| `minDurationSeconds` | 600 | Durée au-dessus avant l'alerte : une mesure qui franchit et revient n'alerte pas (0 à 6 h) |
+| `clearAfterSeconds` | 600 | Durée revenue sous le seuil avant la fin de l'alerte (0 à 6 h) |
+| `reminderSeconds` | 0 | Rappel tant que ça dure (0 : jamais, sinon 5 min à 7 jours) |
+| `notifyResolution` | oui | Prévenir du retour à la normale |
+| `global` / `scope` | | Toute l'installation, ou des bâtiments, étages, salles (avec ce qu'ils contiennent) |
+| `channels` | | Les canaux à prévenir |
+
+- **Une alerte par salle et par règle**, envoyée une fois quand le dépassement a duré, puis aux rappels
+  et à la fin, jamais à chaque mesure. Elle dit la salle, son bâtiment et son étage, les boîtiers
+  au-dessus avec leur température, la consigne, le seuil, depuis quand, et le maximum atteint.
+- **La salle est en dépassement** quand l'un de ses boîtiers mesure plus que consigne + tolérance
+  pendant la durée minimale ; elle revient à la normale quand **tous** ses boîtiers sont repassés
+  sous le seuil pendant la durée choisie. Un boîtier muet depuis 30 min ne déclenche ni ne clôt rien.
+- **Règles qui se chevauchent** : la plus proche de la salle s'applique (une règle sur la salle avant
+  celle de son étage, de son bâtiment, puis les règles globales) ; plusieurs règles au même niveau
+  s'appliquent toutes. Une règle des salles serveurs à 0,5 °C peut ainsi remplacer, pour elles, une
+  règle générale à 2 °C.
+- **Consigne changée pendant un dépassement** : la nouvelle s'applique aux mesures suivantes (la monter
+  au-dessus de la température clôt l'alerte après la durée de retour) ; l'historique garde les deux.
+- **Règle désactivée ou supprimée, salle supprimée, consigne retirée** : l'alerte en cours est
+  annulée (`CANCELLED`), sans message.
+
+**Fonctionnement.**
+
+- Toutes les 30 s, dans un fil à part : un serveur lent (SMTP, webhook) ne retarde jamais la
+  réception des mesures. Rien n'est gardé en mémoire : les durées sont relues dans les mesures et les
+  alertes en cours dans la base, un redémarrage ne perd rien et n'alerte pas deux fois.
+- Plusieurs serveurs REST sur la même base : un verrou MySQL fait qu'un seul surveille et envoie.
+- **Envoi** : chaque message est enregistré avant d'être envoyé. En cas d'échec passager (réseau,
+  erreur 5xx, limite de débit du service), il est réessayé après 1, 5, 15, 60 puis 180 min, puis marqué
+  `FAILED` et écrit dans le journal du serveur ; un refus définitif (adresse inconnue, URL refusée,
+  erreur 4xx) est `FAILED` tout de suite. Au plus 20 messages par minute et par canal : au-delà, ils
+  attendent la minute suivante. Les alertes terminées depuis plus d'un an sont effacées.
+- **Secrets** : mots de passe SMTP, URL des webhooks (une URL Discord contient son jeton), en-têtes
+  `Authorization` et clés de signature ne sont **jamais renvoyés** par l'API (seulement `passwordSet`,
+  `urlSet`…). Ils sont chiffrés (AES-256-GCM) avant d'aller dans la base, avec la clé `secrets.key` du
+  dossier de données (ou `THERMOBOX_SECRETS_KEY`) : une copie de la base n'en donne rien. Sans cette
+  clé, il faut les saisir à nouveau.
+- **Webhooks et réseau local** : l'URL est tapée par un ADMIN mais appelée par le serveur. Seules les
+  adresses publiques en HTTPS sont acceptées, vérifiées à l'enregistrement et avant chaque envoi ;
+  pas de redirection suivie, 10 s pour se connecter, 15 s pour répondre. Pour un service interne,
+  `THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS=true`. Le serveur SMTP, choisi de la même façon, peut être
+  sur le réseau local (un relais de l'entreprise).
 
 ## Accès aux bâtiments, étages et salles
 

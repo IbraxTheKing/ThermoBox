@@ -48,6 +48,13 @@ les accès d'un utilisateur, tous les membres d'un groupe… en une transaction)
 | `RoomImageDataService` | `room_image` |
 | `AccessDataService` | `user_access`, `restricted_access` |
 | `UserGroupDataService` | `user_group`, `user_group_member`, `user_group_access` |
+| `AlertDataService` | `alert_channel`, `alert_rule`, `alert_rule_scope`, `alert_rule_channel`, `alert_event`, `alert_delivery` |
+
+`AlertDataService` n'a qu'une implémentation, en JDBC (`AlertDataServiceJdbcImpl`), utilisée quel que
+soit `THERMOBOX_DB_ACCESS` (avec `jpa`, un pool JDBC s'ouvre pour elle à côté de celui d'EclipseLink) :
+les alertes sont arrivées après le passage à JDBC par défaut, et leurs lignes ne sont pas des entités
+de `persistence.xml`. Elle fournit aussi `exclusively`, un verrou MySQL (`GET_LOCK`) pour qu'un seul
+serveur surveille les salles.
 
 `PersistenceFactory` fournit un exemplaire unique de chaque service (`getRoomDataService()`…). Au
 premier appel, elle lance les migrations, puis ouvre l'accès choisi par `THERMOBOX_DB_ACCESS`. Elle
@@ -113,6 +120,8 @@ utilisation de la base (JPA comme JDBC ne créent ni ne modifient jamais de tabl
 | `V5__latest_measurement.sql` | Table `latest_measurement` remplie à partir de l'historique, index sur les dates des températures (26.12). Une trentaine de secondes pour 4 millions de mesures. |
 | `V6__room_temperature_dates.sql` | Copie du type et de la date de chaque température dans `room_temperature_attr`, index (élément, type, date) (26.12). ~40 s pour 4 millions de mesures. |
 | `V7__measurement_hourly.sql` | Table `measurement_hourly` (moyenne, min, max de chaque boîtier par heure), remplie depuis l'historique (26.12). ~40 s pour 4 millions de mesures. |
+| `V8__user_profile.sql` | Prénom, nom, adresse des comptes, mots de passe provisoires (26.12). |
+| `V9__temperature_alerts.sql` | Alertes de température : canaux, règles et leur portée, historique des alertes et des messages (26.12). Tables vides, instantané. |
 
 - Base vide : tous les scripts s'exécutent.
 - Base créée avant Flyway (jusqu'à 26.10) : elle est marquée version 0 puis tous les scripts passent ;
@@ -185,7 +194,7 @@ gros) et le fichier n'a son nom définitif qu'une fois complet. Restauration :
 |---|---|---|
 | `migration/MigrationsTest` | Noms et ordre des scripts ; chaque entité de `persistence.xml` a sa table. | non |
 | `jdbc/AccessModeTest` (dans `JdbcDataServicesTest.kt`) | Lecture de `THERMOBOX_DB_ACCESS` (JDBC par défaut), pilote d'après l'URL, taille du pool. | non |
-| `jdbc/JdbcDataServicesTest` | Chaque service JDBC ; le pool (plafond, connexions gardées, connexion morte remplacée). | oui, une base de test |
+| `jdbc/JdbcDataServicesTest` | Chaque service JDBC, les alertes comprises ; le pool (plafond, connexions gardées, connexion morte remplacée). | oui, une base de test |
 | `dataservices/PersistenceFactoryTest` | La fabrique renvoie les services de l'accès choisi (JDBC sans réglage). | oui (`THERMOBOX_DB_*`) |
 
 `JdbcDataServicesTest` ne s'exécute que si `THERMOBOX_TEST_DB_URL`, `THERMOBOX_TEST_DB_USER` et
