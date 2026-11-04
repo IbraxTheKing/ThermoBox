@@ -13,6 +13,8 @@ object SetpointRules {
 
     /** Before a setpoint is saved or sent to a device. */
     fun check(value: Float) {
+        // NaN passes both comparisons below: « ?value=NaN » or {"value": "NaN"} was saved
+        if (!value.isFinite()) throw ImpossibleValueException("Setpoint is not a number: $value")
         val r = limits().setpoint
         if (value < r.min) throw ImpossibleValueException("Setpoint too low: $value °C (min: ${r.min} °C)")
         if (value > r.max) throw TooHotException("Setpoint too high: $value °C (max: ${r.max} °C)")
@@ -20,6 +22,7 @@ object SetpointRules {
 
     /** Before a measurement is saved. */
     fun checkMeasurement(value: Float) {
+        if (!value.isFinite()) throw ImpossibleValueException("Measurement is not a number: $value")
         val r = limits().measurement
         if (value < r.min) throw ImpossibleValueException("Measurement too low: $value °C (min: ${r.min} °C)")
         if (value > r.max) throw TooHotException("Measurement too high: $value °C (max: ${r.max} °C)")

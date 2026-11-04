@@ -2,6 +2,7 @@ package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.business.rules.SetpointRules
 import ax.ibr.thermobox.common.entities.Setpoint
 import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.common.entities.RoomTempAttr
@@ -154,10 +155,19 @@ class RoomTempAttrResource {
     @Path("/room/{id}/setpoint")
     fun sendSetpoint(
         @PathParam("id") id: Long,
-        @QueryParam("value") value: Float
+        @QueryParam("value") value: Float?
     ): Response {
         val room = room(id)
             ?: return Response.status(Response.Status.NOT_FOUND).build()
+        // Without ?value=, a Float parameter was 0: a setpoint of 0 °C was saved
+        if (value == null) return refused("value is required")
+        // Checked before saving: the check of the driver came after, and its refusal was only
+        // printed, so a refused setpoint (too hot, too low, NaN) was kept and the answer was 200
+        try {
+            SetpointRules.check(value)
+        } catch (e: Exception) {
+            return refused(e.message ?: "Setpoint refused")
+        }
 
         val setpoint = Setpoint(value, java.time.LocalDateTime.now())
 
@@ -180,6 +190,9 @@ class RoomTempAttrResource {
                 .build()
         }
     }
+
+    private fun refused(message: String): Response =
+        Response.status(Response.Status.BAD_REQUEST).entity(mapOf("error" to message)).build()
 
     @GET
     @Path("/room/{id}/measured/latest")
