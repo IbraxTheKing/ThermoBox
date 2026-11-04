@@ -70,6 +70,14 @@ class HierarchyClimateTest {
     }
 
     @Test
+    fun `a setpoint that is not a number is refused`() {
+        SetpointRules.limits = { TemperatureLimits.DEFAULT }
+        assertThrows(ImpossibleValueException::class.java) { SetpointRules.check(Float.NaN) }
+        assertThrows(ImpossibleValueException::class.java) { SetpointRules.checkMeasurement(Float.NaN) }
+        assertFalse(SetpointRules.acceptsMeasurement(Float.NaN))
+    }
+
+    @Test
     fun `the limits chosen by an administrator apply`() {
         SetpointRules.limits = { TemperatureLimits(Range(0f, 90f), Range(15f, 30f)) }
         try {
