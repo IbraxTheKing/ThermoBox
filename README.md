@@ -502,6 +502,12 @@ restent telles quelles : les alertes les complètent, pour qui n'a pas l'applica
 - **Une alerte par salle et par règle**, envoyée une fois quand le dépassement a duré, puis aux rappels
   et à la fin, jamais à chaque mesure. Elle dit la salle, son bâtiment et son étage, les boîtiers
   au-dessus avec leur température, la consigne, le seuil, depuis quand, et le maximum atteint.
+- **Un message par canal, pas par salle :** les alertes dues sur un canal pendant un passage (nouveaux
+  dépassements, rappels, retours à la normale, toutes règles confondues) partent en un seul message,
+  une ligne par salle. Au-delà de ce que le canal accepte (Discord et Slack : 25 et 40 salles ou
+  3 800 caractères ; e-mail et `GENERIC` : 100 salles), en plusieurs messages « (1/2) », « (2/2) ».
+  Un message sur une seule salle garde son texte détaillé ; un texte personnalisé est écrit une fois
+  par salle.
 - **La salle est en dépassement** quand l'un de ses boîtiers mesure plus que consigne + tolérance
   pendant la durée minimale ; elle revient à la normale quand **tous** ses boîtiers sont repassés
   sous le seuil pendant la durée choisie. Un boîtier muet depuis 30 min ne déclenche ni ne clôt rien.

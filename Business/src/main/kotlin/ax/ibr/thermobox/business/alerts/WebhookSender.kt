@@ -148,7 +148,7 @@ class WebhookSender(
                 put("description", m.text.take(4096))
                 put("color", color(m))
                 put("timestamp", m.sentAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString())
-                putObject("footer").put("text", "ThermoBox · ${m.values["rule"].orEmpty()}".take(2048))
+                putObject("footer").put("text", "ThermoBox · ${rules(m)}".take(2048))
             }
         }
         WebhookFormat.SLACK -> json.createObjectNode().put("text", "*${m.subject.removePrefix("[ThermoBox] ")}*\n${m.text}")
@@ -159,32 +159,44 @@ class WebhookSender(
             put("subject", m.subject)
             put("text", m.text)
             put("sentAt", m.sentAt.toString())
-            val e = m.event
-            if (e == null) putNull("alert") else putObject("alert").apply {
-                e.id?.let { put("id", it) }
-                put("state", e.state.name)
-                e.ruleId?.let { put("ruleId", it) }
-                put("rule", e.ruleName)
-                putObject("room").apply { put("id", e.roomId); put("name", e.roomName); put("place", e.place) }
-                put("temperature", e.lastTemperature ?: e.temperature)
-                put("peak", e.peak)
-                put("setpoint", e.currentSetpoint ?: e.setpoint)
-                put("threshold", e.threshold)
-                put("exceededSince", e.exceededSince.toString())
-                put("triggeredAt", e.triggeredAt.toString())
-                e.resolvedAt?.let { put("resolvedAt", it.toString()) }
-                putArray("devices").apply {
-                    e.devices.forEach { d ->
-                        addObject().apply {
-                            put("id", d.id); put("name", d.name); put("exceeding", d.exceeding)
-                            d.temperature?.let { put("temperature", it) }
-                            d.at?.let { put("at", it.toString()) }
+            // Every room of the message (none for a test), and which part it is when split
+            put("count", m.items.count { it.event != null })
+            put("part", m.part)
+            put("parts", m.parts)
+            putArray("alerts").apply {
+                m.items.forEach { item ->
+                    val e = item.event ?: return@forEach
+                    addObject().apply {
+                        put("kind", item.kind.name)
+                        e.id?.let { put("id", it) }
+                        put("state", e.state.name)
+                        e.ruleId?.let { put("ruleId", it) }
+                        put("rule", e.ruleName)
+                        putObject("room").apply { put("id", e.roomId); put("name", e.roomName); put("place", e.place) }
+                        put("temperature", e.lastTemperature ?: e.temperature)
+                        put("peak", e.peak)
+                        put("setpoint", e.currentSetpoint ?: e.setpoint)
+                        put("threshold", e.threshold)
+                        put("exceededSince", e.exceededSince.toString())
+                        put("triggeredAt", e.triggeredAt.toString())
+                        e.resolvedAt?.let { put("resolvedAt", it.toString()) }
+                        putArray("devices").apply {
+                            e.devices.forEach { d ->
+                                addObject().apply {
+                                    put("id", d.id); put("name", d.name); put("exceeding", d.exceeding)
+                                    d.temperature?.let { put("temperature", it) }
+                                    d.at?.let { put("at", it.toString()) }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    /** The rules of the alerts of [m], for the footer of Discord. */
+    private fun rules(m: AlertMessage): String = m.items.mapNotNull { it.event?.ruleName }.distinct().joinToString(", ").ifEmpty { m.values["rule"].orEmpty() }
 
     private fun color(m: AlertMessage): Int = when (m.kind) {
         ax.ibr.thermobox.common.alerts.DeliveryKind.TRIGGERED -> 0xD32F2F

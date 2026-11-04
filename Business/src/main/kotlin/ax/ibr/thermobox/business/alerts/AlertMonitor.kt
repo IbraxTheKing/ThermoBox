@@ -217,35 +217,50 @@ class AlertMonitor(
 
     // ------------------------------------------------------------------ sending
 
+    /**
+     * Sends the messages due: per channel, every alert due goes in one message (several when they
+     * do not fit, [MessageLimits]), not one per room. The result of a message applies to each
+     * of its alerts: tried again together, given up together.
+     */
     internal fun deliver() {
         val now = clock()
         val due = store.dueDeliveries(now, BATCH)
         if (due.isEmpty()) return
         val channels = store.channels().associateBy { it.id }
         val events = HashMap<Long, AlertEvent?>()
-        // A few at once: one slow server does not hold back the others
-        val pool = Executors.newFixedThreadPool(minOf(PARALLEL, due.size)) { r -> Thread(r, "thermobox-alerts-send").apply { isDaemon = true } }
-        try {
-            val jobs = due.map { d ->
-                val channel = d.channelId?.let { channels[it] }
-                val event = d.eventId?.let { id -> events.getOrPut(id) { store.event(id) } }
-                d to pool.submit<SendResult> {
-                    when {
-                        channel == null -> SendResult.Failed("Channel deleted")
-                        !channel.enabled -> SendResult.Failed("Channel disabled")
-                        d.eventId != null && event == null -> SendResult.Failed("Alert deleted")
-                        else -> sender.send(channel, AlertMessages.of(d.kind, event, channel.name, now, null))
-                    }
-                }
+        val byChannel = LinkedHashMap<AlertChannel, MutableList<AlertMessages.Entry<AlertDelivery>>>()
+        for (d in due) {
+            val channel = d.channelId?.let { channels[it] }
+            val event = d.eventId?.let { id -> events.getOrPut(id) { store.event(id) } }
+            val refused = when {
+                channel == null -> "Channel deleted"
+                !channel.enabled -> "Channel disabled"
+                d.eventId != null && event == null -> "Alert deleted"
+                else -> null
             }
-            for ((d, job) in jobs) {
-                val result = try {
-                    job.get(SEND_TIMEOUT.seconds, TimeUnit.SECONDS)
+            if (refused != null) store.save(after(d, SendResult.Failed(refused), now))
+            else byChannel.getOrPut(channel!!) { ArrayList() } += AlertMessages.Entry(d, d.kind, event)
+        }
+        val batches = byChannel.map { (channel, entries) ->
+            channel to AlertMessages.digest(entries, channel.name, now, MessageLimits.of(channel), AlertMessages.templateOf(channel))
+        }
+        if (batches.isEmpty()) return
+        // A few channels at once: one slow server does not hold back the others. The parts of a
+        // channel go one after the other, in their order
+        val pool = Executors.newFixedThreadPool(minOf(PARALLEL, batches.size)) { r -> Thread(r, "thermobox-alerts-send").apply { isDaemon = true } }
+        try {
+            val jobs = batches.map { (channel, parts) ->
+                parts to pool.submit<List<SendResult>> { parts.map { (message, _) -> sender.send(channel, message) } }
+            }
+            for ((parts, job) in jobs) {
+                val results = try {
+                    job.get(SEND_TIMEOUT.seconds * parts.size, TimeUnit.SECONDS)
                 } catch (e: Exception) {
                     job.cancel(true)
-                    SendResult.Retry("Sending took too long or failed: ${e.message ?: e.javaClass.simpleName}")
+                    val retry = SendResult.Retry("Sending took too long or failed: ${e.message ?: e.javaClass.simpleName}")
+                    parts.map { retry }
                 }
-                store.save(after(d, result, now))
+                parts.zip(results).forEach { (part, result) -> part.second.forEach { store.save(after(it, result, now)) } }
             }
         } finally {
             pool.shutdownNow()
@@ -282,7 +297,8 @@ class AlertMonitor(
 
     companion object {
         private const val LOCK = "thermobox_alerts"
-        private const val BATCH = 50
+        /** Messages read at once: enough that a whole site in excess goes in one run. */
+        private const val BATCH = 500
         private const val PARALLEL = 4
         private val SEND_TIMEOUT: Duration = Duration.ofSeconds(60)
         const val MAX_ATTEMPTS = 6
