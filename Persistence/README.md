@@ -95,7 +95,9 @@ sans risque entre les requêtes, et les entités renvoyées sont détachées. L'
   opérations ; une connexion inutilisée depuis plus de 10 s est vérifiée avant d'être prêtée, et
   remplacée si elle est morte (MySQL redémarré, délai d'inactivité). En 26.12 avant ce réglage, seules
   8 sur 20 restaient ouvertes : sous charge, le serveur fermait et rouvrait des centaines de connexions
-  par seconde, jusqu'à 22 % d'erreurs. EclipseLink reçoit le même plafond. Le pilote JDBC est chargé
+  par seconde, jusqu'à 22 % d'erreurs. EclipseLink reçoit le même plafond et garde lui aussi toutes ses
+  connexions ouvertes (`min` = plafond) : avec `min` à 1, il refermait chaque connexion rendue au-delà
+  de la première, jusqu'à épuiser les sockets du système sous charge. Le pilote JDBC est chargé
   d'après l'URL (`jdbc:mysql:`, `jdbc:mariadb:`).
 - `Rows` : correspondance entre lignes et entités. Le type d'un élément ou d'une température vient de
   `DTYPE` (`Building`, `Floor`, `Room`, `Device` ; `Setpoint`, `Measurement`), le rôle d'un

@@ -175,9 +175,13 @@ object PersistenceFactory {
         "jakarta.persistence.jdbc.url" to databaseUrl(),
         "jakarta.persistence.jdbc.user" to requireEnv("THERMOBOX_DB_USER"),
         "jakarta.persistence.jdbc.password" to requireEnv("THERMOBOX_DB_PASSWORD"),
-        // Same ceiling as the JDBC access (EclipseLink: 32 by default)
+        // Same ceiling as the JDBC access (EclipseLink: 32 by default). And all of them kept open, as
+        // JdbcDatabase does: EclipseLink closes a connection given back past its "min", so with
+        // min 1 a busy server opened and closed one per query, hundreds a second, until the
+        // system ran out of sockets (« unable to establish the client portion of a socket »).
+        // They are opened as needed (initial 1) and stay open after.
         "eclipselink.connection-pool.default.max" to poolSize().toString(),
-        "eclipselink.connection-pool.default.min" to "1",
+        "eclipselink.connection-pool.default.min" to poolSize().toString(),
         "eclipselink.connection-pool.default.initial" to "1",
     )
 
