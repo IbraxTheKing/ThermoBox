@@ -8,8 +8,10 @@ import ax.ibr.thermobox.common.alerts.AlertState
 import ax.ibr.thermobox.common.alerts.ChannelKind
 import ax.ibr.thermobox.common.alerts.DeliveryKind
 import ax.ibr.thermobox.common.alerts.DeliveryStatus
+import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomKind
 import ax.ibr.thermobox.persistence.dataservices.AlertDataService
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -68,6 +70,24 @@ data class AlertOverview(
 )
 
 /**
+ * A room where a rule applies, and where it stands against it now: the hottest of its boxes that
+ * measured in the last 30 min ([AlertEvaluator.STALE]), its setpoint and the threshold of the rule.
+ */
+data class RuleRoom(
+    val room: Room,
+    val place: String,
+    val setpoint: Float?,
+    /** Setpoint + tolerance of the rule; null without setpoint (the room is not watched then). */
+    val threshold: Float?,
+    val temperature: Float?,
+    val measuredAt: LocalDateTime?,
+    /** Above the threshold now (an alert comes once it lasted). */
+    val exceeding: Boolean,
+    /** Its alert in progress under this rule. */
+    val alert: AlertEvent?,
+)
+
+/**
  * Administration of the temperature alerts (ADMIN, through /api/v2/alerts): channels, rules,
  * tests and history. Every value is checked here; an invalid one is an IllegalArgumentException
  * with the reason, nothing saved.
@@ -81,6 +101,8 @@ class AlertService(
     /** Kind of an element of the hierarchy, null if it does not exist. */
     private val kindOf: (Long) -> RoomKind?,
     private val clock: () -> LocalDateTime = { LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS) },
+    /** The hierarchy with its setpoints and latest measurements, read when asked. */
+    private val view: (() -> AlertView)? = null,
 ) {
 
     fun overview() = AlertOverview(
@@ -199,6 +221,30 @@ class AlertService(
     fun updateRule(id: Long, rule: AlertRule): AlertRule? {
         store.rule(id) ?: return null
         return store.save(checked(rule.copy(id = id)))
+    }
+
+    /**
+     * The rooms where rule [id] applies, as the monitor sees them: those it covers where no nearer
+     * enabled rule replaces it (a rule on the room before one on its floor, its building, then the
+     * global ones). A disabled rule: where it would apply once enabled. Null for an unknown rule.
+     */
+    fun roomsOf(id: Long): List<RuleRoom>? {
+        val rule = store.rule(id) ?: return null
+        val v = view?.invoke() ?: return emptyList()
+        val now = clock()
+        val rules = store.rules().filter { it.enabled && it.id != id } + rule.copy(enabled = true)
+        val alerts = store.activeEvents().filter { it.ruleId == id }.associateBy { it.roomId }
+        return v.rooms().mapNotNull { room ->
+            val roomId = room.id ?: return@mapNotNull null
+            if (AlertEvaluator.applicable(rules, roomId, v.ancestors(room)).none { it.id == id }) return@mapNotNull null
+            val setpoint = v.setpoint(room)
+            val threshold = setpoint?.let { it + rule.tolerance }
+            val hottest = v.latest(room)
+                .filter { t -> t.value != null && t.date?.let { !Duration.between(it, now).minus(AlertEvaluator.STALE).isPositive } == true }
+                .maxByOrNull { it.value!! }
+            RuleRoom(room, v.place(room), setpoint, threshold, hottest?.value, hottest?.date,
+                threshold != null && hottest?.value?.let { it > threshold } == true, alerts[roomId])
+        }
     }
 
     fun enableRule(id: Long, enabled: Boolean): AlertRule? = store.rule(id)?.let { store.save(it.copy(enabled = enabled)) }

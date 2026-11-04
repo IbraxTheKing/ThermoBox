@@ -13,6 +13,7 @@ import ax.ibr.thermobox.restserver.dto.AlertRuleDto
 import ax.ibr.thermobox.restserver.dto.AlertRuleRequest
 import ax.ibr.thermobox.restserver.dto.EnabledRequest
 import ax.ibr.thermobox.restserver.dto.MonitorStatusDto
+import ax.ibr.thermobox.restserver.dto.RuleRoomDto
 import ax.ibr.utils.rest.RequiresRole
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.DELETE
@@ -142,6 +143,16 @@ class AlertResource {
         val enabled = request?.enabled ?: return error("enabled: true or false")
         return alerts.enableRule(id, enabled)?.let { Response.ok(ruleDto()(it)).build() } ?: notFound()
     }
+
+    /**
+     * The rooms where the rule applies (those where no nearer rule replaces it), with their
+     * temperature against its threshold and their alert in progress; in the order of the tree.
+     */
+    @GET
+    @Path("/rules/{id}/rooms")
+    @RequiresRole("ADMIN")
+    fun ruleRooms(@PathParam("id") id: Long): Response =
+        alerts.roomsOf(id)?.let { rooms -> Response.ok(rooms.map { RuleRoomDto.of(it) }).build() } ?: notFound()
 
     @DELETE
     @Path("/rules/{id}")

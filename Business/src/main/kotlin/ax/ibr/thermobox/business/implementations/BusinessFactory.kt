@@ -121,6 +121,7 @@ object BusinessFactory {
             monitor = alertMonitorInstance,
             config = alertConfigInstance,
             kindOf = { id -> hierarchyCacheInstance.tree().elements[id]?.kind },
+            view = { AlertView.of(ClimateSnapshot()) },
         )
     }
 

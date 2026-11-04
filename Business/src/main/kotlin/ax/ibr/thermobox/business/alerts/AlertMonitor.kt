@@ -31,6 +31,8 @@ interface AlertView {
     fun place(room: Room): String
     fun devices(room: Room): List<Device>
     fun setpoint(room: Room): Float?
+    /** Latest measurement of each box of [room] (the rooms of a rule, GET /rules/{id}/rooms). */
+    fun latest(room: Room): List<Temperature> = emptyList()
 
     companion object {
         /** From a [ClimateSnapshot]: two queries for the whole hierarchy. */
@@ -40,6 +42,7 @@ interface AlertView {
             override fun place(room: Room) = s.path(room).mapNotNull { it.name }.joinToString(" › ")
             override fun devices(room: Room) = s.devices(room)
             override fun setpoint(room: Room) = s.effectiveSetpoint(room)?.setpoint?.value
+            override fun latest(room: Room) = s.measurements(room).mapNotNull { it.measurement }
         }
     }
 }

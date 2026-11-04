@@ -5,6 +5,7 @@ import ax.ibr.thermobox.business.alerts.ChannelInput
 import ax.ibr.thermobox.business.alerts.ChannelView
 import ax.ibr.thermobox.business.alerts.EventDetail
 import ax.ibr.thermobox.business.alerts.MonitorStatus
+import ax.ibr.thermobox.business.alerts.RuleRoom
 import ax.ibr.thermobox.common.alerts.AlertDelivery
 import ax.ibr.thermobox.common.alerts.AlertDevice
 import ax.ibr.thermobox.common.alerts.AlertEvent
@@ -196,6 +197,32 @@ class AlertRuleRequest {
         name = name, enabled = enabled, tolerance = tolerance, minDurationSeconds = minDurationSeconds, clearAfterSeconds = clearAfterSeconds,
         reminderSeconds = reminderSeconds, notifyResolution = notifyResolution, global = global, scope = scope, channels = channels,
     )
+}
+
+/** GET /api/v2/alerts/rules/{id}/rooms: a room where the rule applies, and where it stands. */
+data class RuleRoomDto(
+    val id: Long,
+    val name: String?,
+    /** « Bâtiment A › Étage 1 » */
+    val place: String,
+    /** null: no setpoint, the room is not watched. */
+    val setpoint: Float?,
+    val threshold: Float?,
+    /** The hottest of its boxes measured in the last 30 min; null when none did. */
+    val temperature: Float?,
+    val measuredAt: String?,
+    /** Above the threshold now. */
+    val exceeding: Boolean,
+    /** Its alert in progress under this rule. */
+    val alertId: Long?,
+    val alertSince: String?,
+) {
+    companion object {
+        fun of(r: RuleRoom) = RuleRoomDto(
+            r.room.id!!, r.room.name, r.place, r.setpoint, r.threshold, r.temperature, iso(r.measuredAt), r.exceeding,
+            r.alert?.id, iso(r.alert?.exceededSince),
+        )
+    }
 }
 
 data class AlertDeviceDto(val id: Long, val name: String?, val temperature: Float?, val at: String?, val exceeding: Boolean) {
