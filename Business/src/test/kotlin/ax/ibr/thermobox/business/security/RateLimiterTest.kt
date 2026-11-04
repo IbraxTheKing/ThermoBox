@@ -35,6 +35,16 @@ class RateLimiterTest {
     }
 
     @Test
+    fun `every spelling of a username shares one count`() {
+        repeat(2) { RateLimiter.recordFailure("testUser") }
+        repeat(2) { RateLimiter.recordFailure("TESTUSER") }
+        RateLimiter.recordFailure(" tëstuser ")
+        assertTrue(RateLimiter.isBlocked("testuser"))
+        RateLimiter.reset("TestUser")
+        assertFalse(RateLimiter.isBlocked("testUser"))
+    }
+
+    @Test
     fun `should not block if lockout duration has passed`() {
         // This is hard to test without mocking Instant, but we can check the logic
         // For now, just verifying basic behavior.
