@@ -11,9 +11,20 @@
 //              N first accounts of DatabaseSeeder huge (usera, userb…)
 //   PASSWORD   their password, password123 by default (the seeded accounts)
 //   SCENARIO   ramp (default): 10 → 400 users by steps, to find the limit;
-//              steady: VUS users during DURATION, to measure one load
+//              steady: VUS users during DURATION, to measure one load;
+//              enterprise: a working day compressed (see below)
 //   VUS, DURATION   for steady (50, 5m by default)
-//   THINK      seconds a user reads a page before the next one, 2 by default (0: as fast as possible)
+//   THINK      seconds a user reads a page before the next one, 2 by default (0: as fast as possible;
+//              20 for enterprise)
+//
+// SCENARIO=enterprise: a whole company, for an hour (loadtest/README.md, « Scénario entreprise »):
+//   EMPLOYEES  people with the client open at the busiest moment (1000), reached in RAMP (10m), kept
+//              until DURATION (1h); each reads a page every THINK seconds and its client asks for the
+//              notifications every 2 minutes, as the apps do
+//   LOGINS     logins per second during the first LOGIN_PEAK (5/s for 3m): the morning, when everyone
+//              arrives (BCrypt is slow on purpose: this is what it costs)
+//   SETPOINTS  setpoints changed per minute by the MANAGER accounts among USERS (20)
+//   The boxes that send their measurements are another program: loadtest/devices.mjs (MQTT).
 //   MONITOR_USER, MONITOR_PASSWORD   ADMIN account that reads the CPU and memory of the server every
 //              MONITOR_EVERY seconds (5) during the test (admin / PASSWORD by default); MONITOR=0: off
 
@@ -25,8 +36,9 @@ import { Counter, Trend } from 'k6/metrics';
 // program may listen on the same port while the browser reaches the server through 127.0.0.1
 const BASE = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 const PASSWORD = __ENV.PASSWORD || 'password123';
-const THINK = Number(__ENV.THINK ?? 2);
 const SCENARIO = __ENV.SCENARIO || 'ramp';
+const ENTERPRISE = SCENARIO === 'enterprise';
+const THINK = Number(__ENV.THINK ?? (ENTERPRISE ? 20 : 2));
 // What the Angular client sends; k6 sends no Accept header by default
 const ACCEPT = { Accept: 'application/json, text/plain, */*' };
 
@@ -70,13 +82,31 @@ const scenarios = {
   },
 };
 
+// SCENARIO=enterprise: the people (main scenario), the morning logins, the managers' setpoints
+const EMPLOYEES = Number(__ENV.EMPLOYEES || 1000);
+const RAMP = __ENV.RAMP || '10m';
+const DAY = __ENV.DURATION || '1h';
+const LOGINS = Number(__ENV.LOGINS ?? 5);
+const LOGIN_PEAK = __ENV.LOGIN_PEAK || '3m';
+const SETPOINTS = Number(__ENV.SETPOINTS ?? 20);
+/** The clients ask for the setpoint notifications every 2 minutes (NotificationService of the client). */
+const NOTIFY_EVERY = 120;
+if (ENTERPRISE) {
+  scenarios.enterprise = {
+    executor: 'ramping-vus',
+    startVUs: 0,
+    stages: [{ duration: RAMP, target: EMPLOYEES }, { duration: `${Math.max(0, seconds(DAY) - seconds(RAMP))}s`, target: EMPLOYEES }],
+    gracefulRampDown: '30s',
+  };
+}
+
 /** How long a scenario lasts, in seconds ("1m30s" → 90). */
 function seconds(text) {
   let total = 0;
   for (const [, n, unit] of String(text).matchAll(/(\d+(?:\.\d+)?)(h|m|s)/g)) total += Number(n) * { h: 3600, m: 60, s: 1 }[unit];
   return total;
 }
-const main = scenarios[SCENARIO] || fail(`SCENARIO=${SCENARIO}: ramp or steady`);
+const main = scenarios[SCENARIO] || fail(`SCENARIO=${SCENARIO}: ramp, steady or enterprise`);
 const mainSeconds = main.stages ? main.stages.reduce((t, s) => t + seconds(s.duration), 0) : seconds(main.duration);
 
 export const options = {
@@ -84,7 +114,15 @@ export const options = {
     [SCENARIO]: main,
     // One more user, apart: reads the load of the server during the whole test
     ...(MONITOR ? { monitor: { executor: 'constant-vus', vus: 1, duration: `${mainSeconds}s`, exec: 'monitor' } } : {}),
+    ...(ENTERPRISE && LOGINS > 0
+      ? { morning: { executor: 'constant-arrival-rate', rate: LOGINS, timeUnit: '1s', duration: LOGIN_PEAK, preAllocatedVUs: Math.max(5, LOGINS * 4), maxVUs: Math.max(20, LOGINS * 20), exec: 'login' } }
+      : {}),
+    ...(ENTERPRISE && SETPOINTS > 0
+      ? { managers: { executor: 'constant-arrival-rate', rate: SETPOINTS, timeUnit: '1m', duration: `${mainSeconds}s`, preAllocatedVUs: 2, maxVUs: 20, exec: 'manager' } }
+      : {}),
   },
+  // Hundreds of accounts log in during setup: more than the 60 s k6 gives it by default
+  setupTimeout: '15m',
   thresholds: {
     // Not stopping the test: they only mark the run as failed in the summary
     http_req_failed: ['rate<0.01'],
@@ -94,6 +132,14 @@ export const options = {
     // The two kinds of curves apart, to see which one is slow
     'http_req_duration{name:/api/v2/climate/averages}': ['p(95)<3000'],
     'http_req_duration{name:/api/v2/climate/{id}/history}': ['p(95)<3000'],
+    // enterprise: what people wait for in a normal day, not at saturation
+    ...(ENTERPRISE
+      ? {
+          'http_req_duration{page:notifications}': ['p(95)<2000'],
+          'http_req_duration{page:login}': ['p(95)<5000'],
+          'http_req_duration{page:setpoint}': ['p(95)<1000'],
+        }
+      : {}),
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
@@ -127,17 +173,29 @@ export function setup() {
   }
   console.log(`ThermoBox ${info.json('version')} at ${BASE}, scenario ${SCENARIO}`);
 
+  // A few at once: one after the other, 1000 accounts would take minutes of BCrypt
   const tokens = [];
-  for (const username of accounts()) {
-    const r = http.post(`${BASE}/api/v2/auth/login`, JSON.stringify({ username, password: PASSWORD }), {
-      headers: { ...ACCEPT, 'Content-Type': 'application/json' }, tags: { page: 'login' },
+  const managers = [];
+  const names = accounts();
+  for (let i = 0; i < names.length; i += 16) {
+    const part = names.slice(i, i + 16);
+    const answers = http.batch(part.map((username) => ['POST', `${BASE}/api/v2/auth/login`, JSON.stringify({ username, password: PASSWORD }), {
+      headers: { ...ACCEPT, 'Content-Type': 'application/json' }, tags: { page: 'setup' },
+    }]));
+    answers.forEach((r, j) => {
+      if (r.status !== 200) return console.warn(`login ${part[j]}: ${r.status}`);
+      tokens.push(r.json('token'));
+      if (/^(ADMIN|MANAGER)$/.test(String(r.json('user.type')))) managers.push(r.json('token'));
     });
-    if (r.status === 200) tokens.push(r.json('token'));
-    else console.warn(`login ${username}: ${r.status}`);
   }
   if (tokens.length === 0) fail('No account could log in: check USERS and PASSWORD');
-  console.log(`${tokens.length} account(s) logged in`);
-  return { tokens, monitorToken: MONITOR ? monitorLogin() : null };
+  console.log(`${tokens.length} account(s) logged in${ENTERPRISE ? `, ${managers.length} of them MANAGER or ADMIN` : ''}`);
+  if (ENTERPRISE) {
+    console.log(`Enterprise: ${EMPLOYEES} people in ${RAMP}, for ${DAY}, a page every ${THINK} s; ` +
+      `${LOGINS} login(s)/s for ${LOGIN_PEAK}; ${SETPOINTS} setpoint(s)/min. The boxes: node loadtest/devices.mjs`);
+    if (SETPOINTS > 0 && managers.length === 0) console.warn('No MANAGER among USERS: no setpoint will be changed (USERS=10 or more for the huge set)');
+  }
+  return { tokens, managers, monitorToken: MONITOR ? monitorLogin() : null };
 }
 
 /** The ADMIN account of the monitor, if it can read /api/v2/server/metrics. */
@@ -202,13 +260,29 @@ function reportError(r, page) {
 }
 
 const iso = (ms) => new Date(ms).toISOString();
+/** « 2026-11-04T09:30:00 »: the local time the notifications take (a LocalDateTime of the server). */
+const localIso = (ms) => {
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+};
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+/** When this simulated user's client last asked for the notifications (enterprise). */
+let notifiedAt = 0;
 
 /** One visit: the overview, then the page of an element with its curves, as the client does. */
 export default function (data) {
   const token = data.tokens[(__VU - 1) % data.tokens.length];
   const now = Date.now();
   let nodes = [];
+
+  // The client open in the background: its notifications every 2 minutes, since the last time
+  if (ENTERPRISE && now - notifiedAt >= NOTIFY_EVERY * 1000) {
+    const since = notifiedAt ? `?since=${encodeURIComponent(localIso(notifiedAt))}` : '';
+    get(`/api/v2/notifications/setpoints${since}`, token, 'notifications');
+    notifiedAt = now;
+  }
 
   group('overview', () => {
     const tree = get('/api/v2/hierarchy/tree', token, 'overview');
@@ -231,4 +305,41 @@ export default function (data) {
     get(`/api/v2/climate/${e.id}/history?start=${iso(now - 7 * 86400e3)}&end=${iso(now)}&points=1000`, token, 'curves');
   });
   sleep(THINK * (0.5 + Math.random()));
+}
+
+// ---------------------------------------------------------------- enterprise
+
+const everyone = ENTERPRISE ? accounts() : [];
+
+/** The morning: someone arrives and logs in (scenario morning, LOGINS per second). */
+export function login() {
+  const username = pick(everyone);
+  const r = http.post(`${BASE}/api/v2/auth/login`, JSON.stringify({ username, password: PASSWORD }), {
+    headers: { ...ACCEPT, 'Content-Type': 'application/json' }, tags: { page: 'login', name: '/api/v2/auth/login' },
+  });
+  check(r, { 'login: 200': (x) => x.status === 200 });
+  if (r.status >= 500 || r.status === 0) serverErrors.add(1, { page: 'login' });
+  if (r.status !== 200) reportError(r, 'login');
+}
+
+/** Rooms each manager may change (read once per simulated user). */
+let managed = null;
+
+/** A manager changes the setpoint of one of its rooms (scenario managers, SETPOINTS per minute). */
+export function manager(data) {
+  if (!data.managers.length) return;
+  const token = data.managers[(__VU - 1) % data.managers.length];
+  if (managed == null) {
+    const tree = get('/api/v2/hierarchy/tree', token, 'setpoint');
+    managed = tree.status === 200 ? (tree.json('nodes') || []).filter((n) => n.accessible && n.kind === 'ROOM').map((n) => n.id) : [];
+  }
+  if (!managed.length) return;
+  // 19 to 23 °C by half degrees: inside the default limits
+  const value = 19 + Math.floor(Math.random() * 9) / 2;
+  const r = http.put(`${BASE}/api/v2/roomtemps/room/${pick(managed)}/setpoint?value=${value}`, null, {
+    headers: { ...ACCEPT, Authorization: `Bearer ${token}` }, tags: { page: 'setpoint', name: '/api/v2/roomtemps/room/{id}/setpoint' },
+  });
+  check(r, { 'setpoint: 200': (x) => x.status === 200 });
+  if (r.status >= 500 || r.status === 0) serverErrors.add(1, { page: 'setpoint' });
+  if (r.status !== 200) reportError(r, 'setpoint');
 }

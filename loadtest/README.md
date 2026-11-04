@@ -36,9 +36,9 @@ k6 run -e USERS=100 -e SCENARIO=steady -e VUS=50 -e THINK=0 loadtest/thermobox.j
 | `BASE_URL` | `http://127.0.0.1:8080` | Le serveur testé |
 | `USERS` | `admin` | Comptes, séparés par des virgules, ou un nombre N pour `usera`… (les N premiers du jeu huge) |
 | `PASSWORD` | `password123` | Leur mot de passe |
-| `SCENARIO` | `ramp` | `ramp` (paliers) ou `steady` (charge fixe) |
+| `SCENARIO` | `ramp` | `ramp` (paliers), `steady` (charge fixe) ou `enterprise` (une journée d'entreprise, voir [plus bas](#scénario-entreprise)) |
 | `VUS`, `DURATION` | `50`, `5m` | Pour `steady` |
-| `THINK` | `2` | Secondes de lecture entre deux pages (`0` : enchaîner sans pause) |
+| `THINK` | `2` (`20` pour `enterprise`) | Secondes de lecture entre deux pages (`0` : enchaîner sans pause) |
 | `MONITOR_USER`, `MONITOR_PASSWORD` | `admin`, `PASSWORD` | Compte ADMIN qui relève la charge du serveur (voir plus bas) |
 | `MONITOR_EVERY` | `5` | Secondes entre deux relevés ; `MONITOR=0` pour ne rien relever |
 
@@ -137,6 +137,77 @@ simulé, avec le message du serveur (ou l'erreur réseau, statut 0) : c'est la c
 `docker compose logs rest`.
 
 Répétez le test après chaque changement important du serveur, sur la même base, pour comparer.
+
+## Scénario entreprise
+
+Les autres scénarios cherchent la limite du serveur. Celui-ci joue une journée de travail d'une
+entreprise entière, pour savoir si un serveur donné la tient : **lancez-le sur la machine qui servira
+vraiment**, les chiffres d'un PC de bureau ne disent rien d'un petit serveur.
+
+Ce qu'il fait, pendant une heure par défaut :
+
+| Qui | Défaut | Ce qu'il fait |
+|---|---|---|
+| Les salariés (`EMPLOYEES`) | 1000, atteints en 10 min (`RAMP`) | Chacun lit une page toutes les 20 s environ (`THINK`) : aperçu, page d'un élément, courbes ; son client demande les notifications toutes les 2 min, comme les applications |
+| L'arrivée du matin (`LOGINS`) | 5 connexions/s pendant 3 min (`LOGIN_PEAK`) | Des connexions en plus des jetons du début : c'est BCrypt, lent exprès, qui coûte |
+| Les gestionnaires (`SETPOINTS`) | 20 consignes/min | Les comptes MANAGER parmi `USERS` (un sur dix dans le jeu `huge`) changent la consigne d'une de leurs salles, entre 19 et 23 °C |
+| Les boîtiers (`devices.mjs`, à part) | tous, une mesure toutes les 30 s | Les mesures arrivent par MQTT, comme sur un vrai site : k6 ne parle pas MQTT, d'où ce second programme |
+
+### Préparer
+
+1. Une base à la taille de l'entreprise, par exemple deux fois `huge`, trois mois de mesures et 2000
+   comptes (≈ 1 920 boîtiers, 25 millions de mesures ; plusieurs dizaines de minutes à remplir) :
+   ```
+   DatabaseSeeder huge buildings=20 days=90 users=2000
+   ```
+2. Le serveur écoute les boîtiers : dans `.env`, `THERMOBOX_DRIVER=mqtt` (le pilote simulé ajoute
+   sinon ses propres mesures), puis le broker avec `docker compose --profile mqtt up -d`.
+3. Des jetons qui tiennent tout le test : ils sont pris au début, `THERMOBOX_JWT_TTL_MINUTES=120` dans
+   `.env` pour un test d'une heure (60 par défaut).
+4. `THERMOBOX_DB_ACCESS=jdbc` (le défaut), et les réglages de mémoire et de pool que vous comptez
+   garder : c'est eux qu'on mesure.
+
+### Lancer
+
+Deux fenêtres, en même temps :
+
+```bash
+# 1. Les boîtiers (Node 18 ou plus, rien à installer) : arrêtez-le avec Ctrl+C à la fin du test
+node loadtest/devices.mjs --duration 70m
+
+# 2. Les salariés, l'arrivée du matin, les gestionnaires (2000 comptes du jeu)
+k6 run -e USERS=2000 -e SCENARIO=enterprise loadtest/thermobox.js
+
+# Plus gros : 3000 personnes, 5000 boîtiers (les mêmes envoient plusieurs fois par période)
+node loadtest/devices.mjs --boxes 5000 --duration 70m
+k6 run -e USERS=2000 -e SCENARIO=enterprise -e EMPLOYEES=3000 loadtest/thermobox.js
+```
+
+`devices.mjs` (options `--name valeur`, ou la variable en majuscules) :
+
+| Option | Défaut | Rôle |
+|---|---|---|
+| `--base` | `http://127.0.0.1:8080` | Le serveur REST, pour la liste de ses boîtiers |
+| `--user`, `--password` | `admin`, `password123` | Un compte ADMIN qui voit tous les boîtiers |
+| `--broker` | `mqtt://127.0.0.1:1883` | Le broker que le serveur écoute (`--mqtt-user`, `--mqtt-password` s'il en demande) |
+| `--every` | `30` | Secondes entre deux mesures d'un boîtier |
+| `--boxes` | tous | Boîtiers qui envoient ; plus que le serveur n'en a : les mêmes plusieurs fois, pour un site plus grand |
+| `--connections` | `50` | Connexions MQTT sur lesquelles les boîtiers sont répartis |
+| `--duration` | `1h` | Durée |
+
+### Lire le résultat
+
+- **k6** marque le test en échec au-delà de ce qu'un salarié supporte un jour normal (et non à
+  saturation) : pages en plus de 2 s, courbes en plus de 3 s, notifications en plus de 2 s,
+  connexion en plus de 5 s, consigne en plus de 1 s (p95), plus de 1 % d'erreurs.
+- **`devices.mjs`** dit chaque minute combien de mesures sont parties et en combien de temps le
+  serveur en a enregistré une (une valeur marquée envoyée à un boîtier, puis relue par l'API) : un
+  délai qui grandit d'une minute à l'autre veut dire que le serveur ne suit plus les boîtiers, même
+  si les pages restent rapides.
+- La mémoire Java (`server_heap_used_mb`) sur une heure : si elle monte sans redescendre, quelque chose
+  s'accumule. `--out csv=entreprise.csv` garde les relevés avec leur heure, pour la tracer.
+- MySQL (`docker-stats`, plus haut) : c'est souvent lui qui manque de mémoire le premier sur une grande
+  base (`MYSQL_BUFFER_POOL`).
 
 ## Résultats de référence
 
