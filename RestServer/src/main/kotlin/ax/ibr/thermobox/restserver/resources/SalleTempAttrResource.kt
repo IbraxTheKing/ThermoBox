@@ -79,34 +79,38 @@ class SalleTempAttrResource {
     @Path("/room/{id}/temperatures")
     fun getTemperaturesFromSalleTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Temperature>? {
         val salle = salle(id) ?: return null
-        return service.getTemperaturesFromSalleTimed(salle, Instant.parse(start), Instant.parse(end))
+        return service.getTemperaturesFromSalleTimed(salle, instant(start, "start"), instant(end, "end"))
     }
 
     @GET
     @Path("/room/{id}/consignes")
     fun getConsignesFromSalleTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Consigne>? {
         val salle = salle(id) ?: return null
-        return service.getConsignesFromSalleTimed(salle, Instant.parse(start), Instant.parse(end))
+        return service.getConsignesFromSalleTimed(salle, instant(start, "start"), instant(end, "end"))
     }
 
     @GET
     @Path("/room/{id}/average")
     fun getAverageTemperatureFromSalleTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Temperature>? {
         val salle = salle(id) ?: return null
-        return service.getAverageTemperatureFromSalleTimed(salle, Instant.parse(start), Instant.parse(end))
+        return service.getAverageTemperatureFromSalleTimed(salle, instant(start, "start"), instant(end, "end"))
     }
+
+    /** ?start= / ?end= required: missing, it was a NullPointerException (500). */
+    private fun instant(value: String?, name: String): Instant =
+        Instant.parse(requireNotNull(value?.takeIf { it.isNotBlank() }) { "$name is required (ISO-8601 instant)" })
 
     @POST
     @RequiresAuth(roles = ["ADMIN", "GESTIONNAIRE"], allowOwner = false)
