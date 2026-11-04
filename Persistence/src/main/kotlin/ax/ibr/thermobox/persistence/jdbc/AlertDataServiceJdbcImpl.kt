@@ -253,9 +253,10 @@ class AlertDataServiceJdbcImpl(
             cx.execute("DELETE FROM alert_delivery WHERE event_id IS NULL AND created_at < ?", before)
     }
 
-    override fun <T> exclusively(name: String, block: () -> T): T? = db.read { cx ->
+    // The lock is held by a connection outside the pool: the operations of [block] borrow theirs
+    override fun <T> exclusively(name: String, block: () -> T): T? = db.alone { cx ->
         val got = cx.query("SELECT GET_LOCK(?, 0) AS got", name) { it.intOrNull("got") }.firstOrNull() == 1
-        if (!got) return@read null
+        if (!got) return@alone null
         try {
             block()
         } finally {

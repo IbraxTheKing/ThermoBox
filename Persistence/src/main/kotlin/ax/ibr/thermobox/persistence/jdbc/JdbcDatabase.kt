@@ -84,6 +84,14 @@ class JdbcDatabase(
         }
     }
 
+    /**
+     * Runs [block] on a connection of its own, outside the pool, closed after: for a MySQL session
+     * held during operations that borrow from the pool themselves (a GET_LOCK around a whole run).
+     * Taken from the pool, it would keep one of [maxOpen] busy doing nothing, and wait behind the
+     * requests for the next one it needs.
+     */
+    fun <R> alone(block: (Connection) -> R): R = DriverManager.getConnection(url, user, password).use(block)
+
     override fun close() {
         while (true) {
             val i = idle.poll() ?: break
