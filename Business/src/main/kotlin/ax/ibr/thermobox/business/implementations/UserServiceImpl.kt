@@ -24,6 +24,19 @@ class UserServiceImpl(
         return userService.getByUsername(username)
     }
 
+    /**
+     * Refuses to take away the last ADMIN (deleted, or turned into a MANAGER / VIEWER): no one
+     * could manage the users, the accesses or the updates any more, from any client.
+     *
+     * @throws IllegalStateException if [t] is the only ADMIN
+     */
+    private fun lastAdmin(t: User, action: String) {
+        val admins = userService.getByType(UserType.ADMIN).orEmpty()
+        if (admins.size <= 1 && admins.any { it.id == t.id }) {
+            throw IllegalStateException("« ${t.username} » is the last administrator: impossible to $action. Make someone else an administrator first.")
+        }
+    }
+
     override fun getByType(userType: UserType): List<User>? {
         return userService.getByType(userType)
     }
@@ -42,6 +55,7 @@ class UserServiceImpl(
     override fun update(t: User) {
         // An ADMIN turned into a MANAGER / VIEWER doesn't keep a view on everything.
         val before = t.id?.let { userService.getById(it) }?.type
+        if (before == UserType.ADMIN && t.type != UserType.ADMIN) lastAdmin(t, "take away their role")
         if (before == UserType.ADMIN && t.type != UserType.ADMIN) access.initialize(t)
         hashPassword(t)
         if (!UserVerification.verifyUsername(t.username!!))
@@ -51,6 +65,7 @@ class UserServiceImpl(
 
     /** Deletes the user's favourites first, or the foreign key blocks the delete. */
     override fun remove(t: User) {
+        if (t.type == UserType.ADMIN) lastAdmin(t, "delete them")
         // A user never saved (no id) has no favourites: no need to reach the database for them.
         if (t.id != null) {
             favorites.getByUser(t).forEach { favorites.remove(it) }
