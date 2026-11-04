@@ -30,7 +30,12 @@ class ClimateSnapshot(
     private val parentIds: Map<Long, Long> = tree.parents
     private val childIds: Map<Long, List<Long>> = tree.children
 
-    private val latest: Map<Long, Temperature> = roomTemps.getLatestMeasurements(elements.values.filterIsInstance<Device>())
+    /**
+     * Latest measurement of every device: read the first time it is asked (measurements), as one
+     * query for all of them. A snapshot that only needs the tree and the setpoints (the alert
+     * monitor, every 30 s) never reads it: on a large base it is the heaviest of the two queries.
+     */
+    private val latest: Map<Long, Temperature> by lazy { roomTemps.getLatestMeasurements(elements.values.filterIsInstance<Device>()) }
     private val setpoints: Map<Long, Setpoint> = roomTemps.getLatestSetpoints(elements.values.filter { it !is Device })
 
     private val devicesUnder = HashMap<Long, List<Device>>()
