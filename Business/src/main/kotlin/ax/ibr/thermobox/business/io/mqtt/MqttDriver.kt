@@ -53,6 +53,8 @@ class MqttDriver(
         client.subscribe(TOPIC_TEMPERATURES) { topic, message ->
             val salleId = topic.substringAfterLast("/").toLongOrNull() ?: return@subscribe
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
+            // « NaN » and « Infinity » are read as floats: a broken sensor, not a temperature
+            if (!value.isFinite()) return@subscribe
 
             // Only boxes measure; anything else (salle, étage…) is ignored.
             val salle = salleService.getById(salleId) as? Boitier ?: return@subscribe

@@ -2,6 +2,7 @@ package ax.ibr.thermobox.restserver.resources
 
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
+import ax.ibr.thermobox.business.rules.ConsigneRules
 import ax.ibr.thermobox.common.entities.Consigne
 import ax.ibr.thermobox.common.entities.Mesurer
 import ax.ibr.thermobox.common.entities.SalleTempAttr
@@ -152,10 +153,19 @@ class SalleTempAttrResource {
     @Path("/room/{id}/consigne")
     fun sendConsigne(
         @PathParam("id") id: Long,
-        @QueryParam("value") value: Float
+        @QueryParam("value") value: Float?
     ): Response {
         val salle = salle(id)
             ?: return Response.status(Response.Status.NOT_FOUND).build()
+        // Without ?value=, a Float parameter was 0: a consigne of 0 °C was saved
+        if (value == null) return refusee("value is required")
+        // Checked before saving: the check of the driver came after, and its refusal was only
+        // printed, so a refused consigne (too hot, impossible, NaN) was kept and the answer was 200
+        try {
+            ConsigneRules.check(value)
+        } catch (e: Exception) {
+            return refusee(e.message ?: "Consigne refusée")
+        }
 
         val consigne = Consigne(value, java.time.LocalDateTime.now())
 
@@ -178,6 +188,9 @@ class SalleTempAttrResource {
                 .build()
         }
     }
+
+    private fun refusee(message: String): Response =
+        Response.status(Response.Status.BAD_REQUEST).entity(mapOf("error" to message)).build()
 
     @GET
     @Path("/room/{id}/measured/latest")
