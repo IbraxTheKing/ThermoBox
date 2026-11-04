@@ -110,7 +110,11 @@ class UserResource {
         }
         if (changes.type != null) existing.type = changes.type
 
-        service.update(existing)
+        try {
+            service.update(existing)
+        } catch (e: IllegalStateException) {
+            return error(Response.Status.CONFLICT, e.message ?: "The last administrator must stay an administrator")
+        }
         return Response.ok(UserDto.from(existing)).build()
     }
 
@@ -121,7 +125,11 @@ class UserResource {
         @PathParam("id") id: Long
     ): Response {
         val user = service.getById(id) ?: return notFound()
-        service.remove(user)
+        try {
+            service.remove(user)
+        } catch (e: IllegalStateException) {
+            return error(Response.Status.CONFLICT, e.message ?: "The last administrator can't be deleted")
+        }
         return Response.noContent().build()
     }
 
