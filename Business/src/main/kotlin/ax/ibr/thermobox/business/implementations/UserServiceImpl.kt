@@ -40,6 +40,7 @@ class UserServiceImpl(
     override fun update(t: User) {
         // An ADMIN turned into a GESTIONNAIRE / VIEWER doesn't keep a view on everything.
         val avant = t.id?.let { userService.getById(it) }?.type
+        if (avant == UserType.ADMIN && t.type != UserType.ADMIN) dernierAdmin(t, "retirer son rôle")
         if (avant == UserType.ADMIN && t.type != UserType.ADMIN) acces.initialiser(t)
         hashPassword(t)
         if (!UserVerification.verifyUsername(t.username!!))
@@ -49,12 +50,26 @@ class UserServiceImpl(
 
     /** Deletes the user's favourites first, or the foreign key blocks the delete. */
     override fun remove(t: User) {
+        if (t.type == UserType.ADMIN) dernierAdmin(t, "le supprimer")
         // A user never saved (no id) has no favourites: no need to reach the database for them.
         if (t.id != null) {
             favoris.getByUser(t).forEach { favoris.remove(it) }
             acces.oublierUtilisateur(t)
         }
         userService.remove(t)
+    }
+
+    /**
+     * Refuses to take away the last ADMIN (deleted, or turned into a GESTIONNAIRE / VIEWER): no one
+     * could manage the users, the accesses or the updates any more, from any client.
+     *
+     * @throws IllegalStateException if [t] is the only ADMIN
+     */
+    private fun dernierAdmin(t: User, action: String) {
+        val admins = userService.getByType(UserType.ADMIN).orEmpty()
+        if (admins.size <= 1 && admins.any { it.id == t.id }) {
+            throw IllegalStateException("« ${t.username} » est le dernier administrateur : impossible de $action. Nommez d'abord un autre administrateur.")
+        }
     }
 
     override fun getAll(): List<User> {

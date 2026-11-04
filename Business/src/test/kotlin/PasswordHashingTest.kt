@@ -80,4 +80,16 @@ class PasswordHashingTest {
         assertTrue(PasswordHasher.isHash(migre)) // stored as a hash from now on
         assertEquals("bob", Authenticator.authenticate("bob", "ancien-en-clair", service)?.username)
     }
+
+    @Test
+    fun `le dernier administrateur ne perd pas son role`() {
+        val donnees = FauxUsers()
+        val service = UserServiceImpl(donnees)
+        val hash = PasswordHasher.hash("secret-root")
+        donnees.add(User("root", hash, UserType.ADMIN).apply { id = 1 })
+
+        val retrograde = User("root", hash, UserType.VIEWER).apply { id = 1 }
+        assertThrows(IllegalStateException::class.java) { service.update(retrograde) }
+        assertEquals(UserType.ADMIN, donnees.lignes.single().type)
+    }
 }
