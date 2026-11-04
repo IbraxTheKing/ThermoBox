@@ -81,34 +81,38 @@ class RoomTempAttrResource {
     @Path("/room/{id}/temperatures")
     fun getTemperaturesFromRoomTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Temperature>? {
         val room = room(id) ?: return null
-        return service.getTemperaturesFromRoomTimed(room, Instant.parse(start), Instant.parse(end))
+        return service.getTemperaturesFromRoomTimed(room, instant(start, "start"), instant(end, "end"))
     }
 
     @GET
     @Path("/room/{id}/setpoints")
     fun getSetpointsFromRoomTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Setpoint>? {
         val room = room(id) ?: return null
-        return service.getSetpointsFromRoomTimed(room, Instant.parse(start), Instant.parse(end))
+        return service.getSetpointsFromRoomTimed(room, instant(start, "start"), instant(end, "end"))
     }
 
     @GET
     @Path("/room/{id}/average")
     fun getAverageTemperatureFromRoomTimed(
         @PathParam("id") id: Long,
-        @QueryParam("start") start: String,
-        @QueryParam("end") end: String
+        @QueryParam("start") start: String?,
+        @QueryParam("end") end: String?
     ): List<Temperature>? {
         val room = room(id) ?: return null
-        return service.getAverageTemperatureFromRoomTimed(room, Instant.parse(start), Instant.parse(end))
+        return service.getAverageTemperatureFromRoomTimed(room, instant(start, "start"), instant(end, "end"))
     }
+
+    /** ?start= / ?end= required: missing, it was a NullPointerException (500). */
+    private fun instant(value: String?, name: String): Instant =
+        Instant.parse(requireNotNull(value?.takeIf { it.isNotBlank() }) { "$name is required (ISO-8601 instant)" })
 
     @POST
     @RequiresAuth(roles = ["ADMIN", "MANAGER"], allowOwner = false)
