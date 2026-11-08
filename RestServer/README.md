@@ -287,6 +287,7 @@ secrets) est décrit dans le [README principal](../README.md#alertes-de-tempéra
 | `GET` / `POST` | `/rules` | Les règles ; en créer une. |
 | `GET` / `PUT` / `DELETE` | `/rules/{id}` | Une règle. La supprimer annule ses alertes en cours. |
 | `PUT` | `/rules/{id}/enabled` | `{"enabled": false}`. |
+| `GET` | `/rules/{id}/rooms` | Les salles où la règle s'applique (celles où aucune règle plus proche ne la remplace ; pour une règle coupée, où elle s'appliquerait), dans l'ordre de l'arbre : `id`, `name`, `place`, `setpoint`, `threshold` (consigne + tolérance), `temperature` (le boîtier le plus chaud des 30 dernières minutes), `measuredAt`, `exceeding`, `alertId` / `alertSince` (son alerte en cours). |
 | `GET` | `/events?state=&roomId=&ruleId=&limit=50&before=` | Historique, le plus récent d'abord (`ACTIVE`, `RESOLVED`, `CANCELLED`) ; page suivante avec `before` = l'id du dernier. `deliveryFailed` : un message n'a pas pu partir. |
 | `GET` | `/events/{id}` | Une alerte et tous ses messages (`deliveries`). |
 | `GET` | `/deliveries?status=FAILED&limit=100` | Les messages (`PENDING`, `SENT`, `FAILED`) avec leurs tentatives et leur dernière erreur. |

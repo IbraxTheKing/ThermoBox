@@ -214,6 +214,44 @@ class ChannelsTest {
     )
 
     @Test
+    fun `the rooms of a rule are those where no nearer rule replaces it`() {
+        val store = FakeAlertStore()
+        val office = ax.ibr.thermobox.common.entities.Room("Bureau").apply { id = 5 }
+        val servers = ax.ibr.thermobox.common.entities.Room("Salle serveurs").apply { id = 3 }
+        val view = object : AlertView {
+            override fun rooms() = listOf(servers, office)
+            // The servers' room is on floor 2 of building 1, the office right in building 1
+            override fun ancestors(room: ax.ibr.thermobox.common.entities.Room) = if (room === servers) listOf(1L, 2L) else listOf(1L)
+            override fun place(room: ax.ibr.thermobox.common.entities.Room) = if (room === servers) "Bâtiment A › Étage 1" else "Bâtiment A"
+            override fun devices(room: ax.ibr.thermobox.common.entities.Room) = emptyList<ax.ibr.thermobox.common.entities.Device>()
+            override fun setpoint(room: ax.ibr.thermobox.common.entities.Room) = 22f
+            override fun latest(room: ax.ibr.thermobox.common.entities.Room) =
+                if (room === servers) listOf(ax.ibr.thermobox.common.entities.Measurement(25f, now.minusMinutes(5)), ax.ibr.thermobox.common.entities.Measurement(40f, now.minusHours(2)))
+                else listOf(ax.ibr.thermobox.common.entities.Measurement(21f, now.minusMinutes(1)))
+        }
+        val alerts = AlertService(
+            store, AlertSecrets(Files.createTempDirectory("tb-alerts").resolve("secrets.key")), AlertSender { _, _ -> SendResult.Sent }, null, AlertConfig(),
+            kindOf = { RoomKind.ROOM }, clock = { now }, view = { view },
+        )
+        val site = store.save(AlertRule(name = "Tout le site", global = true, tolerance = 2f))
+        val floor = store.save(AlertRule(name = "Étage serveurs", global = false, scope = listOf(2L), tolerance = 1f, enabled = false))
+
+        // Disabled, the floor's rule leaves both rooms to the global one; it says where it would apply
+        assertEquals(listOf("Salle serveurs", "Bureau"), alerts.roomsOf(site.id!!)!!.map { it.room.name })
+        val servers3 = alerts.roomsOf(floor.id!!)!!.single()
+        assertEquals("Salle serveurs", servers3.room.name)
+        // The hottest box that measured in the last 30 min (40 °C two hours ago does not count)
+        assertEquals(25f, servers3.temperature)
+        assertEquals(23f, servers3.threshold)
+        assertTrue(servers3.exceeding)
+
+        store.save(floor.copy(enabled = true))
+        assertEquals(listOf("Bureau"), alerts.roomsOf(site.id!!)!!.map { it.room.name })
+        assertFalse(alerts.roomsOf(site.id!!)!!.single().exceeding)
+        assertNull(alerts.roomsOf(999))
+    }
+
+    @Test
     fun `channel secrets are never shown, kept, replaced or removed`() {
         val store = FakeAlertStore()
         val alerts = service(store)
