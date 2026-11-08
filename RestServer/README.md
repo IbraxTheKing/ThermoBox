@@ -71,6 +71,7 @@ aux éléments (`AccessScope`) sont appliquées dans la ressource : un élément
 | `UpdateResource` | `/api/v2/updates` |
 | `NotificationResource` | `/api/v2/notifications` |
 | `AlertResource` | `/api/v2/alerts` |
+| `AuditResource` | `/api/v2/audit` (le journal des modifications) |
 
 ### `dto/` — le JSON
 
@@ -91,6 +92,11 @@ Fichiers : `AuthDtos`, `AccessDtos`, `HierarchyDtos`, `UpdateDtos`, `ErrorRespon
 3. **`SecurityFilter`** : sauf `@PublicEndpoint`, exige `Authorization: Bearer <jeton>` ; le jeton doit
    être bien signé, non expiré, non révoqué (déconnexion), et son utilisateur doit encore exister.
    Puis il applique `@RequiresRole` / `@RequiresAuth`. 401 sans jeton valide, 403 sans les droits.
+4. **`AuditFilter`** : les méthodes `@Audited` (toute création, modification ou suppression) sont
+   écrites au [journal](#journal-des-modifications-apiv2audit) une fois qu'elles ont répondu 2xx :
+   le corps JSON envoyé (secrets retirés) est gardé avant la méthode, avec le nom de la cible et ce
+   que la modification remplace (la consigne). Une nouvelle méthode qui modifie quelque chose doit
+   porter `@Audited`.
 
 ### `security/`, `hierarchy/`, `branding/`, `update/`, `exceptions/`
 
@@ -357,6 +363,29 @@ Avant 26.12.0-alpha.8, un message portait une seule salle, dans `alert`.
 | `GET` | `/api/v2/rooms/{id}/image` | La photo (JPEG), avec `ETag`. | Authentifié |
 | `PUT` | `/api/v2/rooms/{id}/image` | Remplace la photo : le corps est l'image (JPEG, PNG, GIF ou BMP, 10 Mo max). | ADMIN |
 | `DELETE` | `/api/v2/rooms/{id}/image` | Retire la photo. | ADMIN |
+
+### Journal des modifications (`/api/v2/audit`)
+Toute modification faite par l'API, quel que soit le rôle (ADMIN ou MANAGER) : consignes, bâtiments,
+étages, salles et photos, mesures, utilisateurs, accès, groupes, imports, alertes (canaux et règles),
+réglages du serveur (logo, nom, limites, style), mises à jour installées, changement de son mot de
+passe. Pas les connexions ni les favoris. Écrit à part (une requête n'attend jamais le journal), dans
+la table `audit_log` (migration V10).
+
+| Méthode | Chemin | Description | Accès |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | `{"total": 1234, "entries": [...]}`, les plus récentes d'abord. `?offset=0&limit=50` (500 max), `user` (id), `action` (`setpoint.set`, ou un domaine : `rule`), `target` et `targetId`, `from` / `to` (ISO), `q` (dans l'utilisateur, la cible ou les valeurs). | ADMIN |
+| `GET` | `/users` | Les utilisateurs présents dans le journal (`[{"id", "username"}]`), pour le filtre. | ADMIN |
+| `GET` | `/settings` | `{"retentionDays": 90}` ; `null` : gardé pour toujours. | ADMIN |
+| `PUT` | `/settings` | Durée de conservation : 1 à 3650 jours, ou `null`. Ce qui est plus ancien part aussitôt, puis chaque jour. Gardé dans `audit.properties` du dossier de données. | ADMIN |
+
+Une entrée : `{"id", "at", "userId", "username", "role", "action", "targetType", "targetId", "targetName",
+"details"}`. `targetName` est le nom de la cible au moment de la modification (gardé après sa
+suppression) ; `details` : `{"changes": <le JSON envoyé, secrets remplacés par •••>, "before":
+{"setpoint": 21.0}, "place": "Bâtiment A › Étage 1"}`. Actions : `setpoint.set`,
+`element.create|update|move|delete|image|image-delete`, `measurement.*`, `roomtemp.*`,
+`user.create|update|delete|access|provisional-password`, `group.*`, `users.import`,
+`channel.create|update|enable|delete`, `rule.*`, `logo.set|reset`, `limits.set|reset`, `name.set|reset`,
+`style.set`, `update.install`, `account.password`, `audit.retention`.
 
 ### Réglages (`/api/v2/settings`)
 | Méthode | Chemin | Description | Accès |

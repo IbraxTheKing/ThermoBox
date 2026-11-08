@@ -22,6 +22,7 @@ import ax.ibr.thermobox.persistence.backup.BackupResult
 import ax.ibr.thermobox.persistence.backup.DatabaseBackup
 import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
 import ax.ibr.thermobox.persistence.jdbc.AlertDataServiceJdbcImpl
+import ax.ibr.thermobox.persistence.jdbc.AuditDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.AccessDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.FavoriteDataServiceJdbcImpl
 import ax.ibr.thermobox.persistence.jdbc.JdbcDatabase
@@ -155,6 +156,11 @@ object PersistenceFactory {
     fun getAlertDataService(): AlertDataService = alertService
 
     private val alertService: AlertDataService by lazy { AlertDataServiceJdbcImpl(jdbc) }
+
+    /** The log of the changes (V10), in plain JDBC whatever [accessMode] says, as the alerts. */
+    fun getAuditDataService(): AuditDataService = auditService
+
+    private val auditService: AuditDataService by lazy { AuditDataServiceJdbcImpl(jdbc) }
 
     fun close() {
         if (emfHolder.isInitialized() && emf.isOpen) emf.close()

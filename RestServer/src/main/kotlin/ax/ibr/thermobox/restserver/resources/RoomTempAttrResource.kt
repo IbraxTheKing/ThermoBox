@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.protocols.ProtocolDriver
 import ax.ibr.thermobox.business.rules.SetpointRules
@@ -117,6 +118,7 @@ class RoomTempAttrResource {
 
     @POST
     @RequiresAuth(roles = ["ADMIN", "MANAGER"], allowOwner = false)
+    @Audited("roomtemp.create")
     fun add(roomTempAttr: RoomTempAttr): Response {
         if (!access.canSee(roomTempAttr.room)) return Response.status(Response.Status.NOT_FOUND).build()
         return try {
@@ -135,6 +137,7 @@ class RoomTempAttrResource {
     @PUT
     @Path("/{id}")
     @RequiresAuth(roles = ["ADMIN", "MANAGER"], allowOwner = false)
+    @Audited("roomtemp.update")
     fun updateById(@PathParam("id") id: Long, roomTempAttr: RoomTempAttr): Response {
         // Both the current room and the new one must be allowed.
         val current = service.getById(id)?.takeIf { access.canSee(it.room) }
@@ -147,6 +150,7 @@ class RoomTempAttrResource {
     @DELETE
     @Path("/{id}")
     @RequiresAuth(roles = ["ADMIN"], allowOwner = false)
+    @Audited("roomtemp.delete")
     fun removeById(@PathParam("id") id: Long) {
         val attr = service.getById(id)
         if (attr != null) {
@@ -157,6 +161,7 @@ class RoomTempAttrResource {
     @PUT
     @RequiresAuth(roles = ["ADMIN", "MANAGER"], allowOwner = false)
     @Path("/room/{id}/setpoint")
+    @Audited("setpoint.set", target = "element")
     fun sendSetpoint(
         @PathParam("id") id: Long,
         @QueryParam("value") value: Float?

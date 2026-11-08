@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.Temperature
 import ax.ibr.utils.exceptions.AlreadyExistsException
@@ -83,6 +84,7 @@ class TemperatureResource {
 
     @POST
     @RequiresRole("ADMIN")
+    @Audited("measurement.create")
     fun add(temperature: Temperature): Response {
         return try {
             service.add(temperature)
@@ -104,6 +106,7 @@ class TemperatureResource {
     @POST
     @Path("/type/{type}")
     @RequiresRole("ADMIN")
+    @Audited("measurement.create")
     fun addTyped(@PathParam("type") type: String, temperature: Temperature?): Response {
         val sample = resolveSample(type) ?: return Response.status(Response.Status.NOT_FOUND).build()
         val value = temperature?.value
@@ -118,6 +121,7 @@ class TemperatureResource {
     @PUT
     @Path("/{id}")
     @RequiresRole("ADMIN")
+    @Audited("measurement.update")
     fun updateById(@PathParam("id") id: Long, temperature: Temperature) {
         // Changes the stored row, so a setpoint stays a setpoint and a measurement a measurement.
         val existing = service.getById(id)
@@ -134,6 +138,7 @@ class TemperatureResource {
     @DELETE
     @Path("/{id}")
     @RequiresRole("ADMIN")
+    @Audited("measurement.delete")
     fun removeById(@PathParam("id") id: Long) {
         val temperature = service.getById(id)
         if (temperature != null) {

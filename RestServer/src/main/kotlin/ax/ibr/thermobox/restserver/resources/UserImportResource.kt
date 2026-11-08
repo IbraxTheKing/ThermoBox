@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.users.imports.DatabaseSources
 import ax.ibr.thermobox.business.users.imports.ImportException
@@ -102,6 +103,7 @@ class UserImportResource {
     @Path("/{id}/confirm")
     @RequiresRole("ADMIN")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Audited("users.import")
     fun confirm(@PathParam("id") id: String, request: ImportOptionsRequest?, @Context security: SecurityContext): Response {
         val session = ImportSessions.get(id, security.currentUser.id!!) ?: return expired()
         // Once: a second confirmation would find the accounts taken anyway

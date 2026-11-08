@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.update.UpdateConfig
 import ax.ibr.thermobox.restserver.dto.SettingsDto
 import ax.ibr.thermobox.restserver.dto.SettingsRequest
@@ -32,6 +33,7 @@ class SettingsResource {
 
     @PUT
     @RequiresRole("ADMIN")
+    @Audited("style.set")
     fun update(request: SettingsRequest?): Response {
         val style = request?.style?.trim()?.lowercase()
         if (style !in STYLES) return Response.status(Response.Status.BAD_REQUEST)

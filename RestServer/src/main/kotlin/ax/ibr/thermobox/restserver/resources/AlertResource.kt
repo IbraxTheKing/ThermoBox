@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.alerts.AlertRule
 import ax.ibr.thermobox.common.alerts.AlertState
@@ -71,6 +72,7 @@ class AlertResource {
     @POST
     @Path("/channels")
     @RequiresRole("ADMIN")
+    @Audited("channel.create", target = "channel")
     fun createChannel(request: AlertChannelRequest?): Response = valid {
         val r = request ?: return@valid error("Missing body")
         Response.status(Response.Status.CREATED).entity(AlertChannelDto.of(alerts.createChannel(r.toInput(null)))).build()
@@ -79,6 +81,7 @@ class AlertResource {
     @PUT
     @Path("/channels/{id}")
     @RequiresRole("ADMIN")
+    @Audited("channel.update", target = "channel")
     fun updateChannel(@PathParam("id") id: Long, request: AlertChannelRequest?): Response = valid {
         val r = request ?: return@valid error("Missing body")
         val current = alerts.channel(id) ?: return@valid notFound()
@@ -89,6 +92,7 @@ class AlertResource {
     @PUT
     @Path("/channels/{id}/enabled")
     @RequiresRole("ADMIN")
+    @Audited("channel.enable", target = "channel")
     fun enableChannel(@PathParam("id") id: Long, request: EnabledRequest?): Response {
         val enabled = request?.enabled ?: return error("enabled: true or false")
         return alerts.enableChannel(id, enabled)?.let { Response.ok(AlertChannelDto.of(it)).build() } ?: notFound()
@@ -97,6 +101,7 @@ class AlertResource {
     @DELETE
     @Path("/channels/{id}")
     @RequiresRole("ADMIN")
+    @Audited("channel.delete", target = "channel")
     fun deleteChannel(@PathParam("id") id: Long): Response =
         if (alerts.deleteChannel(id)) Response.noContent().build() else notFound()
 
@@ -123,6 +128,7 @@ class AlertResource {
     @POST
     @Path("/rules")
     @RequiresRole("ADMIN")
+    @Audited("rule.create", target = "rule")
     fun createRule(request: AlertRuleRequest?): Response = valid {
         val r = request ?: return@valid error("Missing body")
         Response.status(Response.Status.CREATED).entity(ruleDto()(alerts.createRule(r.toRule()))).build()
@@ -131,6 +137,7 @@ class AlertResource {
     @PUT
     @Path("/rules/{id}")
     @RequiresRole("ADMIN")
+    @Audited("rule.update", target = "rule")
     fun updateRule(@PathParam("id") id: Long, request: AlertRuleRequest?): Response = valid {
         val r = request ?: return@valid error("Missing body")
         alerts.updateRule(id, r.toRule())?.let { Response.ok(ruleDto()(it)).build() } ?: notFound()
@@ -139,6 +146,7 @@ class AlertResource {
     @PUT
     @Path("/rules/{id}/enabled")
     @RequiresRole("ADMIN")
+    @Audited("rule.enable", target = "rule")
     fun enableRule(@PathParam("id") id: Long, request: EnabledRequest?): Response {
         val enabled = request?.enabled ?: return error("enabled: true or false")
         return alerts.enableRule(id, enabled)?.let { Response.ok(ruleDto()(it)).build() } ?: notFound()
@@ -157,6 +165,7 @@ class AlertResource {
     @DELETE
     @Path("/rules/{id}")
     @RequiresRole("ADMIN")
+    @Audited("rule.delete", target = "rule")
     fun deleteRule(@PathParam("id") id: Long): Response =
         if (alerts.deleteRule(id)) Response.noContent().build() else notFound()
 

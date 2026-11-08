@@ -52,9 +52,14 @@ fun main() {
     val alerts = BusinessFactory.getAlertMonitor()
     alerts.start()
 
+    // The log of the changes (Serveur › Journal): what is older than its retention goes every day
+    val audit = BusinessFactory.getAuditLog()
+    audit.start()
+
     // Release the database connection pool when the server stops.
     Runtime.getRuntime().addShutdownHook(Thread {
         alerts.stop()
+        audit.stop()
         updates.stop()
         PersistenceFactory.close()
     })

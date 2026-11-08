@@ -18,6 +18,8 @@ import ax.ibr.thermobox.common.entities.UserType
 import ax.ibr.thermobox.persistence.dataservices.PersistenceFactory
 import ax.ibr.thermobox.persistence.migration.DatabaseMigrations
 import ax.ibr.thermobox.common.alerts.AlertChannel
+import ax.ibr.thermobox.common.audit.AuditEntry
+import ax.ibr.thermobox.common.audit.AuditQuery
 import ax.ibr.thermobox.common.alerts.AlertDelivery
 import ax.ibr.thermobox.common.alerts.AlertDevice
 import ax.ibr.thermobox.common.alerts.AlertEvent
@@ -76,11 +78,33 @@ class JdbcDataServicesTest {
         groups = UserGroupDataServiceJdbcImpl(db)
         db.transaction { cx ->
             listOf(
-                "alert_delivery", "alert_event", "alert_rule_channel", "alert_rule_scope", "alert_rule", "alert_channel",
+                "audit_log", "alert_delivery", "alert_event", "alert_rule_channel", "alert_rule_scope", "alert_rule", "alert_channel",
                 "measurement_hourly", "latest_measurement", "user_group_access", "user_group_member", "user_group", "restricted_access", "user_access",
                 "room_image", "favorite", "room_temperature_attr", "temperature", "room_attr", "room", "`user`",
             ).forEach { cx.execute("DELETE FROM $it") }
         }
+    }
+
+    @Test
+    fun `the log of the changes is written, filtered, counted, paged and purged`() {
+        val log = AuditDataServiceJdbcImpl(db)
+        val at = LocalDateTime.of(2026, 11, 1, 10, 0)
+        log.add(AuditEntry(at = at, userId = 1, username = "admin", role = "ADMIN", action = "setpoint.set", targetType = "element", targetId = 12, targetName = "Salle 101", details = "{\"changes\":{\"value\":22}}"))
+        log.add(AuditEntry(at = at.plusDays(1), userId = 2, username = "gestion", role = "MANAGER", action = "rule.create", targetType = "rule", targetId = 3, targetName = "Tout_le site"))
+        log.add(AuditEntry(at = at.plusDays(2), userId = 2, username = "gestion2", role = "MANAGER", action = "rule.update", targetType = "rule", targetId = 3, targetName = "Tout le site"))
+        log.add(AuditEntry(at = at.minusDays(90), userId = null, username = "ghost", role = null, action = "style.set"))
+
+        assertEquals(listOf("rule.update", "rule.create"), log.find(AuditQuery(action = "rule")).map { it.action })
+        assertEquals(1L, log.count(AuditQuery(action = "rule.create")))
+        assertEquals(2L, log.count(AuditQuery(userId = 2)))
+        // _ is a character, not « any »
+        assertEquals(listOf("Tout_le site"), log.find(AuditQuery(text = "t_le")).map { it.targetName })
+        assertEquals(2L, log.count(AuditQuery(from = at, to = at.plusDays(2))))
+        assertEquals(listOf("rule.create"), log.find(AuditQuery(offset = 1, limit = 1)).map { it.action })
+        assertEquals("{\"changes\":{\"value\":22}}", log.find(AuditQuery(targetType = "element", targetId = 12)).single().details)
+        assertEquals(listOf(1L to "admin", 2L to "gestion2"), log.users())
+        assertEquals(1, log.purge(at.minusDays(30)))
+        assertEquals(3L, log.count(AuditQuery()))
     }
 
     @Test

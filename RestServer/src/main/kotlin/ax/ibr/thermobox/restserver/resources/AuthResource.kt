@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.security.Authenticator
 import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.business.security.PasswordPolicy
@@ -89,6 +90,7 @@ class AuthResource {
     @POST
     @Path("/password")
     @AllowedWithProvisionalPassword
+    @Audited("account.password", body = false)
     fun changePassword(request: ChangePasswordRequest?, @Context securityContext: SecurityContext): Response {
         val user = securityContext.currentUser
         val username = user.username.orEmpty()

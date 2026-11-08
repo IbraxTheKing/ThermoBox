@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.charts.CurveSampling
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.implementations.ClimateServiceImpl
@@ -140,6 +141,7 @@ class ClimateResource {
     @PUT
     @Path("/{id}/setpoint")
     @RequiresAuth(roles = ["ADMIN", "MANAGER"], allowOwner = false)
+    @Audited("setpoint.set", target = "element")
     fun sendSetpoint(@PathParam("id") id: Long, request: SetpointRequest?): Response {
         val s = view.element(id) ?: return notFound()
         if (s is Device) return error("A setpoint is set on a building, a floor or a room")

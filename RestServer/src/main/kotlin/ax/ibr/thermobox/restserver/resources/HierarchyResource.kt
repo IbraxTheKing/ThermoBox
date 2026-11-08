@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomKind
@@ -59,6 +60,7 @@ class HierarchyResource {
     @POST
     @Path("/elements")
     @RequiresRole("ADMIN")
+    @Audited("element.create", target = "element")
     fun create(request: ElementRequest?): Response {
         if (request == null) return error("Missing body")
         val kind = request.kind?.let { k -> RoomKind.entries.firstOrNull { it.name.equals(k.trim(), ignoreCase = true) } }
@@ -84,6 +86,7 @@ class HierarchyResource {
     @PUT
     @Path("/elements/{id}")
     @RequiresRole("ADMIN")
+    @Audited("element.update", target = "element")
     fun update(@PathParam("id") id: Long, request: ElementRequest?): Response {
         val room = rooms.getById(id) ?: return notFound()
         if (request == null) return error("Missing body")
@@ -107,6 +110,7 @@ class HierarchyResource {
     @PUT
     @Path("/elements/{id}/parent")
     @RequiresRole("ADMIN")
+    @Audited("element.move", target = "element")
     fun move(@PathParam("id") id: Long, request: ParentRequest?): Response {
         val room = rooms.getById(id) ?: return notFound()
         val parent = request?.parentId?.let { pid -> rooms.getById(pid) ?: return error("Unknown parent $pid") }
