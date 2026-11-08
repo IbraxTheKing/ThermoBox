@@ -186,7 +186,7 @@ class ChannelsTest {
     }
 
     @Test
-    fun `several rooms: two short lines each, the rule once`() {
+    fun `several rooms two short lines each, the rule once`() {
         val m = twoRooms()
         assertTrue("• Room 101 — 22,8 °C (seuil 19,0 °C)\n  Site 012 › Floor 1 · depuis 11:58 (2 min)" in m.text, m.text)
         assertTrue("Règle : Tout le site" in m.text, m.text)
