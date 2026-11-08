@@ -119,7 +119,7 @@ class AlertMonitorTest {
         assertEquals(2, store.activeEvents().size)
         assertEquals(listOf("Astreinte", "Discord"), sent.map { it.first }.sorted())
         sent.forEach { (_, m) ->
-            assertEquals(listOf("Bureau", "Salle serveurs"), m.items.map { it.event!!.roomName }.sorted())
+            assertEquals(listOf("Bureau", "Salle serveurs"), m.items.mapNotNull { it.event?.roomName }.sorted())
             assertEquals("[ThermoBox] 2 dépassements", m.subject)
             assertTrue(m.text.contains("— Salle serveurs") && m.text.contains("— Bureau"), m.text)
         }
