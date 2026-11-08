@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.update.InstallOptions
 import ax.ibr.thermobox.restserver.dto.ErrorResponse
@@ -72,6 +73,7 @@ class UpdateResource {
     @POST
     @Path("{version}/install")
     @RequiresRole("ADMIN")
+    @Audited("update.install", target = "version", idParam = "version")
     fun install(@PathParam("version") version: String, request: InstallRequest?): Response {
         val options = InstallOptions(backupDatabase = request?.backupDatabase ?: true, risksAccepted = request?.acceptRisks ?: false)
         return try {

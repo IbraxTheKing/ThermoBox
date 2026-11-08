@@ -19,6 +19,7 @@ import ax.ibr.thermobox.common.services.UserGroupService
 import ax.ibr.thermobox.business.update.UpdateServiceImpl
 import ax.ibr.thermobox.business.config.ConfigDriver
 import ax.ibr.thermobox.business.alerts.AlertConfig
+import ax.ibr.thermobox.business.audit.AuditLog
 import ax.ibr.thermobox.business.alerts.AlertMonitor
 import ax.ibr.thermobox.business.alerts.AlertSecrets
 import ax.ibr.thermobox.business.alerts.AlertSender
@@ -129,4 +130,13 @@ object BusinessFactory {
     fun getAlertMonitor(): AlertMonitor = alertMonitorInstance
 
     fun getAlertService(): AlertService = alertServiceInstance
+
+    // --- The log of the changes (Serveur › Journal)
+
+    private val auditLogInstance: AuditLog by lazy {
+        AuditLog({ PersistenceFactory.getAuditDataService() }, alertConfigInstance.dataDirectory.resolve("audit.properties"))
+    }
+
+    /** Every change made through the API; its daily purge is started by the program (Main). */
+    fun getAuditLog(): AuditLog = auditLogInstance
 }

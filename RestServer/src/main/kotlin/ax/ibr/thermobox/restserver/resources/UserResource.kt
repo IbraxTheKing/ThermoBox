@@ -1,6 +1,7 @@
 package ax.ibr.thermobox.restserver.resources
 
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.business.security.PasswordHasher
 import ax.ibr.thermobox.business.security.ProvisionalPasswords
@@ -55,6 +56,7 @@ class UserResource {
     /** Public registration: the account is always created as VIEWER, whatever the body says. */
     @POST
     @PublicEndpoint
+    @Audited("user.create", target = "user")
     fun add(user: User?): Response {
         val username = user?.username?.trim().orEmpty()
         val password = user?.password.orEmpty()
@@ -87,6 +89,7 @@ class UserResource {
     @PUT
     @Path("/{id}")
     @RequiresAuth(roles = ["ADMIN"], allowOwner = true)
+    @Audited("user.update", target = "user")
     fun updateById(
         @PathParam("id") id: Long,
         changes: User?,
@@ -135,6 +138,7 @@ class UserResource {
     @DELETE
     @Path("/{id}")
     @RequiresAuth(roles = ["ADMIN"], allowOwner = true)
+    @Audited("user.delete", target = "user")
     fun removeById(
         @PathParam("id") id: Long
     ): Response {
@@ -173,6 +177,7 @@ class UserResource {
     @PUT
     @Path("/{id}/access")
     @RequiresRole("ADMIN")
+    @Audited("user.access", target = "user")
     fun setAccess(@PathParam("id") id: Long, request: AccessRequest?): Response {
         val user = service.getById(id) ?: return notFound()
         if (request == null) return error(Response.Status.BAD_REQUEST, "Missing body")
@@ -195,6 +200,7 @@ class UserResource {
     @POST
     @Path("/{id}/provisional-password")
     @RequiresRole("ADMIN")
+    @Audited("user.provisional-password", target = "user")
     fun provisionalPassword(@PathParam("id") id: Long, @jakarta.ws.rs.QueryParam("days") days: Int?): Response {
         val user = service.getById(id) ?: return notFound()
         val validity = days?.coerceIn(1, 90)?.let { java.time.Duration.ofDays(it.toLong()) } ?: ProvisionalPasswords.defaultValidity

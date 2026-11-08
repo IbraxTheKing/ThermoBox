@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.settings.Range
 import ax.ibr.thermobox.business.settings.TemperatureLimits
 import ax.ibr.thermobox.business.settings.TemperatureLimitsStore
@@ -94,6 +95,7 @@ class ServerResource {
     @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
     @RequiresRole("ADMIN")
+    @Audited("logo.set", body = false)
     fun putLogo(data: ByteArray?): Response = try {
         logos.setCustom(data ?: ByteArray(0))
         Response.ok(info()).build()
@@ -109,6 +111,7 @@ class ServerResource {
     @Path("/logo")
     @Produces(MediaType.APPLICATION_JSON)
     @RequiresRole("ADMIN")
+    @Audited("logo.reset")
     fun deleteLogo(): Response {
         logos.deleteCustom()
         return Response.ok(info()).build()
@@ -131,6 +134,7 @@ class ServerResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @RequiresRole("ADMIN")
+    @Audited("limits.set")
     fun setLimits(request: TemperatureLimitsDto?): Response {
         val current = TemperatureLimitsStore.instance.get()
         return try {
@@ -153,6 +157,7 @@ class ServerResource {
     @Path("/limits")
     @Produces(MediaType.APPLICATION_JSON)
     @RequiresRole("ADMIN")
+    @Audited("limits.reset")
     fun resetLimits(): TemperatureLimitsDto {
         TemperatureLimitsStore.instance.reset()
         return TemperatureLimitsDto.of(TemperatureLimitsStore.instance.get())

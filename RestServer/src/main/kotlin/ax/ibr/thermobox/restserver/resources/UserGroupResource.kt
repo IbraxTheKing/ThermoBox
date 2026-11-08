@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.restserver.resources
 
+import ax.ibr.thermobox.restserver.audit.Audited
 import ax.ibr.thermobox.business.implementations.BusinessFactory
 import ax.ibr.thermobox.common.entities.kind
 import ax.ibr.thermobox.common.services.UserGroupDetail
@@ -39,11 +40,13 @@ class UserGroupResource {
     /** {"name": "...", "description": "...", "members": [user ids], "elements": [building / floor / room ids]} */
     @POST
     @RequiresRole("ADMIN")
+    @Audited("group.create", target = "group")
     fun create(request: UserGroupRequest?): Response = save(null, request, Response.Status.CREATED)
 
     @PUT
     @Path("/{id}")
     @RequiresRole("ADMIN")
+    @Audited("group.update", target = "group")
     fun update(@PathParam("id") id: Long, request: UserGroupRequest?): Response {
         val g = groups.getById(id) ?: return Response.status(Response.Status.NOT_FOUND).build()
         return save(g.id, request, Response.Status.OK)
@@ -52,6 +55,7 @@ class UserGroupResource {
     @DELETE
     @Path("/{id}")
     @RequiresRole("ADMIN")
+    @Audited("group.delete", target = "group")
     fun delete(@PathParam("id") id: Long): Response {
         val g = groups.getById(id) ?: return Response.status(Response.Status.NOT_FOUND).build()
         groups.deleteGroup(g)
