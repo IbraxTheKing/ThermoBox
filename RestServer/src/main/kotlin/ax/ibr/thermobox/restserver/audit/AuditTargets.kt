@@ -69,17 +69,23 @@ object AuditTargets {
     /** The id and the name an answer gives (a creation: the element created). */
     fun fromAnswer(entity: Any?): Pair<Long?, String?> {
         if (entity == null || entity is ByteArray || entity is String) return null to null
-        val tree = runCatching { json.valueToTree<JsonNode>(entity) }.getOrNull() as? ObjectNode ?: return null to null
+        val tree = runCatching { tree(entity) }.getOrNull() as? ObjectNode ?: return null to null
         val id = tree.get("id")?.takeIf { it.canConvertToLong() }?.asLong()
         val name = listOf("name", "username").firstNotNullOfOrNull { k -> tree.get(k)?.takeIf { it.isTextual }?.asText() }
         return id to name
     }
 
+    /**
+     * [value] as JSON, written then read: not valueToTree, whose TokenBuffer is the part of
+     * databind that needs a jackson-core of its very version (a mix of versions failed there).
+     */
+    private fun tree(value: Any): JsonNode = json.readTree(json.writeValueAsBytes(value))
+
     fun details(changes: JsonNode?, before: Map<String, Any?>, place: String?): String? {
         if (changes == null && before.isEmpty() && place == null) return null
         val out = json.createObjectNode()
         if (changes != null) out.set<JsonNode>("changes", changes)
-        if (before.isNotEmpty()) out.set<JsonNode>("before", json.valueToTree(before))
+        if (before.isNotEmpty()) out.set<JsonNode>("before", tree(before))
         if (place != null) out.put("place", place)
         return json.writeValueAsString(out).take(60_000)
     }

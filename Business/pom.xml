@@ -71,12 +71,11 @@
         </dependency>
 
         <!-- JSON of the GitHub API (update system). java-jwt only has it at runtime, so it must be
-             declared to compile. Declared once (Maven refuses duplicates), same version as
-             jackson-datatype-jsr310 in RestServer: Jackson modules must match databind. -->
+             declared to compile. Declared once (Maven refuses duplicates); its version is the
+             jackson-bom of the parent pom, as every Jackson module: they must all match. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.17.2</version>
         </dependency>
 
         <!-- BCrypt (password hashing) -->
