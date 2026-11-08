@@ -9,6 +9,7 @@ import ax.ibr.thermobox.restserver.branding.Logo
 import ax.ibr.thermobox.restserver.branding.LogoImages
 import ax.ibr.thermobox.restserver.branding.LogoSource
 import ax.ibr.thermobox.restserver.branding.ServerLogo
+import ax.ibr.thermobox.restserver.branding.ServerName
 import ax.ibr.thermobox.restserver.monitoring.ServerMetricsDto
 import ax.ibr.utils.rest.PublicEndpoint
 import ax.ibr.utils.rest.RequiresAuth
@@ -30,7 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The ThermoBox server itself: its name, version and logo, for the clients to show (login page,
- * about page, browser tab icon). Reading them is public: a client needs them before anyone logs in.
+ * about page, browser tab icon, list of accounts). Reading them is public: a client needs them
+ * before anyone logs in. [ServerInfoDto.displayName]: the name an ADMIN gave it ([putName]).
  *
  * The logo is the one an ADMIN gave (PUT), otherwise the logo of the website the server belongs
  * to (`thermobox.example.com` shows the logo of `example.com`), otherwise the ThermoBox logo.
@@ -47,7 +49,7 @@ class ServerResource {
     private val logos get() = ServerLogo.instance
 
     /**
-     * {"name": "ThermoBox", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "site"}
+     * {"name": "ThermoBox", "displayName": "Siège social", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "site"}
      *
      * Also served as GET /api/server (old API, through [ax.ibr.thermobox.restserver.filters.LegacyApi]):
      * the same keys as the 26.11 answer, which only has name, version and apiVersions ["v1"].
@@ -55,7 +57,33 @@ class ServerResource {
     @GET
     @PublicEndpoint
     @Produces(MediaType.APPLICATION_JSON)
-    fun info(): ServerInfoDto = ServerInfoDto.of(logos.current(host()))
+    fun info(): ServerInfoDto = ServerInfoDto.of(logos.current(host()), ServerName.instance.get())
+
+    /**
+     * Names the server (ADMIN): {"name": "Siège social"}, 60 characters at most; blank or null
+     * removes it (the clients show the address again). Answers the server's information.
+     */
+    @PUT
+    @Path("/name")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresRole("ADMIN")
+    fun putName(request: ServerNameRequest?): Response = try {
+        ServerName.instance.set(request?.name)
+        Response.ok(info()).build()
+    } catch (e: IllegalArgumentException) {
+        Response.status(Response.Status.BAD_REQUEST).entity(mapOf("error" to e.message)).build()
+    } catch (e: Exception) {
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(mapOf("error" to "The data folder is not writable: ${e.message}")).build()
+    }
+
+    /** Removes the name of the server (ADMIN). */
+    @DELETE
+    @Path("/name")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RequiresRole("ADMIN")
+    fun deleteName(): Response = putName(null)
 
     /**
      * The logo in its own format (the ThermoBox logo is an SVG). With `?size=N`, a PNG whose
@@ -207,17 +235,28 @@ data class ServerInfoDto(
     val logoSource: String,
     /** What this server can do beyond the API of its version, for the clients to show it. */
     val features: List<String> = FEATURES,
+    /** The name an ADMIN gave the server, null when none ([name] is always "ThermoBox", the product). */
+    val displayName: String? = null,
 ) {
     companion object {
         val API_VERSIONS = listOf("v1", "v2")
 
-        /** Import of accounts (users/import), provisional passwords and their change (auth/password). */
-        val FEATURES = listOf("user-import", "provisional-passwords")
+        /**
+         * Import of accounts (users/import), provisional passwords and their change (auth/password),
+         * the name of the server (PUT server/name).
+         */
+        val FEATURES = listOf("user-import", "provisional-passwords", "server-name")
 
-        fun of(logo: Logo) = ServerInfoDto(
+        fun of(logo: Logo, displayName: String? = null) = ServerInfoDto(
             "ThermoBox", BuildInfo.text, API_VERSIONS, "/api/v2/server/logo?v=${logo.version}", logo.source.name.lowercase(),
+            displayName = displayName,
         )
     }
+}
+
+/** PUT /api/v2/server/name */
+class ServerNameRequest {
+    var name: String? = null
 }
 
 /** A range in JSON; a missing bound keeps its current value. */

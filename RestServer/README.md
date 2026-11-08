@@ -396,7 +396,9 @@ suppression) ; `details` : `{"changes": <le JSON envoyé, secrets remplacés par
 ### Serveur (`/api/v2/server`)
 | Méthode | Chemin | Description | Accès |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Nom et version du serveur, API servies, adresse et origine du logo (`{"name": "ThermoBox", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). `version` vaut `dev` pour un build sans numéro. | Public |
+| `GET` | `/` | Nom et version du serveur, API servies, adresse et origine du logo (`{"name": "ThermoBox", "displayName": "Siège social", "version": "26.12.0", "apiVersions": ["v1", "v2"], "logo": "/api/v2/server/logo?v=…", "logoSource": "custom" \| "site" \| "default"}`). `name` est toujours `ThermoBox` (le produit) ; `displayName` le nom donné par un administrateur, `null` sans nom. `version` vaut `dev` pour un build sans numéro. | Public |
+| `PUT` | `/name` | Nomme le serveur : `{"name": "Siège social"}`, 60 caractères au plus, sans caractère de contrôle ; vide ou `null` retire le nom. Gardé dans `branding/name.txt` du dossier de données. Répond comme `GET /`. | ADMIN |
+| `DELETE` | `/name` | Retire le nom du serveur (les clients affichent son adresse). | ADMIN |
 | `GET` | `/logo` | Le logo du serveur, dans son format. Avec `?size=192`, un PNG d'au plus 192 px quand le logo peut être redimensionné (PNG, JPEG, GIF, logo ThermoBox) ; un logo SVG, ICO ou WebP est servi tel quel. Avec `ETag`. | Public |
 | `PUT` | `/logo` | Remplace le logo : le corps est l'image (PNG, JPEG ou GIF, gardée en PNG de 1024 px au plus ; ou SVG sans script), 5 Mo max. | ADMIN |
 | `DELETE` | `/logo` | Revient au logo automatique. | ADMIN |
