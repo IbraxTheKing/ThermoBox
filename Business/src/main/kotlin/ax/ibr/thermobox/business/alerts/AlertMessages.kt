@@ -25,6 +25,8 @@ data class AlertMessage(
     val sentAt: LocalDateTime,
     val part: Int = 1,
     val parts: Int = 1,
+    /** Written by the template of the channel: sent as it is, no layout of its own (Discord, Slack, HTML). */
+    val templated: Boolean = false,
 ) {
     /** The alert of a message about one room (null for a test, or several rooms). */
     val event: AlertEvent? get() = items.singleOrNull()?.event
@@ -61,6 +63,11 @@ data class MessageLimits(val items: Int, val chars: Int) {
  * channel takes ([MessageLimits]), they are split into several messages, « (1/2) », « (2/2) ».
  * A message about one room keeps its detailed text.
  *
+ * In a message about several rooms, each room takes two short lines ([roomLine]): its name and
+ * temperature against the threshold, then where it is and since when. The rule is told once when
+ * every room has the same. Discord, Slack and email lay them out themselves (WebhookSender,
+ * AlertHtml) from [sections] and [roomLine].
+ *
  * A channel may replace the text by its own template, with these placeholders: {type} (Dépassement,
  * Rappel, Retour à la normale, Test), {room}, {place}, {temperature}, {peak}, {setpoint},
  * {threshold}, {since}, {duration}, {devices}, {rule}, {channel}, {date}. In a message about
@@ -69,6 +76,8 @@ data class MessageLimits(val items: Int, val chars: Int) {
 object AlertMessages {
 
     private val DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.FRANCE)
+    private val TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.FRANCE)
+    private val DAY = DateTimeFormatter.ofPattern("dd/MM", Locale.FRANCE)
     private val PLACEHOLDER = Regex("""\{(\w+)}""")
     /** The order of the sections, the most urgent first. */
     private val ORDER = listOf(DeliveryKind.TRIGGERED, DeliveryKind.REMINDER, DeliveryKind.RESOLVED, DeliveryKind.TEST)
@@ -124,24 +133,67 @@ object AlertMessages {
     private fun compose(items: List<AlertItem>, now: LocalDateTime, template: String?, part: Int, parts: Int, maxChars: Int = Int.MAX_VALUE): AlertMessage {
         val kind = items.minOf { ORDER.indexOf(it.kind) }.let { ORDER[it] }
         val suffix = if (parts > 1) " ($part/$parts)" else ""
+        val templated = template?.isNotBlank() == true
         if (items.size == 1) {
             val one = items.single()
-            val text = template?.takeIf { it.isNotBlank() }?.let { render(it, one.values) } ?: defaultText(one.kind, one.event, one.values)
-            return AlertMessage(kind, subject(one) + suffix, text, items, now, part, parts)
+            val text = if (templated) render(template!!, one.values) else defaultText(one.kind, one.event, one.values)
+            return AlertMessage(kind, subject(one) + suffix, text, items, now, part, parts, templated)
         }
+        val rule = sharedRule(items)
         val lines = ArrayList<String>()
         lines += summary(items) + "."
-        for (k in ORDER) {
-            val of = items.filter { it.kind == k }
-            if (of.isEmpty()) continue
+        for ((k, of) in sections(items)) {
             lines += ""
             lines += "${section(k)} (${of.size})"
-            of.forEach { lines += line(it, template) }
+            of.forEach { item ->
+                lines += ""
+                lines += if (templated) render(template!!, item.values) else roomLine(item, now, rule == null).let { "• ${it.title}\n  ${it.detail}" }
+            }
         }
         lines += ""
+        if (rule != null && !templated) lines += "Règle : $rule"
         lines += "Envoyé le ${DATE.format(now)}."
-        return AlertMessage(kind, "[ThermoBox] ${summary(items)}$suffix", lines.joinToString("\n").take(maxChars), items, now, part, parts)
+        return AlertMessage(kind, "[ThermoBox] ${summary(items)}$suffix", lines.joinToString("\n").take(maxChars), items, now, part, parts, templated)
     }
+
+    /** The alerts of a message by section, the most urgent first. */
+    fun sections(items: List<AlertItem>): List<Pair<DeliveryKind, List<AlertItem>>> =
+        ORDER.mapNotNull { k -> items.filter { it.kind == k }.takeIf { it.isNotEmpty() }?.let { k to it } }
+
+    /** The rule of every alert of the message, when they all have the same (told once). */
+    fun sharedRule(items: List<AlertItem>): String? = items.map { it.values["rule"].orEmpty() }.distinct().singleOrNull()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * A room in a message about several: [title] « Salle 104 — 19,6 °C (seuil 19,0 °C) », [detail]
+     * where and since when; [note] the threshold (the maximum for a return to normal).
+     */
+    data class RoomLine(val room: String, val temperature: String, val note: String, val detail: String) {
+        val title: String get() = "$room — $temperature ($note)"
+    }
+
+    fun roomLine(item: AlertItem, now: LocalDateTime, withRule: Boolean): RoomLine {
+        val v = item.values
+        val e = item.event
+        val since = e?.exceededSince?.let { at(it, now) } ?: v["since"].orEmpty()
+        val note = when (item.kind) {
+            DeliveryKind.RESOLVED -> "maximum ${v["peak"]}"
+            else -> "seuil ${v["threshold"]}"
+        }
+        val parts = ArrayList<String>()
+        v["place"]?.takeIf { it.isNotEmpty() }?.let { parts += it }
+        parts += when (item.kind) {
+            DeliveryKind.RESOLVED -> "dépassement de ${v["duration"]}, depuis $since"
+            else -> "depuis $since (${v["duration"]})"
+        }
+        if (withRule) v["rule"]?.takeIf { it.isNotEmpty() }?.let { parts += "règle $it" }
+        return RoomLine(v["room"].orEmpty(), v["temperature"].orEmpty(), note, parts.joinToString(" · "))
+    }
+
+    /** « 12:58 » the same day, « 07/11 à 12:58 » before. */
+    fun at(date: LocalDateTime, now: LocalDateTime): String =
+        if (date.toLocalDate() == now.toLocalDate()) TIME.format(date) else DAY.format(date) + " à " + TIME.format(date)
+
+    fun sectionTitle(k: DeliveryKind) = section(k)
 
     private fun subject(one: AlertItem): String {
         val v = one.values
@@ -173,17 +225,10 @@ object AlertMessages {
         DeliveryKind.TEST -> "Tests"
     }
 
-    /** One room in a message about several: its own template, or one line. */
+    /** One room in a message about several: its own template, or its two lines (to size the parts). */
     private fun line(item: AlertItem, template: String?): String {
         template?.takeIf { it.isNotBlank() }?.let { return render(it, item.values) }
-        val v = item.values
-        val place = v["place"].orEmpty().takeIf { it.isNotEmpty() }?.let { " ($it)" }.orEmpty()
-        val detail = when (item.kind) {
-            DeliveryKind.RESOLVED -> "${v["temperature"]}, maximum ${v["peak"]}, du ${v["since"]} au ${v["date"]} (${v["duration"]})"
-            else -> "${v["temperature"]}, seuil ${v["threshold"]}, depuis le ${v["since"]} (${v["duration"]})" +
-                (v["devices"].orEmpty().takeIf { it.isNotEmpty() }?.let { " · $it" }.orEmpty())
-        }
-        return "— ${v["room"]}$place : $detail · règle ${v["rule"]}"
+        return roomLine(item, LocalDateTime.now(), true).let { "\n• ${it.title}\n  ${it.detail}" }
     }
 
     /** Characters of the summary, the date and the section titles, kept apart when splitting. */

@@ -1,5 +1,6 @@
 package ax.ibr.thermobox.business.alerts
 
+import ax.ibr.thermobox.common.alerts.DeliveryKind
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import java.io.IOException
@@ -85,7 +86,10 @@ sealed interface SendResult {
     data class Postponed(val after: Duration) : SendResult
 }
 
-/** Webhooks: Discord, Slack-like ({"text"}) and generic JSON. */
+/**
+ * Webhooks: Discord (embeds, a field per room), Slack (Block Kit, with its {"text"} for the
+ * Slack-like that only read it) and generic JSON. A channel with its own template sends its text.
+ */
 class WebhookSender(
     private val allowPrivate: () -> Boolean,
     private val http: HttpClient = HttpClient.newBuilder()
@@ -143,15 +147,26 @@ class WebhookSender(
             put("username", "ThermoBox")
             // Never notify @everyone or a role from a room name
             putObject("allowed_mentions").putArray("parse")
-            putArray("embeds").addObject().apply {
-                put("title", m.subject.removePrefix("[ThermoBox] ").take(256))
-                put("description", m.text.take(4096))
-                put("color", color(m))
-                put("timestamp", m.sentAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString())
-                putObject("footer").put("text", "ThermoBox · ${rules(m)}".take(2048))
+            val embeds = putArray("embeds")
+            val rooms = m.items.filter { it.event != null }
+            when {
+                // The channel's own template, or a test: its text as it is
+                m.templated || rooms.isEmpty() -> embeds.addObject().apply {
+                    put("title", m.subject.removePrefix("[ThermoBox] ").take(256))
+                    put("description", m.text.take(4096))
+                    put("color", color(m.kind))
+                    put("timestamp", timestamp(m))
+                    putObject("footer").put("text", "ThermoBox · ${rules(m)}".take(2048))
+                }
+                rooms.size == 1 -> embeds.add(discordOne(m, rooms.single()))
+                else -> discordMany(m).forEach { embeds.add(it) }
             }
         }
-        WebhookFormat.SLACK -> json.createObjectNode().put("text", "*${m.subject.removePrefix("[ThermoBox] ")}*\n${m.text}")
+        WebhookFormat.SLACK -> json.createObjectNode().apply {
+            // The text: the notification, and what the Slack-like (Mattermost, Rocket.Chat…) show
+            put("text", "*${m.subject.removePrefix("[ThermoBox] ")}*\n${m.text}")
+            if (!m.templated && m.items.count { it.event != null } > 1) set<ObjectNode>("blocks", slackBlocks(m))
+        }
         WebhookFormat.GENERIC -> json.createObjectNode().apply {
             put("source", "thermobox")
             put("type", "temperature_alert")
@@ -195,14 +210,115 @@ class WebhookSender(
         }
     }
 
+    /**
+     * Discord, one room: the title says what and where, the temperature in large, then the facts
+     * side by side (fields), the boxes over the threshold below.
+     */
+    private fun discordOne(m: AlertMessage, item: AlertItem): ObjectNode = json.createObjectNode().apply {
+        val v = item.values
+        put("title", m.subject.removePrefix("[ThermoBox] ").take(256))
+        put("description", when (item.kind) {
+            DeliveryKind.RESOLVED -> "La température de **${v["room"]}** est revenue sous le seuil : **${v["temperature"]}**."
+            DeliveryKind.REMINDER -> "La température de **${v["room"]}** dépasse toujours le seuil : **${v["temperature"]}**."
+            else -> "La température de **${v["room"]}** dépasse le seuil : **${v["temperature"]}**."
+        }.take(4096))
+        put("color", color(item.kind))
+        put("timestamp", timestamp(m))
+        val fields = putArray("fields")
+        fun field(name: String, value: String?, inline: Boolean = true) {
+            if (!value.isNullOrBlank()) fields.addObject().put("name", name.take(256)).put("value", value.take(1024)).put("inline", inline)
+        }
+        field("Lieu", v["place"], inline = false)
+        field("Consigne", v["setpoint"])
+        field("Seuil", v["threshold"])
+        field("Maximum", v["peak"])
+        field(if (item.kind == DeliveryKind.RESOLVED) "Dépassement" else "Depuis", item.event?.exceededSince?.let { AlertMessages.at(it, m.sentAt) + " (${v["duration"]})" } ?: v["since"])
+        field("Boîtiers", v["devices"]?.split(", ")?.joinToString("\n"), inline = false)
+        putObject("footer").put("text", "ThermoBox · règle ${v["rule"]}".take(2048))
+    }
+
+    /**
+     * Discord, several rooms: a first embed that sums up, then one embed per section (in its
+     * colour), a field per room: its name and temperature, then where and since when. Within the
+     * limits of Discord (10 embeds, 25 fields each, 6000 characters in all): past them, the text.
+     */
+    private fun discordMany(m: AlertMessage): List<ObjectNode> {
+        val rule = AlertMessages.sharedRule(m.items)
+        val head = json.createObjectNode().apply {
+            put("title", m.subject.removePrefix("[ThermoBox] ").take(256))
+            put("color", color(m.kind))
+            if (rule != null) put("description", "Règle : **$rule**")
+        }
+        val embeds = arrayListOf(head)
+        var size = m.subject.length + (rule?.length ?: 0) + 40
+        for ((kind, items) in AlertMessages.sections(m.items)) {
+            val embed = json.createObjectNode().apply {
+                put("title", "${AlertMessages.sectionTitle(kind)} (${items.size})")
+                put("color", color(kind))
+            }
+            val fields = embed.putArray("fields")
+            items.take(25).forEach { item ->
+                val line = AlertMessages.roomLine(item, m.sentAt, rule == null)
+                val name = "${line.room} · ${line.temperature} (${line.note})".take(256)
+                val value = line.detail.ifEmpty { "—" }.take(1024)
+                fields.addObject().put("name", name).put("value", value).put("inline", false)
+                size += name.length + value.length
+            }
+            size += 60
+            embeds += embed
+        }
+        embeds.last().put("timestamp", timestamp(m)).putObject("footer").put("text", if (m.parts > 1) "ThermoBox · partie ${m.part}/${m.parts}" else "ThermoBox")
+        if (embeds.size > 10 || size > 5800) {
+            return listOf(json.createObjectNode().apply {
+                put("title", m.subject.removePrefix("[ThermoBox] ").take(256))
+                put("description", m.text.take(4096))
+                put("color", color(m.kind))
+                put("timestamp", timestamp(m))
+            })
+        }
+        return embeds
+    }
+
+    /** Slack (Block Kit): a header, a title per section, a block per room, the rule and the date. */
+    private fun slackBlocks(m: AlertMessage): com.fasterxml.jackson.databind.node.ArrayNode {
+        val rule = AlertMessages.sharedRule(m.items)
+        val blocks = json.createArrayNode()
+        blocks.addObject().put("type", "header").putObject("text").put("type", "plain_text").put("text", m.subject.removePrefix("[ThermoBox] ").take(150))
+        AlertMessages.sections(m.items).forEachIndexed { i, (kind, items) ->
+            if (i > 0) blocks.addObject().put("type", "divider")
+            blocks.addObject().put("type", "section").putObject("text").put("type", "mrkdwn")
+                .put("text", "${emoji(kind)} *${AlertMessages.sectionTitle(kind)}* (${items.size})")
+            items.forEach { item ->
+                val line = AlertMessages.roomLine(item, m.sentAt, rule == null)
+                blocks.addObject().put("type", "section").putObject("text").put("type", "mrkdwn")
+                    .put("text", "*${escape(line.room)}* · ${line.temperature}  _(${escape(line.note)})_\n${escape(line.detail)}".take(3000))
+            }
+        }
+        val context = listOfNotNull(rule?.let { "Règle : ${escape(it)}" }, if (m.parts > 1) "partie ${m.part}/${m.parts}" else null, "ThermoBox").joinToString(" · ")
+        blocks.addObject().put("type", "context").putArray("elements").addObject().put("type", "mrkdwn").put("text", context)
+        return blocks
+    }
+
+    /** Slack's mrkdwn: & < > are escaped, the rest as written. */
+    private fun escape(text: String) = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    private fun emoji(k: DeliveryKind) = when (k) {
+        DeliveryKind.TRIGGERED -> ":red_circle:"
+        DeliveryKind.REMINDER -> ":large_orange_circle:"
+        DeliveryKind.RESOLVED -> ":large_green_circle:"
+        DeliveryKind.TEST -> ":large_blue_circle:"
+    }
+
+    private fun timestamp(m: AlertMessage) = m.sentAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString()
+
     /** The rules of the alerts of [m], for the footer of Discord. */
     private fun rules(m: AlertMessage): String = m.items.mapNotNull { it.event?.ruleName }.distinct().joinToString(", ").ifEmpty { m.values["rule"].orEmpty() }
 
-    private fun color(m: AlertMessage): Int = when (m.kind) {
-        ax.ibr.thermobox.common.alerts.DeliveryKind.TRIGGERED -> 0xD32F2F
-        ax.ibr.thermobox.common.alerts.DeliveryKind.REMINDER -> 0xF57C00
-        ax.ibr.thermobox.common.alerts.DeliveryKind.RESOLVED -> 0x388E3C
-        ax.ibr.thermobox.common.alerts.DeliveryKind.TEST -> 0x1976D2
+    private fun color(k: DeliveryKind): Int = when (k) {
+        DeliveryKind.TRIGGERED -> 0xD32F2F
+        DeliveryKind.REMINDER -> 0xF57C00
+        DeliveryKind.RESOLVED -> 0x388E3C
+        DeliveryKind.TEST -> 0x1976D2
     }
 
     companion object {
