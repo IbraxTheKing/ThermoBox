@@ -24,7 +24,23 @@
     <!-- Version written into the build (Business: thermobox-version.properties), read by the update
          system. The workflows pass the release tag: mvn -Dthermobox.version=26.11.0 … -->
     <thermobox.version>dev</thermobox.version>
+    <!-- One version of Jackson for every module, the one Jersey 4.0.2 is built with: a databind
+         of one version with a core of another fails at runtime (NoSuchMethodError in TokenBuffer,
+         a 500 on every change of setpoint once the log of the changes used valueToTree) -->
+    <jackson.version>2.19.1</jackson.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>

@@ -34,6 +34,17 @@ class AuditFilter : ContainerRequestFilter, ContainerResponseFilter {
 
     override fun filter(request: ContainerRequestContext) {
         val audited = audited() ?: return
+        try {
+            before(request, audited)
+        } catch (e: VirtualMachineError) {
+            throw e
+        } catch (e: Throwable) {
+            // The change goes on: the log never makes it fail (it will lack what was read here)
+            System.err.println("ThermoBox: change not fully logged (${audited.action}): $e")
+        }
+    }
+
+    private fun before(request: ContainerRequestContext, audited: Audited) {
         if (request.securityContext?.userPrincipal !is JwtPrincipal) return
         if (audited.body && LegacyApi.isJson(request.mediaType) && request.hasEntity()) {
             val original = request.entityStream
@@ -81,9 +92,11 @@ class AuditFilter : ContainerRequestFilter, ContainerResponseFilter {
                     details = AuditTargets.details(changes, before, place),
                 ),
             )
-        } catch (e: Exception) {
-            // The change is made: the log never makes it fail
-            System.err.println("ThermoBox: change not logged (${audited.action}): ${e.message}")
+        } catch (e: VirtualMachineError) {
+            throw e
+        } catch (e: Throwable) {
+            // The change is made: the log never makes it fail (a LinkageError of a library included)
+            System.err.println("ThermoBox: change not logged (${audited.action}): $e")
         }
     }
 
