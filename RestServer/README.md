@@ -41,11 +41,13 @@ RestServer/src/test/     ServerLogoTest
 2. Enregistre dans Jersey les paquets `resources`, `filters` et `exceptions` (toute classe annotée
    `@Path` ou `@Provider` qui s'y trouve est prise en compte automatiquement), et active la
    compression gzip des réponses (`EncodingFilter`) pour les clients qui l'acceptent.
-3. Démarre Jetty sur `THERMOBOX_HTTP_HOST:THERMOBOX_HTTP_PORT` (`localhost:8080` par défaut ; dans
-   Docker, `0.0.0.0`, sinon le serveur n'est joignable que depuis le conteneur).
+3. Démarre Jetty (`tls/HttpServers`) sur `THERMOBOX_HTTP_HOST` (`localhost` par défaut ; dans Docker,
+   `0.0.0.0`, sinon le serveur n'est joignable que depuis le conteneur) : HTTPS sur `THERMOBOX_HTTPS_PORT`
+   (8443), HTTP sur `THERMOBOX_HTTP_PORT` (8080) qui y redirige. Le certificat vient de `tls/TlsKeys`
+   (PEM, PKCS#12, ou auto-signé par `tls/SelfSignedCertificate`) ; voir [HTTPS](../README.md#https-2612).
 4. Lance l'écoute des boîtiers (`BusinessFactory.getDriver().listen()`) et le système de mises à jour
    (`start(RestComponent())`).
-5. À l'arrêt : arrêt des mises à jour et fermeture des connexions à la base.
+5. À l'arrêt : arrêt des mises à jour, de Jetty, et fermeture des connexions à la base.
 
 ### `resources/` — l'API
 

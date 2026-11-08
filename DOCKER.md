@@ -13,14 +13,24 @@ et `THERMOBOX_JWT_SECRET` (32 caractères minimum). Ajoutez aussi `.env` au `.gi
 
 | Service | Profil | URL / port |
 |---|---|---|
-| REST | toujours | http://localhost:8080 |
+| REST | toujours | https://localhost:8443 (http://localhost:8080 y redirige) |
 | MySQL | toujours | 127.0.0.1:3306 (machine locale uniquement) |
 | Mosquitto (MQTT) | `mqtt` | localhost:1883 |
 
-Les ports se changent dans `.env`.
+Les ports se changent dans `.env`. Le certificat HTTPS est auto-signé (créé dans le volume
+`thermobox_data`, son empreinte dans `docker compose logs rest`) ; pour le vôtre, montez-le et donnez
+`TLS_CERT` / `TLS_KEY` dans `.env` (chemins dans le conteneur), par exemple :
+
+```yaml
+  rest:
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+# .env : TLS_CERT=/etc/letsencrypt/live/thermobox.example.org/fullchain.pem
+#        TLS_KEY=/etc/letsencrypt/live/thermobox.example.org/privkey.pem
+```
 
 L'interface est le client Angular [Thermobox-Ng-Client](https://github.com/IbraxTheKing/Thermobox-Ng-Client)
-(branche `dev` pour l'instant), déployé à part avec `http://localhost:8080` comme API. L'interface JSF et
+(branche `dev` pour l'instant), déployé à part avec `https://localhost:8443` comme API. L'interface JSF et
 ses profils `tomcat` et `wildfly` ont été supprimés en 26.12 : après la mise à jour, arrêtez les anciens
 conteneurs avec `docker compose --profile tomcat --profile wildfly down --remove-orphans`.
 

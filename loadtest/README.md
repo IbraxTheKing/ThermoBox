@@ -20,7 +20,7 @@ nombre d'utilisateurs par paliers pour trouver la limite du serveur.
 # répartis sur les 100 premiers comptes du jeu huge
 k6 run -e USERS=100 loadtest/thermobox.js
 
-# Même chose avec Docker (Linux ; sous Windows / macOS : BASE_URL=http://host.docker.internal:8080)
+# Même chose avec Docker (Linux ; sous Windows / macOS : BASE_URL=https://host.docker.internal:8443)
 docker run --rm -i --network host -v "$PWD/loadtest:/loadtest" grafana/k6:0.54.0 \
   run -e USERS=100 /loadtest/thermobox.js
 
@@ -33,7 +33,7 @@ k6 run -e USERS=100 -e SCENARIO=steady -e VUS=50 -e THINK=0 loadtest/thermobox.j
 
 | Option (`-e`) | Défaut | Rôle |
 |---|---|---|
-| `BASE_URL` | `http://127.0.0.1:8080` | Le serveur testé |
+| `BASE_URL` | `https://127.0.0.1:8443` | Le serveur testé |
 | `USERS` | `admin` | Comptes, séparés par des virgules, ou un nombre N pour `usera`… (les N premiers du jeu huge) |
 | `PASSWORD` | `password123` | Leur mot de passe |
 | `SCENARIO` | `ramp` | `ramp` (paliers), `steady` (charge fixe) ou `enterprise` (une journée d'entreprise, voir [plus bas](#scénario-entreprise)) |
@@ -53,8 +53,8 @@ test plus long, augmentez-le sur le serveur de test.
 test le précise : une version plus ancienne de ThermoBox (avec son numéro), ou autre chose.
 
 ```bash
-curl -i http://127.0.0.1:8080/api/v2/server      # 26.12 et plus : {"name": "ThermoBox", "version": …}
-curl -i http://127.0.0.1:8080/api/server         # 26.11 et plus : la version, même sans /api/v2
+curl -ik https://127.0.0.1:8443/api/v2/server      # 26.12 et plus : {"name": "ThermoBox", "version": …}
+curl -ik https://127.0.0.1:8443/api/server         # 26.11 et plus : la version, même sans /api/v2
 docker compose logs rest | grep "REST server started"           # version réellement lancée
 docker compose exec rest cat /var/lib/thermobox/updates/current  # version installée depuis l'interface
 ```
@@ -187,7 +187,7 @@ k6 run -e USERS=2000 -e SCENARIO=enterprise -e EMPLOYEES=3000 loadtest/thermobox
 
 | Option | Défaut | Rôle |
 |---|---|---|
-| `--base` | `http://127.0.0.1:8080` | Le serveur REST, pour la liste de ses boîtiers |
+| `--base` | `https://127.0.0.1:8443` | Le serveur REST, pour la liste de ses boîtiers |
 | `--user`, `--password` | `admin`, `password123` | Un compte ADMIN qui voit tous les boîtiers |
 | `--broker` | `mqtt://127.0.0.1:1883` | Le broker que le serveur écoute (`--mqtt-user`, `--mqtt-password` s'il en demande) |
 | `--every` | `30` | Secondes entre deux mesures d'un boîtier |

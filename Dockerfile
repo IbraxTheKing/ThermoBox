@@ -20,7 +20,8 @@ RUN useradd --system --create-home --home-dir /home/thermobox thermobox \
 
 USER thermobox
 
-EXPOSE 8080
+# HTTPS, and HTTP which redirects to it
+EXPOSE 8443 8080
 
 ENV THERMOBOX_DB_URL='jdbc:mysql://mysql:3306/thermobox' \
     THERMOBOX_DB_USER='thermobox' \
