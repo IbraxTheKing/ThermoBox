@@ -47,7 +47,7 @@ class ChannelSender(
 
     private fun email(settings: EmailSettings, secret: ChannelSecrets, message: AlertMessage): SendResult {
         return try {
-            smtp.send(settings, secret.password, message.subject, message.text + FOOTER)
+            smtp.send(settings, secret.password, message.subject, message.text + FOOTER, AlertHtml.of(message, FOOTER))
             SendResult.Sent
         } catch (e: SmtpException) {
             if (e.permanent) SendResult.Failed(e.message ?: "Refused by the SMTP server") else SendResult.Retry(e.message ?: "SMTP error")

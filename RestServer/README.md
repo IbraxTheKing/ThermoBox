@@ -316,6 +316,12 @@ Canal webhook (`format` : `DISCORD`, `SLACK` ou `GENERIC`) :
 - `kind` ne change pas après la création.
 - Un webhook vers une adresse privée ou locale est refusé (400), sauf avec
   `THERMOBOX_ALERTS_ALLOW_PRIVATE_NETWORKS=true`.
+- Mise en page des messages (sans modèle propre au canal) : une salle par bloc de deux lignes
+  (« Salle — température (seuil) », puis le lieu et depuis quand), la règle une seule fois si
+  toutes les salles ont la même. Discord : un embed par section (dans sa couleur), un champ par
+  salle ; une seule salle : ses informations côte à côte. Slack : des blocs (Block Kit), le `text`
+  reste pour les notifications et les outils compatibles. Email : une version HTML à côté du texte.
+  Avec un modèle (`template`), le texte du modèle est envoyé tel quel.
 
 Règle :
 

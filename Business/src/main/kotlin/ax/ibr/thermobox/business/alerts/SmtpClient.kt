@@ -31,7 +31,8 @@ class SmtpClient(
     private val clientName: String = "thermobox",
 ) {
 
-    fun send(settings: EmailSettings, password: String?, subject: String, body: String) {
+    /** [html]: its HTML version too, beside the text (multipart/alternative). */
+    fun send(settings: EmailSettings, password: String?, subject: String, body: String, html: String? = null) {
         val recipients = settings.recipients
         require(recipients.isNotEmpty()) { "No recipient" }
         (listOf(settings.from) + recipients).forEach { require(Addresses.valid(it)) { "Invalid address: $it" } }
@@ -55,7 +56,7 @@ class SmtpClient(
             io.command("MAIL FROM:<${settings.from}>", 250)
             for (r in recipients) io.command("RCPT TO:<$r>", 250, 251)
             io.command("DATA", 354)
-            io.write(dotStuffed(message(settings, subject, body)) + "\r\n.\r\n")
+            io.write(dotStuffed(message(settings, subject, body, html)) + "\r\n.\r\n")
             io.expect(250)
             runCatching { io.command("QUIT", 221) }
         } finally {
@@ -96,7 +97,7 @@ class SmtpClient(
         }
     }
 
-    internal fun message(s: EmailSettings, subject: String, body: String): String {
+    internal fun message(s: EmailSettings, subject: String, body: String, html: String? = null): String {
         val from = s.fromName?.takeIf { it.isNotBlank() }?.let { "${encoded(it)} <${s.from}>" } ?: s.from
         val headers = listOf(
             "Date: " + DateTimeFormatter.RFC_1123_DATE_TIME.withLocale(Locale.ROOT).format(ZonedDateTime.now()),
@@ -105,13 +106,22 @@ class SmtpClient(
             "Subject: " + encoded(subject),
             "Message-ID: <${UUID.randomUUID()}@$clientName>",
             "MIME-Version: 1.0",
-            "Content-Type: text/plain; charset=UTF-8",
-            "Content-Transfer-Encoding: base64",
             "Auto-Submitted: auto-generated",
         )
-        val encodedBody = Base64.getMimeEncoder(76, "\r\n".toByteArray()).encodeToString(body.replace("\r\n", "\n").replace("\n", "\r\n").toByteArray(Charsets.UTF_8))
-        return headers.joinToString("\r\n") + "\r\n\r\n" + encodedBody
+        if (html == null) {
+            return (headers + part("text/plain", body)).joinToString("\r\n")
+        }
+        val boundary = "tb-" + UUID.randomUUID().toString().replace("-", "")
+        return (headers + "Content-Type: multipart/alternative; boundary=\"$boundary\"").joinToString("\r\n") + "\r\n\r\n" +
+            "--$boundary\r\n" + part("text/plain", body) + "\r\n" +
+            "--$boundary\r\n" + part("text/html", html) + "\r\n" +
+            "--$boundary--"
     }
+
+    /** The headers of a part, an empty line, its content in base64 (lines of 76 characters). */
+    private fun part(type: String, content: String): String =
+        "Content-Type: $type; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" +
+            Base64.getMimeEncoder(76, "\r\n".toByteArray()).encodeToString(content.replace("\r\n", "\n").replace("\n", "\r\n").toByteArray(Charsets.UTF_8))
 
     /** RFC 2047 « encoded word », only when needed (and never a line break: no header injection). */
     private fun encoded(text: String): String {

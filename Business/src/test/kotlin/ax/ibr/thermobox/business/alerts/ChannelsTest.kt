@@ -175,6 +175,58 @@ class ChannelsTest {
         assertEquals("sha256=" + WebhookSender.hmac("k", body), hook.requestHeaders.last()["x-thermobox-signature"])
     }
 
+    /** Two rooms over the threshold at once, under the same rule. */
+    private fun twoRooms(): AlertMessage {
+        fun event(id: Long, room: String, t: Float) = ax.ibr.thermobox.common.alerts.AlertEvent(
+            id = id, ruleId = 1, ruleName = "Tout le site", roomId = 100 + id, roomName = room, place = "Site 012 › Floor 1",
+            exceededSince = now.minusMinutes(2), triggeredAt = now, setpoint = 19f, threshold = 19f, temperature = t,
+        )
+        val entries = listOf(AlertMessages.Entry(1, DeliveryKind.TRIGGERED, event(1, "Room 104", 19.6f)), AlertMessages.Entry(2, DeliveryKind.TRIGGERED, event(2, "Room 101", 22.8f)))
+        return AlertMessages.digest(entries, "Discord", now, MessageLimits.DISCORD).single().first
+    }
+
+    @Test
+    fun `several rooms: two short lines each, the rule once`() {
+        val m = twoRooms()
+        assertTrue("• Room 101 — 22,8 °C (seuil 19,0 °C)\n  Site 012 › Floor 1 · depuis 11:58 (2 min)" in m.text, m.text)
+        assertTrue("Règle : Tout le site" in m.text, m.text)
+        assertFalse("règle Tout le site" in m.text, m.text)
+    }
+
+    @Test
+    fun `Discord and Slack lay several rooms out, a field or a block each`() {
+        val m = twoRooms()
+        val discord = webhooks.payload(WebhookSettings(WebhookFormat.DISCORD), m)
+        val embeds = discord.path("embeds")
+        assertEquals(2, embeds.size(), discord.toString())
+        assertEquals("Nouveaux dépassements (2)", embeds[1].path("title").asText())
+        assertEquals(listOf("Room 101 · 22,8 °C (seuil 19,0 °C)", "Room 104 · 19,6 °C (seuil 19,0 °C)"), embeds[1].path("fields").map { it.path("name").asText() })
+        assertEquals("Site 012 › Floor 1 · depuis 11:58 (2 min)", embeds[1].path("fields")[0].path("value").asText())
+
+        val slack = webhooks.payload(WebhookSettings(WebhookFormat.SLACK), m)
+        assertTrue(slack.path("text").asText().startsWith("*2 dépassements*"))
+        val blocks = slack.path("blocks").map { it.path("type").asText() }
+        assertEquals(listOf("header", "section", "section", "section", "context"), blocks)
+        assertTrue(slack.path("blocks")[2].path("text").path("text").asText().startsWith("*Room 101* · 22,8 °C"))
+
+        // One room: its facts side by side
+        val one = webhooks.payload(WebhookSettings(WebhookFormat.DISCORD), AlertMessages.of(DeliveryKind.TRIGGERED, m.items[0].event, "Discord", now))
+        assertEquals(listOf("Lieu", "Consigne", "Seuil", "Maximum", "Depuis"), one.path("embeds")[0].path("fields").map { it.path("name").asText() })
+    }
+
+    @Test
+    fun `an alert email has its HTML version beside its text`() = FakeSmtp().use { smtp ->
+        val m = twoRooms()
+        val html = AlertHtml.of(m, "Message automatique")!!
+        assertTrue("Room 104" in html && "Nouveaux dépassements (2)" in html && "<script" !in html)
+        SmtpClient(Duration.ofSeconds(5)).send(email(smtp.port), null, m.subject, m.text, html)
+        val raw = smtp.data.toString()
+        assertTrue("Content-Type: multipart/alternative; boundary=" in raw, raw)
+        assertTrue("Content-Type: text/plain; charset=UTF-8" in raw && "Content-Type: text/html; charset=UTF-8" in raw, raw)
+        // A channel with its own template: its text only
+        assertNull(AlertHtml.of(AlertMessages.of(DeliveryKind.TRIGGERED, m.items[0].event, "x", now, "{room}"), ""))
+    }
+
     @Test
     fun `webhook answers mean retry, wait, give up`() = FakeHook().use { hook ->
         val s = WebhookSettings(WebhookFormat.GENERIC)
