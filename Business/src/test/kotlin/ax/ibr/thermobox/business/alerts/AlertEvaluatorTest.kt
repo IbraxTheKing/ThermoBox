@@ -77,4 +77,30 @@ class AlertEvaluatorTest {
         val custom = AlertMessages.of(ax.ibr.thermobox.common.alerts.DeliveryKind.TRIGGERED, e, "x", now, "{type} {room} : {temperature} > {threshold} {unknown}")
         assertEquals("Dépassement Salle serveurs : 25,4 °C > 23,0 °C {unknown}", custom.text)
     }
+
+    @Test
+    fun `alerts of many rooms are split when they do not fit, most urgent first`() {
+        fun event(i: Int) = ax.ibr.thermobox.common.alerts.AlertEvent(
+            id = i.toLong(), ruleId = 1, ruleName = "Tout le site", roomId = 100L + i, roomName = "Salle %02d".format(i), place = "Bâtiment A",
+            exceededSince = now.minusMinutes(20), triggeredAt = now.minusMinutes(10), setpoint = 22f, threshold = 23f, temperature = 25f,
+        )
+        val kinds = listOf(ax.ibr.thermobox.common.alerts.DeliveryKind.RESOLVED, ax.ibr.thermobox.common.alerts.DeliveryKind.TRIGGERED)
+        val entries = (1..60).map { AlertMessages.Entry(it, kinds[it % 2], event(it)) }
+        val messages = AlertMessages.digest(entries, "Discord", now, MessageLimits.DISCORD)
+
+        assertTrue(messages.size > 1, "${messages.size} message(s)")
+        assertEquals((1..60).toSet(), messages.flatMap { it.second }.toSet())
+        messages.forEachIndexed { i, (m, keys) ->
+            assertTrue(m.text.length <= MessageLimits.DISCORD.chars, "${m.text.length}")
+            assertTrue(keys.size <= MessageLimits.DISCORD.items)
+            assertTrue(m.subject.endsWith("(${i + 1}/${messages.size})"), m.subject)
+        }
+        // The excesses before the returns to normal
+        assertEquals(ax.ibr.thermobox.common.alerts.DeliveryKind.TRIGGERED, messages.first().first.kind)
+        assertEquals(ax.ibr.thermobox.common.alerts.DeliveryKind.RESOLVED, messages.last().first.items.last().kind)
+
+        // One room: the detailed message, as before
+        val one = AlertMessages.digest(entries.take(1), "Discord", now, MessageLimits.DISCORD).single().first
+        assertEquals("[ThermoBox] Dépassement de température : Salle 01 (25,0 °C)", one.subject)
+    }
 }

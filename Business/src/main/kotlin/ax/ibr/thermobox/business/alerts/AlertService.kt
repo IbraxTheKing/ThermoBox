@@ -143,7 +143,7 @@ class AlertService(
     fun test(id: Long): AlertDelivery? {
         val channel = store.channel(id) ?: return null
         val now = clock()
-        val result = sender.send(channel, AlertMessages.of(DeliveryKind.TEST, null, channel.name, now))
+        val result = sender.send(channel, AlertMessages.of(DeliveryKind.TEST, null, channel.name, now, AlertMessages.templateOf(channel)))
         val d = AlertDelivery(eventId = null, channelId = channel.id, channelName = channel.name, kind = DeliveryKind.TEST, createdAt = now)
         return store.save(when (result) {
             SendResult.Sent -> d.copy(status = DeliveryStatus.SENT, attempts = 1, sentAt = now)

@@ -113,6 +113,20 @@ class AlertMonitorTest {
     }
 
     @Test
+    fun `the rooms in excess at once go in one message per channel`() {
+        rule({ it.copy(global = true, scope = emptyList(), minDurationSeconds = 0) })
+        run(5, 25f)                          // the servers' room and the office (30 °C) at once
+        assertEquals(2, store.activeEvents().size)
+        assertEquals(listOf("Astreinte", "Discord"), sent.map { it.first }.sorted())
+        sent.forEach { (_, m) ->
+            assertEquals(listOf("Bureau", "Salle serveurs"), m.items.map { it.event!!.roomName }.sorted())
+            assertEquals("[ThermoBox] 2 dépassements", m.subject)
+            assertTrue(m.text.contains("— Salle serveurs") && m.text.contains("— Bureau"), m.text)
+        }
+        assertTrue(store.deliveries.values.all { it.status == DeliveryStatus.SENT })
+    }
+
+    @Test
     fun `reminders while it lasts, and no resolution message when not wanted`() {
         rule({ it.copy(minDurationSeconds = 0, reminderSeconds = 1800, notifyResolution = false, channels = listOf(mail.id!!)) })
         run(65, 25f)

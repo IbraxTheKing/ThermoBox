@@ -328,21 +328,28 @@ Règle :
 La réponse donne `scope` et `channels` avec leurs noms (`{"id", "name", "kind"}`). `scope` : des
 bâtiments, étages ou salles, pas des boîtiers ; `global: true` pour toute l'installation.
 
-Webhook `GENERIC` : `POST` en JSON, en-têtes `X-ThermoBox-Event` (`TRIGGERED`, `REMINDER`,
-`RESOLVED`, `TEST`), `Authorization` et `X-ThermoBox-Signature: sha256=<HMAC-SHA256 du corps>` si
-définis :
+Webhook `GENERIC` : `POST` en JSON, en-têtes `X-ThermoBox-Event` (le plus urgent du message :
+`TRIGGERED`, `REMINDER`, `RESOLVED`, `TEST`), `Authorization` et
+`X-ThermoBox-Signature: sha256=<HMAC-SHA256 du corps>` si définis. Un message porte **toutes les
+salles** dues sur ce canal pendant un passage (`alerts`, chacune avec son `kind`) ; trop nombreuses,
+elles partent en plusieurs messages (`part` / `parts`). Un test a `alerts` vide :
 
 ```json
 { "source": "thermobox", "type": "temperature_alert", "kind": "TRIGGERED",
-  "subject": "[ThermoBox] Dépassement de température : Salle serveurs (25,4 °C)", "text": "…",
-  "sentAt": "2026-12-01T08:20:00",
-  "alert": { "id": 42, "state": "ACTIVE", "ruleId": 3, "rule": "Salles serveurs",
-             "room": { "id": 12, "name": "Salle serveurs", "place": "Bâtiment A › Étage 1" },
-             "temperature": 25.4, "peak": 25.4, "setpoint": 22.0, "threshold": 22.5,
-             "exceededSince": "2026-12-01T08:10:00", "triggeredAt": "2026-12-01T08:20:00",
-             "devices": [ { "id": 31, "name": "Baie 1", "exceeding": true, "temperature": 25.4,
-                            "at": "2026-12-01T08:19:30" } ] } }
+  "subject": "[ThermoBox] 2 dépassements, 1 retour à la normale", "text": "…",
+  "sentAt": "2026-12-01T08:20:00", "count": 3, "part": 1, "parts": 1,
+  "alerts": [
+    { "kind": "TRIGGERED", "id": 42, "state": "ACTIVE", "ruleId": 3, "rule": "Salles serveurs",
+      "room": { "id": 12, "name": "Salle serveurs", "place": "Bâtiment A › Étage 1" },
+      "temperature": 25.4, "peak": 25.4, "setpoint": 22.0, "threshold": 22.5,
+      "exceededSince": "2026-12-01T08:10:00", "triggeredAt": "2026-12-01T08:20:00",
+      "devices": [ { "id": 31, "name": "Baie 1", "exceeding": true, "temperature": 25.4,
+                     "at": "2026-12-01T08:19:30" } ] },
+    { "kind": "TRIGGERED", "id": 43, "…": "…" },
+    { "kind": "RESOLVED", "id": 40, "state": "RESOLVED", "resolvedAt": "2026-12-01T08:19:00", "…": "…" } ] }
 ```
+
+Avant 26.12.0-alpha.8, un message portait une seule salle, dans `alert`.
 
 ### Photos (`/api/v2/rooms/{id}/image`)
 | Méthode | Chemin | Description | Accès |

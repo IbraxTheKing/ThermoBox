@@ -40,18 +40,14 @@ class ChannelSender(
         }
         return when (channel.kind) {
             ChannelKind.EMAIL -> email(ChannelJson.email(channel.settings), secret, message)
-            ChannelKind.WEBHOOK -> {
-                val settings = ChannelJson.webhook(channel.settings)
-                val m = settings.template?.takeIf { it.isNotBlank() }?.let { message.copy(text = AlertMessages.render(it, message.values)) } ?: message
-                webhooks.send(settings, secret, m)
-            }
+            // The template of the channel is already in the text (AlertMessages, once per room)
+            ChannelKind.WEBHOOK -> webhooks.send(ChannelJson.webhook(channel.settings), secret, message)
         }
     }
 
     private fun email(settings: EmailSettings, secret: ChannelSecrets, message: AlertMessage): SendResult {
-        val text = settings.template?.takeIf { it.isNotBlank() }?.let { AlertMessages.render(it, message.values) } ?: message.text
         return try {
-            smtp.send(settings, secret.password, message.subject, text + FOOTER)
+            smtp.send(settings, secret.password, message.subject, message.text + FOOTER)
             SendResult.Sent
         } catch (e: SmtpException) {
             if (e.permanent) SendResult.Failed(e.message ?: "Refused by the SMTP server") else SendResult.Retry(e.message ?: "SMTP error")
