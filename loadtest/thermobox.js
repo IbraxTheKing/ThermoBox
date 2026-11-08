@@ -3,10 +3,10 @@
 // to see how many the server holds. See loadtest/README.md.
 //
 //   k6 run loadtest/thermobox.js
-//   k6 run -e BASE_URL=http://127.0.0.1:8080 -e SCENARIO=ramp -e USERS=usera,userb,userc loadtest/thermobox.js
+//   k6 run -e BASE_URL=https://127.0.0.1:8443 -e SCENARIO=ramp -e USERS=usera,userb,userc loadtest/thermobox.js
 //
 // Options (-e NAME=value):
-//   BASE_URL   server, http://127.0.0.1:8080 by default
+//   BASE_URL   server, https://127.0.0.1:8443 by default
 //   USERS      accounts to log in with, separated by commas ("admin" by default), or a number N for the
 //              N first accounts of DatabaseSeeder huge (usera, userb…)
 //   PASSWORD   their password, password123 by default (the seeded accounts)
@@ -34,7 +34,7 @@ import { Counter, Trend } from 'k6/metrics';
 
 // 127.0.0.1 rather than localhost: on Windows, localhost can mean ::1 (IPv6) first, where another
 // program may listen on the same port while the browser reaches the server through 127.0.0.1
-const BASE = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
+const BASE = (__ENV.BASE_URL || 'https://127.0.0.1:8443').replace(/\/$/, '');
 const PASSWORD = __ENV.PASSWORD || 'password123';
 const SCENARIO = __ENV.SCENARIO || 'ramp';
 const ENTERPRISE = SCENARIO === 'enterprise';
@@ -110,6 +110,8 @@ const main = scenarios[SCENARIO] || fail(`SCENARIO=${SCENARIO}: ramp, steady or 
 const mainSeconds = main.stages ? main.stages.reduce((t, s) => t + seconds(s.duration), 0) : seconds(main.duration);
 
 export const options = {
+  // The server's certificate is self-signed unless one is given (THERMOBOX_TLS_CERT)
+  insecureSkipTLSVerify: true,
   scenarios: {
     [SCENARIO]: main,
     // One more user, apart: reads the load of the server during the whole test
