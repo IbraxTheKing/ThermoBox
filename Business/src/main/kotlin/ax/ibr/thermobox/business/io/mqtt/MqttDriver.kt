@@ -10,6 +10,9 @@ import ax.ibr.thermobox.common.entities.Measurement
 import ax.ibr.thermobox.common.entities.Room
 import ax.ibr.thermobox.common.entities.RoomTempAttr
 import ax.ibr.utils.exceptions.NullException
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
+import org.eclipse.paho.client.mqttv3.IMqttMessageListener
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
@@ -33,6 +36,12 @@ import kotlin.getValue
  * - [subscriber] only receives; its listener writes nothing itself: the measurements go to
  *   [writers], a few threads, so Paho keeps reading and several are saved at once;
  * - [publisher] only sends the setpoints, and waits [PUBLISH_TIMEOUT_MS] at most for the broker.
+ *
+ * The subscriptions are made again each time [subscriber] connects: with a clean session, a broker
+ * that restarts (or a network cut) forgets them, and Paho's automatic reconnection does not make
+ * them again: the server then received nothing more, without any error. [listen] does not wait for
+ * the broker either: it connects in the background and tries again until the broker answers (a
+ * broker not up yet when the server starts, in Docker for one, stopped the start of the server).
  */
 class MqttDriver(
     private val brokerUrl: String = "tcp://localhost:1883",
@@ -41,20 +50,45 @@ class MqttDriver(
     private val brokerPassword: String? = null,
 ) : ProtocolDriver() {
 
-    private fun connected(id: String) = MqttClient(brokerUrl, id, MemoryPersistence()).apply {
-        connect(MqttConnectOptions().apply {
-            isCleanSession = true
-            isAutomaticReconnect = true
-            brokerUser?.let { userName = it }
-            brokerPassword?.let { password = it.toCharArray() }
-        })
+    private fun options() = MqttConnectOptions().apply {
+        isCleanSession = true
+        isAutomaticReconnect = true
+        connectionTimeout = CONNECT_TIMEOUT_S
+        brokerUser?.let { userName = it }
+        brokerPassword?.let { password = it.toCharArray() }
     }
 
-    /** Receives the announcements and the measurements. */
-    private val subscriber: MqttClient by lazy { connected(clientId) }
+    /** The topics listened to, and what to do with what arrives there: made again on each connection. */
+    private val subscriptions = java.util.concurrent.CopyOnWriteArrayList<Pair<String, IMqttMessageListener>>()
+
+    /** Receives the announcements and the measurements; connected by [connectInBackground]. */
+    private val subscriber: MqttClient by lazy {
+        MqttClient(brokerUrl, clientId, MemoryPersistence()).apply {
+            setCallback(object : MqttCallbackExtended {
+                // The first connection, and every reconnection after a cut: the broker forgot the
+                // subscriptions of a clean session
+                override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+                    if (reconnect) println("[MqttDriver] connection to $serverURI back: subscriptions made again")
+                    // Not on this thread: Paho completes the subscriptions on it, waiting for them
+                    // here would never end
+                    Thread(::subscribeAll, "thermobox-mqtt-subscribe").apply { isDaemon = true }.start()
+                }
+                override fun connectionLost(cause: Throwable?) {
+                    println("[MqttDriver] connection to the broker lost (${cause?.message}): reconnecting")
+                }
+                override fun messageArrived(topic: String?, message: MqttMessage?) = Unit
+                override fun deliveryComplete(token: IMqttDeliveryToken?) = Unit
+            })
+        }
+    }
 
     /** Sends the setpoints: never behind the measurements received. */
-    private val publisher: MqttClient by lazy { connected("$clientId-out").apply { timeToWait = PUBLISH_TIMEOUT_MS } }
+    private val publisher: MqttClient by lazy {
+        MqttClient(brokerUrl, "$clientId-out", MemoryPersistence()).apply {
+            connect(options())
+            timeToWait = PUBLISH_TIMEOUT_MS
+        }
+    }
 
     /**
      * Saves the measurements received. Past [QUEUE] waiting, the listener saves the next one
@@ -73,6 +107,10 @@ class MqttDriver(
         private const val QUEUE = 10_000
         /** A setpoint not acknowledged by the broker by then: the request ends (the setpoint is saved). */
         private const val PUBLISH_TIMEOUT_MS = 10_000L
+        /** Connecting to the broker: given up after this long (then tried again). */
+        private const val CONNECT_TIMEOUT_S = 5
+        /** First connection: tried again after 1 s, then twice as long each time, up to this. */
+        private const val RETRY_MAX_MS = 30_000L
 
         private const val TOPIC_ROOMS = "thermobox/rooms"
         private const val TOPIC_TEMPERATURES = "thermobox/temperatures/+"
@@ -84,21 +122,23 @@ class MqttDriver(
         private fun legacySetpointTopic(roomId: Long) = "thermobox/consignes/$roomId"
     }
 
+    /** Returns at once: the subscriptions are made once connected ([connectInBackground]). */
     override fun listen() {
         listenToRooms()
         listenToTemperatures()
+        connectInBackground()
     }
 
     override fun listenToRooms() {
         for (topic in listOf(TOPIC_ROOMS, LEGACY_TOPIC_ROOMS)) {
-            subscriber.subscribe(topic) { _, message ->
+            subscribe(topic) { _, message ->
                 registerDevice(String(message.payload).trim())
             }
         }
     }
 
     override fun listenToTemperatures() {
-        subscriber.subscribe(TOPIC_TEMPERATURES) { topic, message ->
+        subscribe(TOPIC_TEMPERATURES) { topic, message ->
             val roomId = topic.substringAfterLast("/").toLongOrNull() ?: return@subscribe
             val value = String(message.payload).trim().toFloatOrNull() ?: return@subscribe
             // Outside the limits chosen by an ADMIN: a sensor error, not a temperature
@@ -107,6 +147,38 @@ class MqttDriver(
             val at = LocalDateTime.now()
             writers.execute { runCatching { save(roomId, value, at) }.onFailure { println("[MqttDriver] measurement of $roomId not saved: ${it.message}") } }
         }
+    }
+
+    /** Listens to [topic]: now if connected, and again on every connection. */
+    private fun subscribe(topic: String, listener: IMqttMessageListener) {
+        subscriptions += topic to listener
+        if (subscriber.isConnected) runCatching { subscriber.subscribe(topic, listener) }
+    }
+
+    private fun subscribeAll() {
+        for ((topic, listener) in subscriptions) {
+            runCatching { subscriber.subscribe(topic, listener) }
+                .onFailure { println("[MqttDriver] subscription to $topic failed: ${it.message}") }
+        }
+    }
+
+    /**
+     * Connects [subscriber] on a thread of its own, trying again (1 s, 2 s, 4 s… up to 30 s) until
+     * the broker answers; afterwards Paho reconnects by itself after a cut ([options]).
+     */
+    private fun connectInBackground() {
+        Thread({
+            var wait = 1_000L
+            while (!subscriber.isConnected) {
+                try {
+                    subscriber.connect(options())
+                } catch (e: Exception) {
+                    println("[MqttDriver] broker $brokerUrl not reachable (${e.message}): next try in ${wait / 1000} s")
+                    Thread.sleep(wait)
+                    wait = (wait * 2).coerceAtMost(RETRY_MAX_MS)
+                }
+            }
+        }, "thermobox-mqtt-connect").apply { isDaemon = true }.start()
     }
 
     private fun save(roomId: Long, value: Float, at: LocalDateTime) {
