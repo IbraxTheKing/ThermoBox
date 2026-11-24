@@ -62,4 +62,11 @@ class HierarchieClimatTest {
         assertThrows(ImpossibleValueException::class.java) { ConsigneRules.check(150f) }
         assertThrows(ImpossibleValueException::class.java) { ConsigneRules.check(-20f) }
     }
+
+    @Test
+    fun `une consigne qui n'est pas un nombre est refusee`() {
+        assertThrows(ImpossibleValueException::class.java) { ConsigneRules.check(Float.NaN) }
+        assertThrows(ImpossibleValueException::class.java) { ConsigneRules.check(Float.POSITIVE_INFINITY) }
+        assertThrows(ImpossibleValueException::class.java) { ConsigneRules.check(Float.NEGATIVE_INFINITY) }
+    }
 }

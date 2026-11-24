@@ -2,6 +2,7 @@ package ax.ibr.thermobox.jsf.auth
 
 import ax.ibr.thermobox.business.security.Authenticator
 import ax.ibr.thermobox.business.security.JwtService
+import ax.ibr.thermobox.business.security.RateLimiter
 import ax.ibr.thermobox.common.entities.User
 import ax.ibr.thermobox.jsf.util.Faces
 import jakarta.enterprise.context.RequestScoped
@@ -46,12 +47,20 @@ class LoginBean {
         user?.id != null && user.id == currentUser?.id
 
     fun login(): String? {
+        // The same limit as the REST login, shared with it (one count per account)
+        if (RateLimiter.isBlocked(username)) {
+            password = ""
+            Faces.error("Trop de tentatives : réessayez dans une minute")
+            return null
+        }
         val user = Authenticator.authenticate(username, password)
         password = ""
         if (user == null) {
+            RateLimiter.recordFailure(username)
             Faces.error("Nom d'utilisateur ou mot de passe incorrect")
             return null
         }
+        RateLimiter.reset(username)
         val req = request()
         // The session only holds JSF view state now, but a fixed id must still not survive login.
         if (req.getSession(false) != null) req.changeSessionId()
