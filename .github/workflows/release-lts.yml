@@ -1,0 +1,98 @@
+name: Release LTS 26.10
+
+# Une version LTS 26.10 publiée à la main (tag 26.10.Z ou 26.10.Z-lts, créé depuis
+# release/26.10) reçoit ses fichiers : base.jar, RestServer.jar, JsfClient.war, l'archive des
+# trois et leurs empreintes SHA-256, construits depuis le tag avec son numéro de version inscrit
+# dedans (GET /api/server). Les notes de version restent celles écrites à la main.
+#
+# Pour une version déjà publiée sans fichiers (ex. 26.10.5-lts) : onglet Actions → ce workflow →
+# « Run workflow » sur la branche release/26.10, avec le tag.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag de la version LTS à compléter (ex. 26.10.5-lts)
+        required: true
+
+permissions:
+  contents: write          # joindre les fichiers à la release
+
+concurrency:
+  group: release-lts-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      # Seulement les tags 26.10.Z / 26.10.Z-lts ; les autres versions ont leur propre workflow
+      - name: Version
+        id: check
+        run: |
+          if [[ "$TAG" =~ ^v?26\.10\.[0-9]+(-lts)?$ ]]; then
+            version="${TAG#v}"
+            version="${version%-lts}"
+            echo "Version LTS : $TAG -> $version"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$TAG n'est pas une version LTS 26.10 : rien à faire."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.build == 'true'
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0   # pour vérifier que le tag vient de release/26.10
+
+      # Une LTS ne se construit que depuis sa branche : un tag 26.10.x posé ailleurs est refusé
+      - name: Le tag vient de release/26.10 ?
+        if: steps.check.outputs.build == 'true'
+        run: |
+          git fetch --no-tags origin release/26.10
+          if ! git merge-base --is-ancestor "$(git rev-parse "refs/tags/$TAG^{commit}")" FETCH_HEAD; then
+            echo "::error::$TAG ne pointe pas sur un commit de release/26.10"
+            exit 1
+          fi
+
+      - name: Installer le JDK 23
+        if: steps.check.outputs.build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      # Les tests ont besoin de MySQL et d'un broker MQTT, absents sur le runner : on compile et
+      # on package sans les lancer. Le profil "deploy" remplit deploy/ comme pour une mise en
+      # production.
+      - name: Compiler (Maven, profil deploy)
+        if: steps.check.outputs.build == 'true'
+        run: mvn -B -Pdeploy -DskipTests -Dthermobox.version="${{ steps.check.outputs.version }}" package
+
+      - name: Rassembler les livrables
+        if: steps.check.outputs.build == 'true'
+        run: |
+          version="${{ steps.check.outputs.version }}"
+          mkdir -p dist
+          for f in base.jar RestServer.jar JsfClient.war; do
+            test -s "deploy/$f" || { echo "::error::deploy/$f manquant"; exit 1; }
+            cp "deploy/$f" dist/
+          done
+          (cd dist && zip -q "thermobox-server-$version.zip" base.jar RestServer.jar JsfClient.war)
+          (cd dist && sha256sum base.jar RestServer.jar JsfClient.war "thermobox-server-$version.zip" > SHA256SUMS)
+          ls -l dist
+          cat dist/SHA256SUMS
+
+      # --clobber : relancer le workflow remplace les fichiers au lieu d'échouer
+      - name: Joindre les fichiers à la version
+        if: steps.check.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/* --clobber
