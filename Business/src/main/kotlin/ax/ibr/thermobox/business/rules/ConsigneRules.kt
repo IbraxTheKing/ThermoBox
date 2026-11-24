@@ -11,6 +11,10 @@ object ConsigneRules {
     private const val HOT_LIMIT = 50f
 
     fun check(value: Float) {
+        // NaN passes every comparison below: « ?value=NaN » was saved, and every average with it
+        if (!value.isFinite()) {
+            throw ImpossibleValueException("Consigne is not a number: $value")
+        }
         if (value >= IMPOSSIBLE_MAX || value <= IMPOSSIBLE_MIN) {
             throw ImpossibleValueException(
                 "Consigne is impossible to reach: $value C (min: $IMPOSSIBLE_MIN C, max: $IMPOSSIBLE_MAX C)"
