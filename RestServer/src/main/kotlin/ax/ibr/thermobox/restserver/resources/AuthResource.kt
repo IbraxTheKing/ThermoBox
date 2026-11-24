@@ -5,7 +5,7 @@ import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.restserver.dto.LoginRequest
 import ax.ibr.thermobox.restserver.dto.LoginResponse
 import ax.ibr.thermobox.restserver.dto.UserDto
-import ax.ibr.thermobox.restserver.security.JwtSecurityContext
+import ax.ibr.thermobox.restserver.security.currentToken
 import ax.ibr.thermobox.restserver.security.currentUser
 import ax.ibr.utils.rest.PublicEndpoint
 import jakarta.ws.rs.*
@@ -43,7 +43,7 @@ class AuthResource {
     @POST
     @Path("/logout")
     fun logout(@Context securityContext: SecurityContext): Response {
-        JwtService.revoke((securityContext as JwtSecurityContext).token)
+        JwtService.revoke(securityContext.currentToken)
         return Response.noContent().build()
     }
 

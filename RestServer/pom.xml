@@ -26,6 +26,13 @@
     </repositories>
 
     <build>
+        <!-- Filtered: thermobox-version.properties receives ${thermobox.version} (GET /api/server) -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
