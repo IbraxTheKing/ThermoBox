@@ -3,7 +3,9 @@
       xmlns:f="jakarta.faces.core"
       xmlns:h="jakarta.faces.html">
 <f:metadata>
-    <f:viewAction action="/app/index?faces-redirect=true"/>
+    <!-- Not a navigation outcome: Mojarra 4.0 throws a NullPointerException (ELFlash) when a
+         f:viewAction navigates; goHome redirects through the ExternalContext instead. -->
+    <f:viewAction action="#{loginBean.goHome}"/>
 </f:metadata>
 <h:head><title>Thermobox</title></h:head>
 <h:body/>
