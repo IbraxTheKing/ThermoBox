@@ -37,8 +37,11 @@ ThermoBox est une application de supervision thermique permettant la gestion des
 
 ### Lancement de l'API REST
 Pour lancer le serveur API, exécutez la classe principale du module `RestServer` depuis votre IDE ou via Maven en ciblant le module spécifique. Le serveur est accessible sur :
-- URL : http://localhost:8080/
+- URL : https://localhost:8443/ (http://localhost:8080/ redirige vers HTTPS)
 - Préfixe API : /api/v2 (voir [RestServer/README.md](RestServer/README.md))
+- Sans certificat donné, le serveur en crée un **auto-signé** au premier démarrage (dans `tls/` du dossier de
+  données) et affiche son empreinte SHA-256 : navigateurs et applications demandent de lui faire confiance.
+  Pour un vrai certificat, voir [HTTPS](#https-2612).
 
 ## Configuration (variables d'environnement)
 
@@ -58,7 +61,13 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_DRIVER` | `simulated` | `simulated` (boîtiers simulés) ou `mqtt` (vrais boîtiers) ; l'ancienne valeur `simule` est acceptée |
 | `THERMOBOX_MQTT_URL` | `tcp://localhost:1883` | Broker MQTT (`ssl://hôte:8883` pour TLS) |
 | `THERMOBOX_MQTT_USER` / `THERMOBOX_MQTT_PASSWORD` | *aucun* | Identifiants du broker, si demandés |
-| `THERMOBOX_HTTP_HOST` / `THERMOBOX_HTTP_PORT` | `localhost` / `8080` | Écoute du serveur REST |
+| `THERMOBOX_HTTP_HOST` | `localhost` | Adresse d'écoute du serveur REST (`0.0.0.0` : toutes) |
+| `THERMOBOX_HTTPS` | `true` | HTTPS ; `false` : HTTP seulement, comme avant 26.12 |
+| `THERMOBOX_HTTPS_PORT` / `THERMOBOX_HTTP_PORT` | `8443` / `8080` | Ports : l'API en HTTPS ; HTTP redirige vers HTTPS (308), `0` pour ne pas l'ouvrir |
+| `THERMOBOX_HTTP_REDIRECT` | `true` | `false` : HTTP sert aussi l'API (réseau de confiance, proxy qui ne parle que HTTP) |
+| `THERMOBOX_TLS_CERT` / `THERMOBOX_TLS_KEY` | *aucun* | Certificat (PEM, sa chaîne à la suite, ex. `fullchain.pem` de Let's Encrypt) et sa clé privée (PEM PKCS#8 ou RSA, sans mot de passe) ; relus d'eux-mêmes quand ils changent (renouvellement) |
+| `THERMOBOX_TLS_KEYSTORE` / `THERMOBOX_TLS_KEYSTORE_PASSWORD` | *aucun* | Ou un keystore PKCS#12 (`.p12`, `.pfx`) |
+| `THERMOBOX_TLS_HOSTNAMES` | *aucun* | Sans certificat donné : noms et adresses ajoutés au certificat auto-signé (`thermobox.lan,192.168.1.20`) |
 | `THERMOBOX_DATA_DIR` | `~/.thermobox` | Téléchargements et sauvegardes des mises à jour, réglages choisis par un administrateur (style d'affichage, logo, limites de température) |
 | `THERMOBOX_UPDATE_CHANNEL` / `_CHECK` / `THERMOBOX_GITHUB_TOKEN` | `stable` / `true` / *aucun* | Mises à jour (voir plus bas) |
 | `THERMOBOX_ADMIN_USERNAME` / `THERMOBOX_ADMIN_PASSWORD` | `admin` / *tiré au hasard* | Premier compte, créé seulement si la base n'a aucun utilisateur (voir plus bas) |
@@ -69,6 +78,29 @@ elles viennent de `.env` (voir `.env.example` et [DOCKER.md](DOCKER.md)).
 | `THERMOBOX_SECRETS_KEY` | `<données>/secrets.key` | Clé des secrets des canaux d'alerte (32 octets en Base64) |
 
 Une valeur invalide (`THERMOBOX_DRIVER=modbus`, une URL MQTT mal formée) arrête le démarrage avec un message clair plutôt que de repartir sur une valeur par défaut.
+
+## HTTPS (26.12)
+
+Le serveur REST démarre en **HTTPS** sur `THERMOBOX_HTTPS_PORT` (8443) ; `THERMOBOX_HTTP_PORT` (8080)
+répond `308 Permanent Redirect` vers la même adresse en HTTPS (méthode et corps gardés : un client qui
+appelle encore le port HTTP suit la redirection). TLS 1.2 et 1.3 seulement.
+
+Le certificat, dans cet ordre :
+1. `THERMOBOX_TLS_CERT` + `THERMOBOX_TLS_KEY` : certificat PEM (avec sa chaîne, `fullchain.pem`) et clé
+   privée PEM sans mot de passe (`privkey.pem`). Avec Let's Encrypt (certbot), donnez directement
+   `/etc/letsencrypt/live/<domaine>/fullchain.pem` et `privkey.pem` : le serveur relit les fichiers
+   d'heure en heure quand ils changent, un renouvellement est pris sans redémarrage ;
+2. `THERMOBOX_TLS_KEYSTORE` + `THERMOBOX_TLS_KEYSTORE_PASSWORD` : un keystore PKCS#12 ;
+3. sinon un certificat **auto-signé** (EC P-256, 825 jours), créé dans `tls/self-signed.p12` du dossier
+   de données et gardé d'un démarrage à l'autre (refait 30 jours avant sa fin, ou si un nom manque),
+   pour `localhost`, le nom de la machine, `THERMOBOX_HTTP_HOST` et `THERMOBOX_TLS_HOSTNAMES`. Son
+   empreinte SHA-256 est affichée au démarrage : comparez-la à celle que montre le navigateur ou
+   l'application avant de lui faire confiance.
+
+Derrière un reverse proxy (nginx, Traefik, Caddy) : faites-le appeler le port HTTPS, ou laissez-le
+appeler le port HTTP en envoyant `X-Forwarded-Proto: https` (la requête compte alors comme sécurisée,
+pas de redirection). `THERMOBOX_HTTP_REDIRECT=false` fait servir l'API aussi en HTTP ;
+`THERMOBOX_HTTP_PORT=0` ferme le port HTTP ; `THERMOBOX_HTTPS=false` revient au HTTP seul d'avant.
 
 ## Suppression de l'interface JSF (26.12)
 
@@ -204,6 +236,7 @@ updates/current                  version à lancer (lue par les lanceurs)
 updates/installation.json        dernière installation et ses étapes
 backups/                         sauvegardes de la base faites avant une mise à jour
 secrets.key                      clé des mots de passe SMTP et URL de webhooks enregistrés (alertes)
+tls/self-signed.p12, .password   certificat HTTPS auto-signé, quand aucun n'est donné (lisibles par le seul serveur)
 ```
 
 ## Stack Technique

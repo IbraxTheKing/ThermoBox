@@ -6,11 +6,12 @@ import ax.ibr.thermobox.business.security.JwtService
 import ax.ibr.thermobox.business.update.BuildInfo
 import ax.ibr.thermobox.business.users.FirstAdmin
 import ax.ibr.thermobox.restserver.update.RestComponent
-import org.glassfish.jersey.jetty.JettyHttpContainerFactory
+import ax.ibr.thermobox.restserver.tls.HttpServers
+import ax.ibr.thermobox.restserver.tls.SelfSignedCertificate
+import ax.ibr.thermobox.restserver.tls.TlsConfig
 import org.glassfish.jersey.message.GZipEncoder
 import org.glassfish.jersey.server.ResourceConfig
 import org.glassfish.jersey.server.filter.EncodingFilter
-import java.net.URI
 
 fun main() {
 
@@ -26,16 +27,17 @@ fun main() {
     // the curves shrinks about tenfold.
     EncodingFilter.enableFor(config, GZipEncoder::class.java)
 
-    // Local development: localhost:8080. In Docker, set THERMOBOX_HTTP_HOST=0.0.0.0, otherwise the
-    // server only listens on the container's loopback and is unreachable from outside.
-    val host = System.getenv("THERMOBOX_HTTP_HOST")?.takeIf { it.isNotBlank() } ?: "localhost"
-    val port = System.getenv("THERMOBOX_HTTP_PORT")?.toIntOrNull() ?: 8080
-    val baseUri = URI.create("http://$host:$port/")
-
-    val server = JettyHttpContainerFactory.createServer(
-        baseUri,
-        config
-    )
+    // HTTPS on 8443 (a certificate given, or a self-signed one made in the data folder), HTTP on
+    // 8080 redirecting to it; THERMOBOX_HTTPS=false: HTTP only (TlsConfig). In Docker, set
+    // THERMOBOX_HTTP_HOST=0.0.0.0, otherwise the server only listens on the container's loopback.
+    val tls = TlsConfig.fromEnvironment()
+    val http = HttpServers.start(config, tls)
+    http.keys?.let { k ->
+        println("ThermoBox: HTTPS certificate ${if (k.selfSigned) "self-signed (tls/ of the data folder)" else k.source}, " +
+            "for ${SelfSignedCertificate.namesOf(k.certificate).joinToString().ifEmpty { k.certificate.subjectX500Principal.name }}, until ${k.certificate.notAfter}")
+        println("ThermoBox: its SHA-256 fingerprint: ${k.fingerprint}")
+        if (k.selfSigned) println("ThermoBox: the clients will ask to trust it; give a certificate with THERMOBOX_TLS_CERT / THERMOBOX_TLS_KEY to avoid it")
+    }
 
     // An empty database: its first ADMIN account, with a provisional password (never printed)
     FirstAdmin.ensure()?.let(::println)
@@ -59,11 +61,12 @@ fun main() {
     // Release the database connection pool when the server stops.
     Runtime.getRuntime().addShutdownHook(Thread {
         alerts.stop()
+        http.stop()
         audit.stop()
         updates.stop()
         PersistenceFactory.close()
     })
 
-    println("ThermoBox ${BuildInfo.text} - REST server started on $baseUri (JWT lifetime: ${tokenTtl.toMinutes()} min)")
+    println("ThermoBox ${BuildInfo.text} - REST server started on ${http.urls.joinToString(", ")} (JWT lifetime: ${tokenTtl.toMinutes()} min)")
 
 }

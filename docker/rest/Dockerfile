@@ -53,6 +53,7 @@ USER thermobox
 # (docker-compose.yml / .env). An empty THERMOBOX_JWT_SECRET would crash the server
 # (JwtService needs at least 32 bytes when it is set).
 ENV THERMOBOX_HTTP_HOST=0.0.0.0 \
+    THERMOBOX_HTTPS_PORT=8443 \
     THERMOBOX_HTTP_PORT=8080 \
     THERMOBOX_DATA_DIR=/var/lib/thermobox \
     THERMOBOX_IMAGE_VERSION=${THERMOBOX_VERSION} \
@@ -61,7 +62,8 @@ ENV THERMOBOX_HTTP_HOST=0.0.0.0 \
 # machine's memory and keeps it. G1PeriodicGCInterval gives unused memory back when idle.
 # ExitOnOutOfMemoryError: a server short of memory stops (and is restarted) rather than limping on.
 
-EXPOSE 8080
+# HTTPS, and HTTP which redirects to it
+EXPOSE 8443 8080
 
 # Runs /app/RestServer.jar, or the version installed from the interface (updates/current),
 # and restarts the server when it stops for an update.

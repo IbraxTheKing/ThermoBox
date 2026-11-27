@@ -8,7 +8,7 @@
 //   node loadtest/devices.mjs --every 30 --duration 1h --broker mqtt://127.0.0.1:1883
 //
 // Options (--name value), or the environment variable in capitals (BROKER, EVERY…):
-//   --base        the REST server, to list its boxes (http://127.0.0.1:8080)
+//   --base        the REST server, to list its boxes (https://127.0.0.1:8443)
 //   --user, --password   an ADMIN account that sees every box (admin / password123)
 //   --broker      mqtt://host:port of the broker (mqtt://127.0.0.1:1883), with --mqtt-user,
 //                 --mqtt-password if it asks for them
@@ -38,7 +38,10 @@ function seconds(text) {
   return total;
 }
 
-const BASE = option('base', 'http://127.0.0.1:8080').replace(/\/$/, '');
+const BASE = option('base', 'https://127.0.0.1:8443').replace(/\/$/, '');
+// The server's own certificate is self-signed unless one is given (THERMOBOX_TLS_CERT): accepted
+// for a server of this machine only
+if (/^https:\/\/(127\.0\.0\.1|localhost|\[::1\])[:/]/.test(BASE + '/')) process.env.NODE_TLS_REJECT_UNAUTHORIZED ??= '0';
 const USER = option('user', 'admin');
 const PASSWORD = option('password', 'password123');
 const BROKER = new URL(option('broker', 'mqtt://127.0.0.1:1883'));
